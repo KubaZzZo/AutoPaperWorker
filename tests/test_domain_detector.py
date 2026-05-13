@@ -59,7 +59,17 @@ class TestProfileLoading:
         assert "numpy" in profile.core_libraries
 
     def test_ml_profiles_exist(self):
-        for domain_id in ["ml_vision", "ml_nlp", "ml_rl", "ml_generic"]:
+        for domain_id in [
+            "ml_vision",
+            "ml_nlp",
+            "ml_rl",
+            "ml_graph",
+            "ml_tabular",
+            "ml_generative",
+            "ml_compression",
+            "ml_recommendation",
+            "ml_generic",
+        ]:
             profile = get_profile(domain_id)
             assert profile is not None, f"Missing profile: {domain_id}"
 
@@ -116,6 +126,10 @@ class TestKeywordDetection:
         assert _keyword_detect("reinforcement learning policy gradient") == "ml_rl"
         assert _keyword_detect("actor-critic algorithm for robot control") == "ml_rl"
 
+    def test_ml_recommendation_keywords(self):
+        assert _keyword_detect("collaborative filtering recommender system") == "ml_recommendation"
+        assert _keyword_detect("implicit feedback matrix factorization ranking") == "ml_recommendation"
+
     def test_physics_keywords(self):
         assert _keyword_detect("molecular dynamics simulation with Lennard-Jones") == "physics_simulation"
         assert _keyword_detect("finite element method for Navier-Stokes equation") == "physics_pde"
@@ -169,6 +183,11 @@ class TestDetectDomain:
         profile = detect_domain("image classification on CIFAR-10")
         assert is_ml_domain(profile)
         assert profile.domain_id == "ml_vision"
+
+    def test_detect_ml_recommendation(self):
+        profile = detect_domain("collaborative filtering recommender system")
+        assert is_ml_domain(profile)
+        assert profile.domain_id == "ml_recommendation"
 
     def test_detect_physics(self):
         profile = detect_domain("molecular dynamics simulation of Lennard-Jones fluid")

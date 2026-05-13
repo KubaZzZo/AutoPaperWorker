@@ -1,0 +1,90 @@
+domain_id: ml_recommendation
+display_name: Recommendation Systems (ML)
+parent_domain: ml
+
+experiment_paradigm: comparison
+condition_terminology:
+  baseline: recommender baseline
+  proposed: proposed recommender
+  variant: ablation
+  input: user-item interactions
+  metric: ranking quality / prediction error
+
+typical_file_structure:
+  config.py: "Dataset, split strategy, model, and ranking metric settings"
+  data.py: "Interaction matrix loading, negative sampling, train/val/test splits"
+  model.py: "Recommendation model definitions"
+  train.py: "Training loop and validation ranking evaluation"
+  main.py: "Entry point: load interactions -> train -> rank -> report"
+
+entry_point: main.py
+
+core_libraries:
+  - torch
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+
+docker_image: researchclaw/sandbox-ml:latest
+gpu_required: true
+
+pip_packages:
+  - torch
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - tqdm
+
+metric_types:
+  - scalar
+  - table
+
+standard_baselines:
+  - popularity baseline
+  - item-kNN
+  - matrix factorization
+  - BPR
+  - neural collaborative filtering
+
+evaluation_protocol: "Use user-level train/validation/test splits. Report ranking metrics such as Recall@K, NDCG@K, MAP@K, and include simple popularity/item-kNN baselines."
+statistical_tests:
+  - paired_t_test
+  - bootstrap_ci
+
+output_formats:
+  - latex_table
+  - json
+
+figure_types:
+  - ranking_metric_bar_chart
+  - learning_curve
+  - calibration_plot
+
+github_search_terms:
+  - recommender system pytorch
+  - collaborative filtering matrix factorization
+  - implicit feedback recommendation
+  - bpr loss recommender
+
+paper_keywords:
+  - recommender systems
+  - collaborative filtering
+  - implicit feedback
+  - ranking
+  - personalization
+
+dataset_guidance: |
+  Recommendation experiments must split by user interaction history without
+  leaking held-out positives into training. For small tests, synthesize a
+  sparse user-item matrix with timestamps or per-user holdout items.
+
+code_generation_hints: |
+  Recommendation code should:
+  1. Build disjoint train/validation/test interactions per user
+  2. Include a non-neural popularity baseline and a matrix-factorization baseline
+  3. Evaluate ranking metrics with the same candidate set for all methods
+  4. Track negative sampling seeds and candidate construction
+  5. Save results.json with Recall@K, NDCG@K, MAP@K, and coverage metrics

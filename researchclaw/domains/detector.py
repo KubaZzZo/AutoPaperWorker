@@ -217,6 +217,9 @@ _KEYWORD_RULES: list[tuple[list[str], str]] = [
      "ml_tabular"),
     (["generative adversarial", "gan", "diffusion model", "vae",
       "variational autoencoder", "image generation"], "ml_generative"),
+    (["recommender", "recommendation", "collaborative filtering",
+      "matrix factorization", "implicit feedback", "ranking", "top-k",
+      "personalization"], "ml_recommendation"),
     # Neuroscience (before ML catch-all so "spiking neural" is not swallowed
     # by the "neural network" pattern in ml_generic)
     (["spiking neural", "spike train", "brian2", "hodgkin-huxley",
