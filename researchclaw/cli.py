@@ -21,6 +21,12 @@ from researchclaw.config import (
     resolve_config_path,
 )
 from researchclaw.health import print_doctor_report, run_doctor, write_doctor_report
+from researchclaw.llm import (
+    cli_provider_choices,
+    cli_provider_menu_lines,
+    provider_base_urls,
+    provider_model_defaults,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -647,80 +653,9 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     return 0
 
 
-_PROVIDER_CHOICES = {
-    "1": ("openai", "OPENAI_API_KEY"),
-    "2": ("openrouter", "OPENROUTER_API_KEY"),
-    "3": ("deepseek", "DEEPSEEK_API_KEY"),
-    "4": ("minimax", "MINIMAX_API_KEY"),
-    "5": ("volcengine", "VOLCENGINE_API_KEY"),
-    "6": ("volcengine-coding-plan", "VOLCENGINE_API_KEY"),
-    "7": ("byteplus", "BYTEPLUS_API_KEY"),
-    "8": ("byteplus-coding-plan", "BYTEPLUS_API_KEY"),
-    "9": ("acp", ""),
-}
-
-_PROVIDER_URLS = {
-    "openai": "https://api.openai.com/v1",
-    "openrouter": "https://openrouter.ai/api/v1",
-    "deepseek": "https://api.deepseek.com/v1",
-    "minimax": "https://api.minimaxi.com/v1",
-    "volcengine": "https://ark.cn-beijing.volces.com/api/v3",
-    "volcengine-coding-plan": "https://ark.cn-beijing.volces.com/api/coding/v3",
-    "byteplus": "https://ark.ap-southeast.bytepluses.com/api/v3",
-    "byteplus-coding-plan": "https://ark.ap-southeast.bytepluses.com/api/coding/v3",
-}
-
-_PROVIDER_MODELS = {
-    "openai": ("gpt-4o", ["gpt-4.1", "gpt-4o-mini"]),
-    "openrouter": (
-        "anthropic/claude-3.5-sonnet",
-        ["google/gemini-pro-1.5", "meta-llama/llama-3.1-70b-instruct"],
-    ),
-    "deepseek": ("deepseek-chat", ["deepseek-reasoner"]),
-    "minimax": ("MiniMax-M2.5", ["MiniMax-M2.5-highspeed"]),
-    "volcengine": (
-        "doubao-seed-2-0-pro-260215",
-        [
-            "doubao-seed-2-0-lite-260215",
-            "doubao-seed-2-0-mini-260215",
-            "doubao-seed-2-0-code-preview-260215",
-            "kimi-k2-5-260127",
-            "glm-4-7-251222",
-            "deepseek-v3-2-251201",
-        ],
-    ),
-    "volcengine-coding-plan": (
-        "doubao-seed-2.0-code",
-        [
-            "doubao-seed-2.0-pro",
-            "doubao-seed-2.0-lite",
-            "doubao-seed-code",
-            "minimax-m2.5",
-            "glm-4.7",
-            "deepseek-v3.2",
-            "kimi-k2.5",
-        ],
-    ),
-    "byteplus": (
-        "seed-2-0-pro-260328",
-        [
-            "seed-2-0-lite-260228",
-            "seed-2-0-mini-260215",
-            "kimi-k2-5-260127",
-            "glm-4-7-251222",
-        ],
-    ),
-    "byteplus-coding-plan": (
-        "dola-seed-2.0-pro",
-        [
-            "dola-seed-2.0-lite",
-            "bytedance-seed-code",
-            "glm-4.7",
-            "kimi-k2.5",
-            "gpt-oss-120b",
-        ],
-    ),
-}
+_PROVIDER_CHOICES = cli_provider_choices()
+_PROVIDER_URLS = provider_base_urls()
+_PROVIDER_MODELS = provider_model_defaults()
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -751,21 +686,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     choice = "1"
     if sys.stdin.isatty():
         print("Select LLM provider:")
-        print("  1) openai       (requires OPENAI_API_KEY)")
-        print("  2) openrouter   (requires OPENROUTER_API_KEY)")
-        print("  3) deepseek     (requires DEEPSEEK_API_KEY)")
-        print("  4) minimax      (requires MINIMAX_API_KEY)")
-        print("  5) volcengine   (requires VOLCENGINE_API_KEY)")
-        print(
-            "  6) volcengine-coding-plan"
-            " (requires VOLCENGINE_API_KEY)"
-        )
-        print("  7) byteplus     (requires BYTEPLUS_API_KEY)")
-        print(
-            "  8) byteplus-coding-plan"
-            " (requires BYTEPLUS_API_KEY)"
-        )
-        print("  9) acp          (local AI agent — no API key needed)")
+        for line in cli_provider_menu_lines():
+            print(line)
         try:
             raw = input("Choice [1]: ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -789,7 +711,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         )
         content = content.replace('api_key_env: "OPENAI_API_KEY"', 'api_key_env: ""')
     else:
-        base_url = _PROVIDER_URLS.get(provider, "https://api.openai.com/v1")
+        base_url = _PROVIDER_URLS.get(provider, _PROVIDER_URLS["openai"])
         content = content.replace(
             'base_url: "https://api.openai.com/v1"', f'base_url: "{base_url}"'
         )

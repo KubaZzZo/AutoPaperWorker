@@ -101,6 +101,8 @@
 ### 低 (LOW)
 
 #### 13. API 密钥硬编码 URL 路径
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] CLI provider choices, endpoint URLs, setup menu labels, and default model lists now derive from shared LLM provider metadata instead of standalone hardcoded CLI maps; regression coverage locks the CLI maps to the centralized presets.</span>
+
 - **文件:** `researchclaw/cli.py:658-667`
 - **问题:** `_PROVIDER_URLS` 和 `_PROVIDER_CHOICES` 包含硬编码的 API 端点 URL，如果服务迁移可能需要全局修改。
 - **建议:** 从配置文件读取，而非硬编码。

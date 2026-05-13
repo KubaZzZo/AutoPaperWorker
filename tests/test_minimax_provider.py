@@ -76,13 +76,14 @@ class TestMiniMaxPreset:
 class TestMiniMaxFromRCConfig:
     """Verify that LLMClient.from_rc_config resolves MiniMax preset."""
 
-    def test_from_rc_config_sets_minimax_base_url(self):
+    def test_from_rc_config_sets_minimax_base_url(self, monkeypatch):
+        monkeypatch.setenv("MINIMAX_API_KEY", "mk-test")
         rc_config = SimpleNamespace(
             llm=SimpleNamespace(
                 provider="minimax",
                 base_url="",
                 api_key="mk-test",
-                api_key_env="",
+                api_key_env="MINIMAX_API_KEY",
                 primary_model="MiniMax-M2.5",
                 fallback_models=("MiniMax-M2.5-highspeed",),
             ),

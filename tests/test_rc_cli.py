@@ -343,6 +343,18 @@ def test_cmd_init_supports_volcengine_coding_plan_choice(
     assert 'primary_model: "doubao-seed-2.0-code"' in content
 
 
+def test_cli_provider_defaults_are_derived_from_shared_llm_presets() -> None:
+    from researchclaw.llm import (
+        cli_provider_choices,
+        provider_base_urls,
+        provider_model_defaults,
+    )
+
+    assert rc_cli._PROVIDER_CHOICES == cli_provider_choices()
+    assert rc_cli._PROVIDER_URLS == provider_base_urls()
+    assert rc_cli._PROVIDER_MODELS == provider_model_defaults()
+
+
 def test_cmd_run_missing_config_shows_init_hint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
