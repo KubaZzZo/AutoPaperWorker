@@ -18,6 +18,7 @@ reproducibility updates were integrated.
 | Q22 train/validation overlap detection | Integrated | `check_data_split_overlap()` in `researchclaw/experiment/validator.py`; covered by validator tests |
 | Q23 loss direction detection | Integrated | `check_loss_direction()` flags wrong-sign metric, error, and penalty terms in generated losses |
 | Q25 capacity fairness detection | Integrated | `check_capacity_fairness()` detects obvious proposed-vs-baseline model capacity mismatches |
+| General domain profiles | Integrated | Added `chemistry_general`, `biology_general`, `mathematics_general`, and `economics_general` YAML profiles |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -28,7 +29,6 @@ reproducibility updates were integrated.
 | --- | --- | --- |
 | MCP SSE transport | Medium | `SSETransport.receive()` is still a stub. |
 | WebSocket synchronous HITL input | Medium | `WebSocketHITLAdapter.collect_input()` is intentionally not implemented. |
-| General domain profiles | Medium | Detector emits `chemistry_general`, `biology_general`, `mathematics_general`, `economics_general`; matching YAML profiles are still missing. |
 | Recommendation systems domain | Medium | Add `ml_recommendation` detector rules, profile, and skill coverage. |
 | Multi-GPU training | Medium | DeepSpeed/FSDP support is not wired into the main experiment path. |
 | Conference template expansion | Low | Add CVPR, ACL, AAAI, KDD, Nature/Science-style templates. |

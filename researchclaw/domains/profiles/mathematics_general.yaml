@@ -1,0 +1,79 @@
+domain_id: mathematics_general
+display_name: General Mathematics
+parent_domain: mathematics
+
+experiment_paradigm: proof_or_counterexample
+condition_terminology:
+  baseline: known result
+  proposed: proposed argument or construction
+  variant: assumption variant
+  input: mathematical object
+  metric: proof validity / counterexample success
+
+typical_file_structure:
+  config.py: "Problem assumptions and symbolic/numeric settings"
+  constructions.py: "Mathematical constructions or examples"
+  verification.py: "Symbolic and numeric checks"
+  analysis.py: "Result summaries and edge cases"
+  main.py: "Entry point: construct -> verify -> summarize -> report"
+
+entry_point: main.py
+
+core_libraries:
+  - sympy
+  - numpy
+  - scipy
+
+docker_image: researchclaw/sandbox-math:latest
+gpu_required: false
+
+pip_packages:
+  - sympy
+  - numpy
+  - scipy
+  - matplotlib
+
+metric_types:
+  - scalar
+  - structured
+
+standard_baselines:
+  - known theorem
+  - symbolic verification
+  - brute-force search
+  - numerical sanity check
+
+evaluation_protocol: "Check proposed mathematical claims against known special cases, symbolic simplifications, and finite counterexample searches."
+statistical_tests:
+  - exact_check
+  - counterexample_search
+
+output_formats:
+  - latex_table
+  - json
+
+figure_types:
+  - function_plot
+  - phase_plot
+  - construction_diagram
+
+github_search_terms:
+  - sympy theorem verification
+  - mathematical proof python
+  - counterexample search python
+
+paper_keywords:
+  - mathematics
+  - theorem
+  - proof
+
+dataset_guidance: |
+  Mathematics experiments usually define objects in code. Prefer small exact
+  symbolic examples plus finite searches over parameter ranges.
+
+code_generation_hints: |
+  General mathematics code should:
+  1. State assumptions in config.py
+  2. Verify claims on known special cases
+  3. Search for counterexamples before reporting support
+  4. Save results.json with exact checks and any counterexamples found

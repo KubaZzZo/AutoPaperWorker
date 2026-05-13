@@ -71,10 +71,14 @@ class TestProfileLoading:
     def test_other_domain_profiles_exist(self):
         for domain_id in [
             "mathematics_numerical",
+            "mathematics_general",
             "chemistry_qm",
             "chemistry_molprop",
+            "chemistry_general",
             "biology_singlecell",
+            "biology_general",
             "economics_empirical",
+            "economics_general",
             "security_detection",
             "robotics_control",
         ]:
@@ -148,6 +152,12 @@ class TestKeywordDetection:
         assert _keyword_detect("IMAGE CLASSIFICATION WITH RESNET") == "ml_vision"
         assert _keyword_detect("DFT Calculation") == "chemistry_qm"
 
+    def test_general_domain_keywords(self):
+        assert _keyword_detect("chemistry reaction catalyst design") == "chemistry_general"
+        assert _keyword_detect("biology omics pathway analysis") == "biology_general"
+        assert _keyword_detect("market equilibrium utility welfare") == "economics_general"
+        assert _keyword_detect("abstract algebra topology theorem") == "mathematics_general"
+
 
 # ---------------------------------------------------------------------------
 # detect_domain tests
@@ -175,6 +185,12 @@ class TestDetectDomain:
     def test_detect_generic_fallback(self):
         profile = detect_domain("studying the behavior of abstract systems")
         assert profile.domain_id == "generic"
+
+    def test_detect_general_profiles(self):
+        assert detect_domain("chemistry reaction catalyst design").domain_id == "chemistry_general"
+        assert detect_domain("biology omics pathway analysis").domain_id == "biology_general"
+        assert detect_domain("market equilibrium utility welfare").domain_id == "economics_general"
+        assert detect_domain("abstract algebra topology theorem").domain_id == "mathematics_general"
 
     def test_detect_domain_id_shortcut(self):
         domain_id = detect_domain_id("image classification")

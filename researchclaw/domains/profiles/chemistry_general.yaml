@@ -1,0 +1,83 @@
+domain_id: chemistry_general
+display_name: General Chemistry
+parent_domain: chemistry
+
+experiment_paradigm: comparison
+condition_terminology:
+  baseline: reference method
+  proposed: proposed chemical model
+  variant: condition variant
+  input: chemical system
+  metric: prediction error / yield / stability
+
+typical_file_structure:
+  config.py: "Chemical systems, descriptors, and evaluation settings"
+  data.py: "Molecule or reaction data generation/loading"
+  methods.py: "Chemistry method implementations"
+  analysis.py: "Metric computation and comparison"
+  main.py: "Entry point: prepare systems -> run methods -> compare -> report"
+
+entry_point: main.py
+
+core_libraries:
+  - rdkit
+  - numpy
+  - scipy
+  - pandas
+
+docker_image: researchclaw/sandbox-chemistry:latest
+gpu_required: false
+
+pip_packages:
+  - rdkit
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - matplotlib
+
+metric_types:
+  - scalar
+  - table
+
+standard_baselines:
+  - descriptor baseline
+  - random forest
+  - linear regression
+  - rule-based heuristic
+
+evaluation_protocol: "Evaluate all chemistry methods on the same molecule/reaction set with identical descriptors and report uncertainty where possible."
+statistical_tests:
+  - mae
+  - rmse
+  - paired_t_test
+
+output_formats:
+  - latex_table
+  - json
+
+figure_types:
+  - bar_chart
+  - scatter_plot
+  - calibration_plot
+
+github_search_terms:
+  - chemistry python rdkit
+  - reaction prediction python
+  - molecular descriptors sklearn
+
+paper_keywords:
+  - computational chemistry
+  - reaction modeling
+  - molecular descriptors
+
+dataset_guidance: |
+  Prefer small, reproducible molecule or reaction sets embedded in code for
+  smoke tests. When using external data, record source, version, and filters.
+
+code_generation_hints: |
+  General chemistry code should:
+  1. Use consistent molecule/reaction inputs across all methods
+  2. Validate SMILES or chemical identifiers before featurization
+  3. Report both average error and per-system results
+  4. Save results.json with method-level metrics

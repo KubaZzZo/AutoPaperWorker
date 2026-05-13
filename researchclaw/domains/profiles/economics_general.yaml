@@ -1,0 +1,82 @@
+domain_id: economics_general
+display_name: General Economics
+parent_domain: economics
+
+experiment_paradigm: progressive_spec
+condition_terminology:
+  baseline: simple economic model
+  proposed: full economic model
+  variant: robustness check
+  input: market or agent sample
+  metric: welfare / utility / fit statistic
+
+typical_file_structure:
+  config.py: "Economic assumptions, parameters, and scenarios"
+  data.py: "Synthetic market or agent data generation"
+  models.py: "Economic models and counterfactuals"
+  analysis.py: "Welfare, equilibrium, and robustness analysis"
+  main.py: "Entry point: simulate -> estimate -> evaluate -> report"
+
+entry_point: main.py
+
+core_libraries:
+  - numpy
+  - scipy
+  - pandas
+  - statsmodels
+
+docker_image: researchclaw/sandbox-economics:latest
+gpu_required: false
+
+pip_packages:
+  - numpy
+  - scipy
+  - pandas
+  - statsmodels
+  - matplotlib
+
+metric_types:
+  - scalar
+  - table
+
+standard_baselines:
+  - simple equilibrium model
+  - representative agent model
+  - reduced-form regression
+  - no-policy counterfactual
+
+evaluation_protocol: "Compare economic scenarios under shared assumptions, report welfare/utility outcomes and robustness to parameter changes."
+statistical_tests:
+  - sensitivity_analysis
+  - bootstrap_ci
+  - paired_t_test
+
+output_formats:
+  - regression_table
+  - latex_table
+
+figure_types:
+  - supply_demand_plot
+  - welfare_plot
+  - sensitivity_plot
+
+github_search_terms:
+  - economics simulation python
+  - equilibrium model scipy
+  - welfare analysis python
+
+paper_keywords:
+  - economics
+  - welfare analysis
+  - equilibrium
+
+dataset_guidance: |
+  Prefer synthetic economic scenarios with known parameters for reproducible
+  experiments. Document all assumptions and counterfactual interventions.
+
+code_generation_hints: |
+  General economics code should:
+  1. Define assumptions and parameters explicitly
+  2. Compare baseline and counterfactual scenarios fairly
+  3. Run sensitivity analysis over key parameters
+  4. Save results.json with welfare, utility, and robustness metrics

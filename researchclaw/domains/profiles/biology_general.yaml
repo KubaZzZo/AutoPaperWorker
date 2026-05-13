@@ -1,0 +1,84 @@
+domain_id: biology_general
+display_name: General Computational Biology
+parent_domain: biology
+
+experiment_paradigm: comparison
+condition_terminology:
+  baseline: standard analysis pipeline
+  proposed: proposed biological analysis method
+  variant: parameter variant
+  input: biological dataset
+  metric: accuracy / enrichment / effect size
+
+typical_file_structure:
+  config.py: "Dataset, preprocessing, and analysis parameters"
+  data.py: "Biological data loading or simulation"
+  methods.py: "Analysis methods and baselines"
+  analysis.py: "Statistics, biological interpretation, and plots"
+  main.py: "Entry point: load -> preprocess -> analyze -> report"
+
+entry_point: main.py
+
+core_libraries:
+  - biopython
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+
+docker_image: researchclaw/sandbox-biology:latest
+gpu_required: false
+
+pip_packages:
+  - biopython
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - matplotlib
+
+metric_types:
+  - scalar
+  - table
+
+standard_baselines:
+  - standard pipeline
+  - logistic regression
+  - random forest
+  - enrichment analysis
+
+evaluation_protocol: "Compare methods on identical biological samples/features, report replicate variability, and separate discovery from validation data."
+statistical_tests:
+  - paired_t_test
+  - mann_whitney_u
+  - fisher_exact
+
+output_formats:
+  - latex_table
+  - json
+
+figure_types:
+  - volcano_plot
+  - heatmap
+  - bar_chart
+
+github_search_terms:
+  - computational biology python
+  - bioinformatics biopython
+  - omics analysis python
+
+paper_keywords:
+  - computational biology
+  - bioinformatics
+  - omics
+
+dataset_guidance: |
+  Use small synthetic or bundled biological datasets for reproducible tests.
+  Keep train/validation splits disjoint for predictive analyses.
+
+code_generation_hints: |
+  General biology code should:
+  1. Keep preprocessing identical across methods
+  2. Track sample IDs to avoid leakage
+  3. Report biological and statistical effect sizes
+  4. Save results.json with method and sample-level summaries
