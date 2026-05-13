@@ -85,6 +85,8 @@
 - **建议:** 生产环境限制 CORS 源和允许的方法/头。
 
 #### 11. AgenticSandbox 配置注入风险
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] agent_install_cmd is now parsed into argv with shell metacharacter rejection and executed via docker exec without bash -c shell interpretation.</span>
+
 - **文件:** `researchclaw/experiment/agentic_sandbox.py:96-100`
 - **问题:** `agent_install_cmd` 通过 `bash -c` 执行，无验证。
 - **建议:** 验证配置字符串中的 shell 元字符，或使用列表形式参数。

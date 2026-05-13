@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shlex
 import subprocess
 import threading
 import time
@@ -24,6 +25,19 @@ logger = logging.getLogger(__name__)
 
 _CONTAINER_COUNTER = 0
 _counter_lock = threading.Lock()
+_UNSAFE_INSTALL_TOKENS = frozenset({
+    ";",
+    "&",
+    "&&",
+    "|",
+    "||",
+    "`",
+    "$(",
+    ">",
+    ">>",
+    "<",
+    "<<",
+})
 
 
 def _next_container_name() -> str:
@@ -31,6 +45,24 @@ def _next_container_name() -> str:
     with _counter_lock:
         _CONTAINER_COUNTER += 1
         return f"rc-agentic-{_CONTAINER_COUNTER}-{os.getpid()}"
+
+
+def _parse_agent_install_cmd(command: str) -> list[str]:
+    """Parse an agent install command into argv without allowing shell syntax."""
+    text = command.strip()
+    if not text:
+        return []
+    if any(token in text for token in _UNSAFE_INSTALL_TOKENS):
+        raise ValueError("agent_install_cmd contains unsafe shell syntax")
+    try:
+        parts = shlex.split(text, posix=(os.name != "nt"))
+    except ValueError as exc:
+        raise ValueError(f"Invalid agent_install_cmd: {exc}") from exc
+    if not parts:
+        return []
+    if any(any(token in part for token in _UNSAFE_INSTALL_TOKENS) for part in parts):
+        raise ValueError("agent_install_cmd contains unsafe shell syntax")
+    return parts
 
 
 @dataclass
@@ -89,14 +121,16 @@ class AgenticSandbox:
 
         start = time.monotonic()
         try:
+            install_args = _parse_agent_install_cmd(self.config.agent_install_cmd)
+
             # 1. Start the container
             self._start_container(container, workspace)
 
             # 2. Install agent CLI
-            if self.config.agent_install_cmd:
-                self._docker_exec(
+            if install_args:
+                self._docker_exec_args(
                     container,
-                    self.config.agent_install_cmd,
+                    install_args,
                     timeout=min(300, timeout),
                 )
 
@@ -211,6 +245,25 @@ class AgenticSandbox:
     ) -> subprocess.CompletedProcess[str]:
         """Run a command inside the container."""
         cmd = ["docker", "exec", container, "bash", "-c", command]
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
+        )
+
+    def _docker_exec_args(
+        self,
+        container: str,
+        args: list[str],
+        *,
+        timeout: int = 300,
+    ) -> subprocess.CompletedProcess[str]:
+        """Run argv inside the container without shell interpretation."""
+        cmd = ["docker", "exec", container, *args]
         return subprocess.run(
             cmd,
             capture_output=True,
