@@ -36,9 +36,6 @@ reproducibility updates were integrated.
 
 ## Suggested Next Order
 
-1. Add Q22/Q23/Q25 programmatic experiment quality checks.
-2. Add the four missing `*_general` domain profiles.
-3. Implement MCP SSE transport for remote tool use.
-4. Implement or document the WebSocket synchronous HITL path.
-5. Add `ml_recommendation` domain support.
-6. Expand conference templates.
+1. Expand conference templates for CVPR, ACL, AAAI, KDD, Nature, and Science-style exports.
+2. Add multilingual paper generation options for non-English manuscripts.
+3. Design the Multi-GPU training integration path for DeepSpeed/FSDP.
