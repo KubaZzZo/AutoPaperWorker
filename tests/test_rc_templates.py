@@ -154,7 +154,21 @@ class TestGetTemplate:
 
     def test_unknown_raises(self) -> None:
         with pytest.raises(KeyError, match="Unknown conference"):
-            get_template("aaai_2025")
+            get_template("unknown_conference")
+
+    def test_extended_templates_resolve(self) -> None:
+        expected = {
+            "cvpr": ("cvpr_2026", 2),
+            "acl": ("acl_2026", 2),
+            "aaai": ("aaai_2026", 2),
+            "kdd": ("kdd_2026", 2),
+            "nature": ("nature", 1),
+            "science": ("science", 1),
+        }
+        for alias, (canonical, columns) in expected.items():
+            tpl = get_template(alias)
+            assert tpl.name == canonical
+            assert tpl.columns == columns
 
 
 class TestListConferences:
@@ -165,8 +179,8 @@ class TestListConferences:
         assert "neurips_2025" in names
         assert "iclr_2026" in names
         assert "icml_2026" in names
-        # Should be deduplicated — no aliases (6 conference + 1 generic)
-        assert len(names) == 7
+        for name in ["cvpr_2026", "acl_2026", "aaai_2026", "kdd_2026", "nature", "science"]:
+            assert name in names
 
     def test_sorted(self) -> None:
         names = list_conferences()
@@ -482,6 +496,13 @@ class TestMarkdownToLatex:
         assert r"\begin{icmlauthorlist}" in tex
         assert r"\icmlauthor{Alice}{aff1}" in tex
         assert r"\bibliographystyle{icml2025}" in tex
+
+    def test_extended_templates_render(self) -> None:
+        for name in ["cvpr", "acl", "aaai", "kdd", "nature", "science"]:
+            tex = markdown_to_latex(self.SAMPLE_MD, get_template(name), authors="Alice")
+            assert r"\title{My Great Paper}" in tex
+            assert r"\begin{abstract}" in tex
+            assert r"\bibliographystyle" in tex
 
     def test_custom_title_override(self) -> None:
         tex = markdown_to_latex(

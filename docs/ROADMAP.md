@@ -22,6 +22,7 @@ reproducibility updates were integrated.
 | MCP SSE transport | Integrated | `SSETransport` now supports queued JSON-RPC receive and SSE data-frame send semantics |
 | WebSocket synchronous HITL input | Integrated | `WebSocketHITLAdapter.collect_input()` now uses waiting/response file IPC for blocking pipeline callbacks |
 | Recommendation systems domain | Integrated | Added `ml_recommendation` detector rules and domain profile |
+| Conference template expansion | Integrated | Added CVPR, ACL, AAAI, KDD, Nature-style, and Science-style export templates |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -31,11 +32,9 @@ reproducibility updates were integrated.
 | Item | Priority | Notes |
 | --- | --- | --- |
 | Multi-GPU training | Medium | DeepSpeed/FSDP support is not wired into the main experiment path. |
-| Conference template expansion | Low | Add CVPR, ACL, AAAI, KDD, Nature/Science-style templates. |
 | Multilingual paper generation | Low | Docs are localized; paper generation remains English-first. |
 
 ## Suggested Next Order
 
-1. Expand conference templates for CVPR, ACL, AAAI, KDD, Nature, and Science-style exports.
-2. Add multilingual paper generation options for non-English manuscripts.
-3. Design the Multi-GPU training integration path for DeepSpeed/FSDP.
+1. Add multilingual paper generation options for non-English manuscripts.
+2. Design the Multi-GPU training integration path for DeepSpeed/FSDP.

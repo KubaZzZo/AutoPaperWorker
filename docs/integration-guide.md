@@ -523,8 +523,14 @@ export:
 | ICLR 2025 | `iclr_2025` | Single-column, `iclr2025_conference` style |
 | ICML 2026 | `icml_2026` | Double-column, `icml2026` style |
 | ICML 2025 | `icml_2025` | Double-column, `icml2025` style |
+| CVPR 2026 | `cvpr_2026` | Double-column, `cvpr` review style |
+| ACL 2026 | `acl_2026` | Double-column, `acl` review style |
+| AAAI 2026 | `aaai_2026` | Double-column, `aaai2026` style |
+| KDD 2026 | `kdd_2026` | Double-column, ACM proceedings style |
+| Nature-style | `nature` | Single-column manuscript style |
+| Science-style | `science` | Single-column manuscript style |
 
-Short aliases are also accepted: `neurips` (→ 2025), `iclr` (→ 2026), `icml` (→ 2026).
+Short aliases are also accepted: `neurips` (2025), `iclr` (2026), `icml` (2026), `cvpr`, `acl`, `aaai`, and `kdd`.
 
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)
