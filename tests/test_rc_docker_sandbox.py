@@ -10,7 +10,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from researchclaw.config import DockerSandboxConfig, ExperimentConfig
+from researchclaw.config import (
+    DistributedTrainingConfig,
+    DockerSandboxConfig,
+    ExperimentConfig,
+)
 from researchclaw.experiment.docker_sandbox import DockerSandbox, _next_container_name
 from researchclaw.experiment.factory import create_sandbox
 from researchclaw.experiment.sandbox import SandboxResult
@@ -138,6 +142,76 @@ def test_build_run_command_forwards_entry_args_and_env(tmp_path: Path):
     assert cmd[-3:] == ["main.py", "--foo", "bar"]
 
 
+def test_build_run_command_uses_torchrun_when_distributed_enabled(tmp_path: Path):
+    cfg = DockerSandboxConfig(
+        network_policy="none",
+        distributed=DistributedTrainingConfig(
+            enabled=True,
+            launcher="torchrun",
+            strategy="fsdp",
+            num_nodes=1,
+            gpus_per_node=2,
+        ),
+    )
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-distributed",
+        entry_args=["--epochs", "1"],
+    )
+
+    assert cmd[-6:] == [
+        "torchrun",
+        "--nnodes=1",
+        "--nproc_per_node=2",
+        "main.py",
+        "--epochs",
+        "1",
+    ]
+
+
+def test_build_run_command_uses_accelerate_launcher(tmp_path: Path):
+    cfg = DockerSandboxConfig(
+        network_policy="none",
+        distributed=DistributedTrainingConfig(
+            enabled=True,
+            launcher="accelerate",
+            gpus_per_node=2,
+        ),
+    )
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-accelerate",
+    )
+
+    assert cmd[-4:] == ["accelerate", "launch", "--num_processes=2", "main.py"]
+
+
+def test_build_run_command_uses_deepspeed_launcher(tmp_path: Path):
+    cfg = DockerSandboxConfig(
+        network_policy="none",
+        distributed=DistributedTrainingConfig(
+            enabled=True,
+            launcher="deepspeed",
+            gpus_per_node=4,
+        ),
+    )
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-deepspeed",
+    )
+
+    assert cmd[-3:] == ["deepspeed", "--num_gpus=4", "main.py"]
+
+
 # ── Harness injection ─────────────────────────────────────────────────
 
 
@@ -169,6 +243,24 @@ def test_factory_returns_docker_sandbox(mock_avail, mock_image, tmp_path: Path):
     config = ExperimentConfig(mode="docker")
     sandbox = create_sandbox(config, tmp_path / "work")
     assert isinstance(sandbox, DockerSandbox)
+
+
+@patch("researchclaw.experiment.docker_sandbox.DockerSandbox.ensure_image", return_value=True)
+@patch("researchclaw.experiment.docker_sandbox.DockerSandbox.check_docker_available", return_value=True)
+def test_factory_injects_distributed_config_into_docker_sandbox(
+    mock_avail, mock_image, tmp_path: Path
+):
+    distributed = DistributedTrainingConfig(
+        enabled=True,
+        launcher="torchrun",
+        gpus_per_node=2,
+    )
+    config = ExperimentConfig(mode="docker", distributed=distributed)
+
+    sandbox = create_sandbox(config, tmp_path / "work")
+
+    assert isinstance(sandbox, DockerSandbox)
+    assert sandbox.config.distributed == distributed
 
 
 @patch("researchclaw.experiment.docker_sandbox.DockerSandbox.check_docker_available", return_value=False)

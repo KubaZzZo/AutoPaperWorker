@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from researchclaw.config import ExperimentConfig
@@ -24,7 +25,7 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
     if config.mode == "docker":
         from researchclaw.experiment.docker_sandbox import DockerSandbox
 
-        docker_cfg = config.docker
+        docker_cfg = replace(config.docker, distributed=config.distributed)
 
         if not DockerSandbox.check_docker_available():
             logger.warning(
@@ -47,7 +48,7 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
     if config.mode == "ssh_remote":
         from researchclaw.experiment.ssh_sandbox import SshRemoteSandbox
 
-        ssh_cfg = config.ssh_remote
+        ssh_cfg = replace(config.ssh_remote, distributed=config.distributed)
         if not ssh_cfg.host:
             raise RuntimeError(
                 "ssh_remote mode requires experiment.ssh_remote.host in config."

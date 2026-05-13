@@ -23,7 +23,7 @@ import threading
 import time
 from pathlib import Path
 
-from researchclaw.config import DockerSandboxConfig
+from researchclaw.config import DistributedTrainingConfig, DockerSandboxConfig
 from researchclaw.experiment.sandbox import (
     SandboxResult,
     parse_metrics,
@@ -88,6 +88,42 @@ _IMPORT_TO_PIP = {
     "wandb": "wandb",
     "optuna": "optuna",
 }
+
+
+def _distributed_launcher_args(
+    distributed: DistributedTrainingConfig,
+    entry_point: str,
+) -> list[str]:
+    """Return argv for the configured distributed launcher."""
+    if not distributed.enabled:
+        return [entry_point]
+
+    launcher = distributed.launcher.strip().lower()
+    num_nodes = max(1, int(distributed.num_nodes))
+    gpus_per_node = max(1, int(distributed.gpus_per_node))
+
+    if launcher == "torchrun":
+        return [
+            "torchrun",
+            f"--nnodes={num_nodes}",
+            f"--nproc_per_node={gpus_per_node}",
+            entry_point,
+        ]
+    if launcher == "accelerate":
+        return [
+            "accelerate",
+            "launch",
+            f"--num_processes={num_nodes * gpus_per_node}",
+            entry_point,
+        ]
+    if launcher == "deepspeed":
+        return ["deepspeed", f"--num_gpus={gpus_per_node}", entry_point]
+
+    logger.warning(
+        "Unsupported distributed launcher %r; falling back to python entry point.",
+        distributed.launcher,
+    )
+    return [entry_point]
 
 
 class DockerSandbox:
@@ -500,9 +536,14 @@ class DockerSandbox:
                 safe_value = str(value).replace("\x00", "")
                 cmd.extend(["-e", f"{name}={safe_value}"])
 
+        launch_args = _distributed_launcher_args(cfg.distributed, entry_point)
+        if cfg.distributed.enabled:
+            cmd.extend(["-e", "RC_DISTRIBUTED_LAUNCH=1"])
+            cmd.extend(["-e", f"RC_DISTRIBUTED_STRATEGY={cfg.distributed.strategy}"])
+
         # Image + entry point (passed as CMD arg to entrypoint.sh)
         cmd.append(cfg.image)
-        cmd.append(entry_point)
+        cmd.extend(launch_args)
         if entry_args:
             cmd.extend(entry_args)
 

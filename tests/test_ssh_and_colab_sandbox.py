@@ -12,6 +12,7 @@ from unittest import mock
 import pytest
 
 from researchclaw.config import (
+    DistributedTrainingConfig,
     ColabDriveConfig,
     ExperimentConfig,
     SandboxConfig,
@@ -163,6 +164,43 @@ class TestSshRemoteSandboxCommands:
         sb = SshRemoteSandbox(cfg, tmp_path)
         cmd = sb._build_docker_exec_cmd("/tmp/rc-test", entry_point="main.py")
         assert "--network" not in cmd
+
+    def test_bare_exec_cmd_uses_torchrun_when_distributed_enabled(self, tmp_path: Path):
+        cfg = SshRemoteConfig(
+            host="server",
+            user="test",
+            gpu_ids=(0, 1),
+            distributed=DistributedTrainingConfig(
+                enabled=True,
+                launcher="torchrun",
+                num_nodes=1,
+                gpus_per_node=2,
+            ),
+        )
+        sb = SshRemoteSandbox(cfg, tmp_path)
+        cmd = sb._build_bare_exec_cmd(
+            "/tmp/rc-test",
+            entry_point="main.py",
+            args=["--epochs", "1"],
+        )
+        assert "torchrun --nnodes=1 --nproc_per_node=2 main.py --epochs 1" in cmd
+
+    def test_docker_exec_cmd_uses_accelerate_when_distributed_enabled(
+        self, tmp_path: Path
+    ):
+        cfg = SshRemoteConfig(
+            host="server",
+            user="test",
+            use_docker=True,
+            distributed=DistributedTrainingConfig(
+                enabled=True,
+                launcher="accelerate",
+                gpus_per_node=2,
+            ),
+        )
+        sb = SshRemoteSandbox(cfg, tmp_path)
+        cmd = sb._build_docker_exec_cmd("/tmp/rc-test", entry_point="main.py")
+        assert cmd.endswith("accelerate launch --num_processes=2 main.py")
 
 
 # ── Entry point path traversal validation ─────────────────────────────
@@ -407,6 +445,29 @@ class TestFactoryIntegration:
         )
         with pytest.raises(RuntimeError, match="SSH connectivity"):
             create_sandbox(cfg, tmp_path)
+
+    @mock.patch(
+        "researchclaw.experiment.ssh_sandbox.SshRemoteSandbox.check_ssh_available",
+        return_value=(True, "ok"),
+    )
+    def test_factory_injects_distributed_config_into_ssh_sandbox(
+        self, _mock_check, tmp_path: Path
+    ):
+        distributed = DistributedTrainingConfig(
+            enabled=True,
+            launcher="deepspeed",
+            gpus_per_node=2,
+        )
+        cfg = _make_experiment_config(
+            mode="ssh_remote",
+            ssh_remote=SshRemoteConfig(host="server"),
+            distributed=distributed,
+        )
+
+        sandbox = create_sandbox(cfg, tmp_path)
+
+        assert isinstance(sandbox, SshRemoteSandbox)
+        assert sandbox.config.distributed == distributed
 
     def test_colab_drive_requires_root(self, tmp_path: Path):
         cfg = _make_experiment_config(

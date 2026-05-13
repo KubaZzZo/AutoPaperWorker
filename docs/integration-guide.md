@@ -542,10 +542,9 @@ Chinese paper draft or `paper_language: "Japanese"` for a Japanese draft.
 ### Multi-GPU Training Guidance
 
 Use `experiment.distributed` to ask the Stage 10 code generator for a
-distributed-training implementation. This currently injects DeepSpeed/FSDP/DDP
-guidance and requires generated code to include a single-GPU fallback; execution
-backends still run the generated entry point normally unless you add a custom
-launcher.
+distributed-training implementation. It injects DeepSpeed/FSDP/DDP guidance,
+requires generated code to include a single-GPU fallback, and wires Docker plus
+SSH execution backends to the selected launcher when `enabled: true`.
 
 ```yaml
 experiment:
@@ -556,6 +555,16 @@ experiment:
     num_nodes: 1
     gpus_per_node: 2
 ```
+
+Launcher behavior:
+- `torchrun` runs `torchrun --nnodes=<num_nodes> --nproc_per_node=<gpus_per_node> <entry_point>`.
+- `accelerate` runs `accelerate launch --num_processes=<num_nodes * gpus_per_node> <entry_point>`.
+- `deepspeed` runs `deepspeed --num_gpus=<gpus_per_node> <entry_point>`.
+
+The Docker sandbox preserves the three-phase entrypoint flow: package install,
+optional setup script, network cutoff, then distributed launch. SSH bare mode
+uses the same launcher inside the existing remote isolation wrapper. SSH Docker
+mode launches inside the remote container directly.
 
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)

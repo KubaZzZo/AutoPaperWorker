@@ -24,6 +24,7 @@ from researchclaw.experiment.sandbox import (
     validate_entry_point,
     validate_entry_point_resolved,
 )
+from researchclaw.experiment.docker_sandbox import _distributed_launcher_args
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,9 @@ class SshRemoteSandbox:
         rd = shlex.quote(remote_dir)
         ep = shlex.quote(entry_point)
         py = shlex.quote(cfg.remote_python)
+        launch_args = _distributed_launcher_args(cfg.distributed, entry_point)
+        launch_text = " ".join(shlex.quote(arg) for arg in launch_args)
+        python_prefix = "" if cfg.distributed.enabled else f"{py} -u "
         arg_text = " ".join(shlex.quote(arg) for arg in (args or []))
         arg_suffix = f" {arg_text}" if arg_text else ""
         _SAFE_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -300,13 +304,13 @@ class SshRemoteSandbox:
             f"HOME={rd} "
             f"{gpu_env}"
             f"{env_prefix}"
-            f"unshare --net {py} -u {ep}{arg_suffix}; "
+            f"unshare --net {python_prefix}{launch_text}{arg_suffix}; "
             f"else "
             f"echo 'WARNING: unshare not available, running without network isolation' >&2; "
             f"HOME={rd} "
             f"{gpu_env}"
             f"{env_prefix}"
-            f"{py} -u {ep}{arg_suffix}; "
+            f"{python_prefix}{launch_text}{arg_suffix}; "
             f"fi"
         )
 
@@ -357,7 +361,11 @@ class SshRemoteSandbox:
                 parts.extend(["-e", shlex.quote(f"{name}={value}")])
 
         parts.append(shlex.quote(cfg.docker_image))
-        parts.extend(["python3", "-u", shlex.quote(entry_point)])
+        if cfg.distributed.enabled:
+            launch_args = _distributed_launcher_args(cfg.distributed, entry_point)
+            parts.extend(shlex.quote(arg) for arg in launch_args)
+        else:
+            parts.extend(["python3", "-u", shlex.quote(entry_point)])
         if args:
             parts.extend(shlex.quote(arg) for arg in args)
 

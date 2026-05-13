@@ -225,6 +225,20 @@ class SandboxConfig:
 
 
 @dataclass(frozen=True)
+class DistributedTrainingConfig:
+    """Configuration hints for generated and executed multi-GPU experiments."""
+
+    enabled: bool = False
+    strategy: str = "ddp"  # ddp | fsdp | deepspeed
+    launcher: str = "torchrun"  # torchrun | accelerate | deepspeed
+    num_nodes: int = 1
+    gpus_per_node: int = 1
+    zero_stage: int = 2
+    mixed_precision: str = "bf16"
+    gradient_checkpointing: bool = True
+
+
+@dataclass(frozen=True)
 class SshRemoteConfig:
     host: str = ""
     user: str = ""
@@ -242,6 +256,7 @@ class SshRemoteConfig:
     timeout_sec: int = 600  # default 10 min for experiment execution
     scp_timeout_sec: int = 300  # default 5 min for file uploads
     setup_timeout_sec: int = 300  # default 5 min for setup commands
+    distributed: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig)
 
 
 @dataclass(frozen=True)
@@ -268,20 +283,7 @@ class DockerSandboxConfig:
     shm_size_mb: int = 2048
     container_python: str = "/usr/bin/python3"
     keep_containers: bool = False
-
-
-@dataclass(frozen=True)
-class DistributedTrainingConfig:
-    """Configuration hints for generated multi-GPU experiment code."""
-
-    enabled: bool = False
-    strategy: str = "ddp"  # ddp | fsdp | deepspeed
-    launcher: str = "torchrun"  # torchrun | accelerate | deepspeed
-    num_nodes: int = 1
-    gpus_per_node: int = 1
-    zero_stage: int = 2
-    mixed_precision: str = "bf16"
-    gradient_checkpointing: bool = True
+    distributed: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig)
 
 
 @dataclass(frozen=True)

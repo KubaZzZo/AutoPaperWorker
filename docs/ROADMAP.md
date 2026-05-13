@@ -25,6 +25,7 @@ reproducibility updates were integrated.
 | Conference template expansion | Integrated | Added CVPR, ACL, AAAI, KDD, Nature-style, and Science-style export templates |
 | Multilingual paper generation | Integrated | Added `export.paper_language` and Stage 17 language instructions for manuscript prose |
 | Multi-GPU training guidance | Integrated | Added `experiment.distributed` config and Stage 10 DeepSpeed/FSDP/torchrun guidance with single-GPU fallback |
+| Distributed launcher execution | Integrated | Docker and SSH sandboxes now launch `torchrun`, `accelerate launch`, or DeepSpeed when `experiment.distributed.enabled=true` |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -33,8 +34,12 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Distributed launcher execution | Medium | Config and code-generation guidance exist; execution backends do not yet launch `torchrun`/DeepSpeed directly. |
+| Pipeline parallel hypothesis exploration | Medium | Current flow still focuses on one selected experiment direction per run; a future mode could run 2-3 hypotheses and choose the best result. |
+| Observability depth | Medium | Dashboard and logs exist, but long-running multi-stage jobs could use richer structured progress and alerting. |
+| Fine-grained cost accounting | Low | `cost_guard` exists; token forecast vs actual spend could be tracked per stage and per model. |
 
 ## Suggested Next Order
 
-1. Add execution-backend launch support for `torchrun`, `accelerate`, and DeepSpeed when `experiment.distributed.enabled=true`.
+1. Add parallel hypothesis exploration for 2-3 candidate experiment directions.
+2. Extend structured observability for long-running pipeline stages.
+3. Refine cost accounting with forecast-vs-actual token and spend reports.

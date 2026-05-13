@@ -12,7 +12,7 @@ set -e
 
 WORKSPACE="/workspace"
 ENTRY_POINT="${RC_ENTRY_POINT:-${1:-main.py}}"
-if [ "$#" -gt 0 ]; then
+if [ "${RC_DISTRIBUTED_LAUNCH:-0}" != "1" ] && [ "$#" -gt 0 ]; then
     shift
 fi
 
@@ -53,5 +53,10 @@ fi
 # ----------------------------------------------------------------
 # Phase 2: Run experiment
 # ----------------------------------------------------------------
+if [ "${RC_DISTRIBUTED_LAUNCH:-0}" = "1" ]; then
+    echo "[RC] Phase 2: Running distributed experiment ($*)..."
+    exec "$@"
+fi
+
 echo "[RC] Phase 2: Running experiment ($ENTRY_POINT)..."
 exec python3 -u "$WORKSPACE/$ENTRY_POINT" "$@"
