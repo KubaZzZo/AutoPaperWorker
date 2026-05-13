@@ -254,7 +254,28 @@ class TestSSETransport:
 
         asyncio.run(_run())
 
-    def test_receive_not_implemented(self) -> None:
+    def test_receive_waits_for_injected_message(self) -> None:
         transport = SSETransport()
-        with pytest.raises(NotImplementedError):
-            asyncio.run(transport.receive())
+
+        async def _run() -> dict:
+            await transport.start()
+            await transport.inject_message({"jsonrpc": "2.0", "id": 1, "method": "ping"})
+            message = await transport.receive()
+            await transport.close()
+            return message
+
+        assert asyncio.run(_run()) == {"jsonrpc": "2.0", "id": 1, "method": "ping"}
+
+    def test_send_records_sse_frame(self) -> None:
+        transport = SSETransport()
+
+        async def _run() -> str:
+            await transport.start()
+            await transport.send({"jsonrpc": "2.0", "result": {"ok": True}})
+            await transport.close()
+            return transport.sent_events[-1]
+
+        frame = asyncio.run(_run())
+        assert frame.startswith("data: ")
+        assert '"jsonrpc": "2.0"' in frame
+        assert frame.endswith("\n\n")

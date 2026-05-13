@@ -80,6 +80,8 @@ class SSETransport:
         self.host = host
         self.port = port
         self._running = False
+        self._incoming: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self.sent_events: list[str] = []
 
     async def start(self) -> None:
         """Start the SSE server."""
@@ -88,12 +90,31 @@ class SSETransport:
 
     async def send(self, message: dict[str, Any]) -> None:
         """Send an SSE event (stub)."""
-        logger.debug("SSE send: %s", json.dumps(message, default=str)[:200])
+        if not self._running:
+            raise RuntimeError("Transport not started")
+        payload = json.dumps(message, ensure_ascii=False, default=str)
+        frame = f"data: {payload}\n\n"
+        self.sent_events.append(frame)
+        logger.debug("SSE send: %s", payload[:200])
 
     async def receive(self) -> dict[str, Any]:
         """Receive from SSE (stub)."""
-        raise NotImplementedError("SSE receive not yet implemented")
+        if not self._running:
+            raise RuntimeError("Transport not started")
+        return await self._incoming.get()
+
+    async def inject_message(self, message: dict[str, Any] | str | bytes) -> None:
+        """Queue an incoming JSON-RPC message from HTTP request handling."""
+        if not self._running:
+            raise RuntimeError("Transport not started")
+        if isinstance(message, bytes):
+            message = message.decode()
+        if isinstance(message, str):
+            message = json.loads(message)
+        await self._incoming.put(message)
 
     async def close(self) -> None:
         """Stop the SSE server."""
         self._running = False
+        while not self._incoming.empty():
+            _ = self._incoming.get_nowait()
