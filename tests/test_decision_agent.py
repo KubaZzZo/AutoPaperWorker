@@ -607,7 +607,12 @@ class TestRendererCwd:
     def test_local_cwd_is_output_dir(self, tmp_path):
         """Scripts using relative savefig should write to output_dir."""
         from researchclaw.agents.figure_agent.renderer import RendererAgent
-        agent = RendererAgent(_FakeLLM(), timeout_sec=10, use_docker=False)
+        agent = RendererAgent(
+            _FakeLLM(),
+            timeout_sec=10,
+            use_docker=False,
+            allow_local_execution=True,
+        )
         output_dir = tmp_path / "charts"
 
         with mock.patch("subprocess.run") as mock_run:

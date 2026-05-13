@@ -392,6 +392,7 @@ class FigureAgentConfig:
     render_timeout_sec: int = 30
     use_docker: bool | None = None  # None = auto-detect, True/False to force
     docker_image: str = "researchclaw/experiment:latest"
+    allow_local_execution: bool = False
     # Code generation output format
     output_format: str = "python"  # "python" (matplotlib) or "latex" (TikZ/PGFPlots)
     # Nano Banana (Gemini image generation)
@@ -1164,6 +1165,7 @@ def _parse_figure_agent_config(data: dict[str, Any]) -> FigureAgentConfig:
         render_timeout_sec=_safe_int(data.get("render_timeout_sec"), 30),
         use_docker=(None if use_docker_raw is None else bool(use_docker_raw)),
         docker_image=data.get("docker_image", "researchclaw/experiment:latest"),
+        allow_local_execution=bool(data.get("allow_local_execution", False)),
         output_format=data.get("output_format", "python"),
         gemini_api_key=data.get("gemini_api_key", ""),
         gemini_model=data.get("gemini_model", "gemini-2.5-flash-image"),

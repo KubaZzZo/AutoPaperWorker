@@ -215,6 +215,7 @@ experiment:
     # Security: Docker sandbox for visualization code execution
     # use_docker: null  # null = auto-detect, true = force, false = disable
     docker_image: "researchclaw/experiment:latest"
+    allow_local_execution: false  # Explicit opt-in for unsandboxed local rendering
     # Output format: "python" (Matplotlib/Seaborn) or "latex" (TikZ/PGFPlots)
     output_format: "python"
     # Nano Banana (Gemini native image generation)

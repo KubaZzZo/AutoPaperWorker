@@ -49,6 +49,7 @@ class FigureAgentConfig:
     render_timeout_sec: int = 30
     use_docker: bool | None = None  # None = auto-detect
     docker_image: str = "researchclaw/experiment:latest"
+    allow_local_execution: bool = False
     # Code generation
     output_format: str = "python"  # "python" or "latex"
     # Nano Banana (Gemini image generation)
@@ -162,6 +163,7 @@ class FigureOrchestrator(AgentOrchestrator):
             timeout_sec=cfg.render_timeout_sec,
             use_docker=cfg.use_docker,
             docker_image=cfg.docker_image,
+            allow_local_execution=cfg.allow_local_execution,
         )
         self._critic = CriticAgent(
             llm,

@@ -409,7 +409,12 @@ class TestCodeGenAgent:
 class TestRendererAgent:
     def test_render_simple_script(self, tmp_path):
         from researchclaw.agents.figure_agent.renderer import RendererAgent
-        agent = RendererAgent(_FakeLLM(), timeout_sec=10, use_docker=False)
+        agent = RendererAgent(
+            _FakeLLM(),
+            timeout_sec=10,
+            use_docker=False,
+            allow_local_execution=True,
+        )
         output_dir = tmp_path / "charts"
 
         # Use a script that creates a valid PNG without matplotlib
@@ -453,6 +458,24 @@ class TestRendererAgent:
         assert len(rendered) == 1
         assert rendered[0]["success"] is True
         assert Path(rendered[0]["output_path"]).exists()
+
+    def test_local_execution_disabled_by_default(self, tmp_path):
+        from researchclaw.agents.figure_agent.renderer import RendererAgent
+
+        agent = RendererAgent(_FakeLLM(), timeout_sec=5, use_docker=False)
+        output_dir = tmp_path / "charts"
+        result = agent.execute({
+            "scripts": [{
+                "figure_id": "fig_local_blocked",
+                "script": "print('should not run')",
+                "output_filename": "fig_local_blocked.png",
+            }],
+            "output_dir": str(output_dir),
+        })
+
+        rendered = result.data["rendered"]
+        assert rendered[0]["success"] is False
+        assert "Local figure rendering is disabled" in rendered[0]["error"]
 
     def test_render_syntax_error(self, tmp_path):
         from researchclaw.agents.figure_agent.renderer import RendererAgent
@@ -854,6 +877,7 @@ class TestFigureAgentConfig:
         assert cfg.max_iterations == 3
         assert cfg.dpi == 300
         assert cfg.strict_mode is False
+        assert cfg.allow_local_execution is False
 
     def test_parse_from_dict(self):
         from researchclaw.config import _parse_figure_agent_config
@@ -873,6 +897,7 @@ class TestFigureAgentConfig:
         cfg = _parse_figure_agent_config({
             "use_docker": False,
             "docker_image": "custom/figure:latest",
+            "allow_local_execution": True,
             "output_format": "latex",
             "gemini_api_key": "test-key",
             "gemini_model": "gemini-test",
@@ -880,6 +905,7 @@ class TestFigureAgentConfig:
         })
         assert cfg.use_docker is False
         assert cfg.docker_image == "custom/figure:latest"
+        assert cfg.allow_local_execution is True
         assert cfg.output_format == "latex"
         assert cfg.gemini_api_key == "test-key"
         assert cfg.gemini_model == "gemini-test"

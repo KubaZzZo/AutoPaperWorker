@@ -1,12 +1,13 @@
 """Renderer Agent — executes plotting scripts and verifies output.
 
-Runs generated Python scripts in a subprocess (or Docker sandbox when
-available), captures stdout/stderr, verifies output files exist with
-correct format, and returns rendered image paths.
+Runs generated Python scripts in a Docker sandbox when available, captures
+stdout/stderr, verifies output files exist with correct format, and returns
+rendered image paths.
 
 Security: When Docker is available, visualization code is executed inside
 an isolated container (``--network none``) to prevent RCE from LLM-generated
-code.  Falls back to a local subprocess when Docker is not available.
+code. Local subprocess execution is disabled by default and requires an
+explicit opt-in.
 
 Architecture ref: Visual ChatGPT (Wu et al., 2023) — LLMs as controllers
 calling deterministic render tools instead of generating pixels directly.
@@ -55,11 +56,11 @@ class RendererAgent(BaseAgent):
     Supports two execution modes:
       1. **Docker sandbox** (preferred): Runs scripts inside an isolated
          container with ``--network none`` to prevent RCE.
-      2. **Local subprocess** (fallback): Direct execution when Docker
-         is unavailable.
+      2. **Local subprocess**: Direct execution only when explicitly enabled.
 
     The mode is auto-detected at instantiation time but can be forced via
-    the ``use_docker`` parameter.
+    the ``use_docker`` parameter. Local execution requires
+    ``allow_local_execution=True``.
     """
 
     name = "figure_renderer"
@@ -72,11 +73,13 @@ class RendererAgent(BaseAgent):
         python_path: str | None = None,
         use_docker: bool | None = None,
         docker_image: str | None = None,
+        allow_local_execution: bool = False,
     ) -> None:
         super().__init__(llm)
         self._timeout = timeout_sec
         self._python = python_path or sys.executable
         self._docker_image = docker_image or _VIZ_DOCKER_IMAGE
+        self._allow_local_execution = allow_local_execution
 
         # Auto-detect Docker availability if not explicitly set
         if use_docker is None:
@@ -89,11 +92,16 @@ class RendererAgent(BaseAgent):
                 "RendererAgent: Docker sandbox ENABLED (image=%s)",
                 self._docker_image,
             )
+        elif self._allow_local_execution:
+            self.logger.warning(
+                "RendererAgent: Docker sandbox DISABLED; LLM-generated "
+                "scripts will run as LOCAL subprocesses WITHOUT sandboxing."
+            )
         else:
             self.logger.warning(
-                "RendererAgent: Docker sandbox DISABLED — LLM-generated "
-                "scripts will run as LOCAL subprocesses WITHOUT sandboxing. "
-                "Set use_docker=True or install Docker for secure execution."
+                "RendererAgent: Docker sandbox DISABLED and local execution "
+                "is disabled. Set use_docker=True, install Docker, or set "
+                "allow_local_execution=True to opt in to local rendering."
             )
 
     # ------------------------------------------------------------------
@@ -209,6 +217,13 @@ class RendererAgent(BaseAgent):
                 output_dir=output_dir,
                 figure_id=figure_id,
             )
+        elif not self._allow_local_execution:
+            result["error"] = (
+                "Local figure rendering is disabled; set "
+                "allow_local_execution=True to opt in or enable Docker."
+            )
+            self.logger.warning("Local render blocked for %s", figure_id)
+            return result
         else:
             proc_result = self._execute_local(
                 script_path=script_path,

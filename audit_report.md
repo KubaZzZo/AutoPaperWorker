@@ -34,6 +34,8 @@
 ### 高 (HIGH)
 
 #### 4. 本地进程回退执行 LLM 生成的代码
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Figure rendering no longer falls back to local subprocess execution by default. Local execution now requires explicit allow_local_execution opt-in; Docker remains the secure default.</span>
+
 - **文件:** `researchclaw/agents/figure_agent/renderer.py:256-284`
 - **问题:** Docker 不可用时，`_execute_local()` 以本地子进程运行 LLM 生成的 Python 脚本，无任何限制。
 - **建议:** 添加明确的配置标志 `renderer.allow_local_execution: false`。
