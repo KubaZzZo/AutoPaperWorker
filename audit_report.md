@@ -110,6 +110,8 @@
 - **建议:** 实现这 4 个缺失模块，或移除相关代码并更新文档说明这些功能暂不可用。
 
 #### 17. `_NO_TEMPERATURE_MODELS` 前缀匹配过于宽泛
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Temperature support now uses exact normalized model-name matching. Future names such as `o3-pro` and `o3-turbo` are no longer blocked by the `o3` prefix.</span>
+
 - **文件:** `researchclaw/llm/client.py:39-45, 120-121`
 - **问题:** `_supports_temperature` 使用 `model.startswith("o3")` 匹配。前缀 `"o3"` 将错误匹配未来的 `"o3-pro"`, `"o3-turbo"`, `"o3-high"` 等模型，导致这些模型的 temperature 参数被静默去除。
 - **建议:** 使用精确模型名匹配 (`model in _NO_TEMPERATURE_MODELS`) 或更精确的前缀检查。

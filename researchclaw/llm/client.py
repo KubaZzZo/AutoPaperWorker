@@ -118,7 +118,8 @@ class LLMClient:
 
     @staticmethod
     def _supports_temperature(model: str) -> bool:
-        return not any(model.startswith(prefix) for prefix in _NO_TEMPERATURE_MODELS)
+        normalized = (model or "").strip().lower()
+        return normalized not in _NO_TEMPERATURE_MODELS
 
     @classmethod
     def from_rc_config(cls, rc_config: Any) -> LLMClient:

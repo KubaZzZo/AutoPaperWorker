@@ -442,6 +442,13 @@ def test_no_temperature_models_only_contains_o_series_models():
     assert _NO_TEMPERATURE_MODELS == frozenset({"o3", "o3-mini", "o4-mini"})
 
 
+def test_temperature_support_uses_exact_no_temperature_model_names():
+    assert LLMClient._supports_temperature("o3") is False
+    assert LLMClient._supports_temperature("o3-mini") is False
+    assert LLMClient._supports_temperature("o3-pro") is True
+    assert LLMClient._supports_temperature("o3-turbo") is True
+
+
 def test_raw_call_adds_json_mode_response_format(monkeypatch: pytest.MonkeyPatch):
     captured: dict[str, object] = {}
 
