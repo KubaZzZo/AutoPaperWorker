@@ -136,6 +136,8 @@
 ### 严重 (CRITICAL)
 
 #### 16. 4 个关键模块被导入但文件不存在
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Implemented the missing `researchclaw.pipeline.event_log`, `researchclaw.cost_tracker`, `researchclaw.pipeline.experiment_spec`, and `researchclaw.pipeline.pitfall_detector` modules. The runner/HITL dynamic imports now resolve, with regression tests for event JSONL logging, budget checks, experiment spec parsing/validation, and pitfall detection.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:513, 560, 615, 645`
 - **问题:** 以下模块在 try/except 中被动态导入，但对应的 .py 文件 **不存在**:
   - `researchclaw.pipeline.event_log` → 管道事件日志功能静默禁用
