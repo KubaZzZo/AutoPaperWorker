@@ -9,6 +9,7 @@ from researchclaw.experiment.validator import (
     DANGEROUS_CALLS,
     CodeValidation,
     ValidationIssue,
+    check_capacity_fairness,
     check_data_split_overlap,
     check_filename_collisions,
     check_loss_direction,
@@ -486,3 +487,47 @@ loss = ce_loss + 0.1 * kl_penalty - 0.01 * accuracy
 """
 
     assert check_loss_direction(code, "train.py") == []
+
+
+# ---------------------------------------------------------------------------
+# check_capacity_fairness (Q25)
+# ---------------------------------------------------------------------------
+
+
+def test_capacity_fairness_detects_unfair_proposed_vs_baseline_model_size():
+    code = """
+proposed_model = Transformer(hidden_dim=512, num_layers=12)
+baseline_model = Transformer(hidden_dim=128, num_layers=2)
+"""
+
+    warnings = check_capacity_fairness(code, "models.py")
+
+    assert warnings
+    assert "capacity fairness" in warnings[0].lower()
+    assert "proposed_model" in warnings[0]
+    assert "baseline_model" in warnings[0]
+
+
+def test_capacity_fairness_detects_unfair_model_dict_entries():
+    code = """
+models = {
+    "ours": Transformer(d_model=768, depth=12),
+    "baseline": Transformer(d_model=128, depth=2),
+}
+"""
+
+    warnings = check_capacity_fairness(code, "models.py")
+
+    assert warnings
+    assert "capacity fairness" in warnings[0].lower()
+    assert "ours" in warnings[0]
+    assert "baseline" in warnings[0]
+
+
+def test_capacity_fairness_allows_close_capacity_models():
+    code = """
+proposed_model = Transformer(hidden_dim=256, num_layers=4)
+baseline_model = Transformer(hidden_dim=224, num_layers=4)
+"""
+
+    assert check_capacity_fairness(code, "models.py") == []

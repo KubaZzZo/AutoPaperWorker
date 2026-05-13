@@ -17,6 +17,7 @@ reproducibility updates were integrated.
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |
 | Q22 train/validation overlap detection | Integrated | `check_data_split_overlap()` in `researchclaw/experiment/validator.py`; covered by validator tests |
 | Q23 loss direction detection | Integrated | `check_loss_direction()` flags wrong-sign metric, error, and penalty terms in generated losses |
+| Q25 capacity fairness detection | Integrated | `check_capacity_fairness()` detects obvious proposed-vs-baseline model capacity mismatches |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -25,7 +26,6 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Q25 capacity fairness detection | Medium | Detect unfair parameter-count/model-capacity differences across compared methods. |
 | MCP SSE transport | Medium | `SSETransport.receive()` is still a stub. |
 | WebSocket synchronous HITL input | Medium | `WebSocketHITLAdapter.collect_input()` is intentionally not implemented. |
 | General domain profiles | Medium | Detector emits `chemistry_general`, `biology_general`, `mathematics_general`, `economics_general`; matching YAML profiles are still missing. |

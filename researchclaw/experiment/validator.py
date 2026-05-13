@@ -1351,6 +1351,111 @@ def check_loss_direction(code: str, fname: str = "main.py") -> list[str]:
     return warnings
 
 
+def check_capacity_fairness(code: str, fname: str = "main.py") -> list[str]:
+    """Detect obviously unfair model-capacity comparisons.
+
+    Q25 is intentionally conservative: it estimates relative capacity only from
+    literal architecture hyperparameters in generated code and warns when a
+    proposed method is much larger than a baseline using the same constructor.
+    """
+    warnings: list[str] = []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return warnings
+
+    proposed_tokens = ("proposed", "ours", "our", "new", "method", "candidate")
+    baseline_tokens = ("baseline", "base", "control", "reference", "standard")
+    size_keywords = {
+        "hidden", "hidden_dim", "dim", "d_model", "embed_dim", "embedding_dim",
+        "width", "channels", "num_channels", "layers", "num_layers", "depth",
+        "heads", "num_heads", "blocks", "num_blocks", "features",
+    }
+
+    def _role(name: str) -> str:
+        lowered = name.lower()
+        if any(tok in lowered for tok in baseline_tokens):
+            return "baseline"
+        if any(tok in lowered for tok in proposed_tokens):
+            return "proposed"
+        return ""
+
+    def _literal_number(node: ast.AST) -> float | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+            return float(node.value)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            value = _literal_number(node.operand)
+            return -value if value is not None else None
+        return None
+
+    def _capacity(call: ast.Call) -> float | None:
+        factors: list[float] = []
+        for kw in call.keywords:
+            if kw.arg is None:
+                continue
+            key = kw.arg.lower()
+            if not any(tok in key for tok in size_keywords):
+                continue
+            value = _literal_number(kw.value)
+            if value is not None and value > 0:
+                factors.append(value)
+        if not factors:
+            return None
+        score = 1.0
+        for value in factors:
+            score *= value
+        return score
+
+    def _call_name(call: ast.Call) -> str:
+        return _resolve_call_name(call.func) or "<call>"
+
+    models: list[tuple[str, str, str, float, int]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and isinstance(node.value, ast.Call):
+                    role = _role(target.id)
+                    score = _capacity(node.value)
+                    if role and score is not None:
+                        models.append((target.id, role, _call_name(node.value), score, node.lineno))
+                elif isinstance(target, ast.Name) and isinstance(node.value, ast.Dict):
+                    for key_node, value_node in zip(node.value.keys, node.value.values, strict=False):
+                        if not isinstance(value_node, ast.Call):
+                            continue
+                        key = ""
+                        if isinstance(key_node, ast.Constant) and isinstance(key_node.value, str):
+                            key = key_node.value
+                        role = _role(key)
+                        score = _capacity(value_node)
+                        if role and score is not None:
+                            label = key or target.id
+                            models.append((label, role, _call_name(value_node), score, value_node.lineno))
+
+    seen: set[tuple[str, str]] = set()
+    proposed = [item for item in models if item[1] == "proposed"]
+    baselines = [item for item in models if item[1] == "baseline"]
+    for prop_name, _, prop_ctor, prop_score, prop_line in proposed:
+        for base_name, _, base_ctor, base_score, base_line in baselines:
+            if prop_ctor != base_ctor or base_score <= 0:
+                continue
+            ratio = prop_score / base_score
+            if ratio < 4.0:
+                continue
+            pair = (prop_name, base_name)
+            if pair in seen:
+                continue
+            seen.add(pair)
+            warnings.append(
+                f"[{fname}:{prop_line}] Potential capacity fairness issue: "
+                f"'{prop_name}' appears about {ratio:.1f}x larger than "
+                f"'{base_name}' (line {base_line}) using {prop_ctor}. "
+                f"Match parameter counts or report a controlled capacity ablation."
+            )
+
+    return warnings
+
+
 def deep_validate_files(
     files: dict[str, str],
 ) -> list[str]:
@@ -1369,4 +1474,5 @@ def deep_validate_files(
         warnings.extend(check_undefined_calls(code, fname))
         warnings.extend(check_data_split_overlap(code, fname))
         warnings.extend(check_loss_direction(code, fname))
+        warnings.extend(check_capacity_fairness(code, fname))
     return warnings
