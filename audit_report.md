@@ -25,6 +25,8 @@
 - **建议:** 移除 `--dangerously-skip-permissions` 或从 allowed-tools 中移除 Bash。
 
 #### 3. ACPClient 对所有操作使用 `--approve-all`
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] ACP prompt and warm-up commands no longer include `--approve-all`; prompt command construction is centralized through a no-blanket-approval helper and covered by regression tests.</span>
+
 - **文件:** `researchclaw/llm/acp_client.py:249,469,489`
 - **问题:** ACPClient 在所有提示中使用 `--approve-all`，绕过工具使用审批。
 - **建议:** 不使用 `--approve-all`，改为配置白名单工具策略。

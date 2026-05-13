@@ -197,6 +197,14 @@ class ACPClient:
     def _abs_cwd(self) -> str:
         return os.path.abspath(self.config.cwd)
 
+    def _base_prompt_cmd(self, acpx: str) -> list[str]:
+        """Build the common acpx prompt command without blanket approval."""
+        return [
+            acpx, "--max-turns", "1",
+            "--ttl", "0", "--cwd", self._abs_cwd(),
+            self.config.agent, "-s", self.config.session_name,
+        ]
+
     def _ensure_session(self) -> None:
         """Find or create the named acpx session.
 
@@ -245,10 +253,7 @@ class ACPClient:
         )
         try:
             subprocess.run(
-                [acpx, "--approve-all", "--max-turns", "1",
-                 "--ttl", "0", "--cwd", self._abs_cwd(),
-                 self.config.agent, "-s", self.config.session_name,
-                 _warmup],
+                self._base_prompt_cmd(acpx) + [_warmup],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=60,
             )
@@ -465,11 +470,7 @@ class ACPClient:
 
     def _send_prompt_cli(self, acpx: str, prompt: str) -> str:
         """Send prompt as a CLI argument (original path)."""
-        cmd = [
-            acpx, "--approve-all", "--max-turns", "1",
-            "--ttl", "0", "--cwd", self._abs_cwd(),
-            self.config.agent, "-s", self.config.session_name, prompt,
-        ]
+        cmd = self._base_prompt_cmd(acpx) + [prompt]
         try:
             result = self._run_acp_with_heartbeat(cmd, label="ACP prompt (cli)")
         except subprocess.TimeoutExpired as exc:
@@ -485,12 +486,7 @@ class ACPClient:
 
     def _send_prompt_via_file(self, acpx: str, prompt: str) -> str:
         """Send prompt via stdin pipe (``-f -``) to avoid CLI arg limits."""
-        cmd = [
-            acpx, "--approve-all", "--max-turns", "1",
-            "--ttl", "0", "--cwd", self._abs_cwd(),
-            self.config.agent, "-s", self.config.session_name,
-            "-f", "-",
-        ]
+        cmd = self._base_prompt_cmd(acpx) + ["-f", "-"]
         try:
             result = self._run_acp_with_heartbeat(
                 cmd, label="ACP prompt (stdin)", input_data=prompt,

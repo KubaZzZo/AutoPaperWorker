@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gc
 import json
+import subprocess
 import textwrap
 import time
 from pathlib import Path
@@ -534,6 +535,45 @@ class TestAcpTimeoutFix:
 # ===========================================================================
 
 class TestAcpSessionReconnect:
+    def test_prompt_commands_do_not_use_approve_all(self):
+        from researchclaw.llm.acp_client import ACPClient, ACPConfig
+
+        client = ACPClient(ACPConfig(agent="claude", session_name="test-session"))
+        client._acpx = "/usr/bin/acpx"
+        client._session_ready = True
+        captured: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            _ = kwargs
+            captured.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+        client._run_acp_with_heartbeat = fake_run  # type: ignore[assignment]
+
+        assert client._send_prompt_cli("/usr/bin/acpx", "hello") == "ok"
+        assert "--approve-all" not in captured[0]
+
+        assert client._send_prompt_via_file("/usr/bin/acpx", "hello") == "ok"
+        assert "--approve-all" not in captured[1]
+
+    def test_warmup_command_does_not_use_approve_all(self):
+        from researchclaw.llm.acp_client import ACPClient, ACPConfig
+
+        client = ACPClient(ACPConfig(agent="claude", session_name="test-session"))
+        client._acpx = "/usr/bin/acpx"
+        captured: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            _ = kwargs
+            captured.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        with mock.patch("researchclaw.llm.acp_client.subprocess.run", side_effect=fake_run):
+            client._ensure_session()
+
+        assert captured
+        assert all("--approve-all" not in cmd for cmd in captured)
+
     def test_reconnect_on_session_died(self):
         """_send_prompt retries when session dies with 'agent needs reconnect'."""
         from researchclaw.llm.acp_client import ACPClient, ACPConfig
