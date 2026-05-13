@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import builtins
 from pathlib import Path
 from typing import Any, cast
 
@@ -27,7 +28,6 @@ def rc_config(tmp_path: Path) -> RCConfig:
             "provider": "openai-compatible",
             "base_url": "http://localhost:1234/v1",
             "api_key_env": "RC_TEST_KEY",
-            "api_key": "inline",
         },
     }
     return RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
@@ -336,6 +336,66 @@ def test_execute_pipeline_writes_kb_entries_when_kb_root_provided(
     assert len(results) == 23
     assert len(calls) == 23
     assert calls[0] == (1, "topic_init", "run-kb")
+
+
+def test_execute_pipeline_logs_event_log_initialisation_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    real_import = builtins.__import__
+
+    def failing_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "researchclaw.pipeline.event_log":
+            raise RuntimeError("event log storage unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+    monkeypatch.setattr(rc_runner, "execute_stage", lambda stage, **kwargs: _done(stage))
+
+    with caplog.at_level("WARNING", logger="researchclaw.pipeline.runner"):
+        rc_runner.execute_pipeline(
+            run_dir=run_dir,
+            run_id="run-event-log-fail",
+            config=rc_config,
+            adapters=adapters,
+            to_stage=Stage.TOPIC_INIT,
+        )
+
+    assert "Event log initialisation failed" in caplog.text
+    assert "event log storage unavailable" in caplog.text
+
+
+def test_execute_pipeline_logs_cost_budget_check_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    real_import = builtins.__import__
+
+    def failing_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "researchclaw.cost_tracker":
+            raise RuntimeError("tracker database locked")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+    monkeypatch.setattr(rc_runner, "execute_stage", lambda stage, **kwargs: _done(stage))
+
+    with caplog.at_level("WARNING", logger="researchclaw.pipeline.runner"):
+        rc_runner.execute_pipeline(
+            run_dir=run_dir,
+            run_id="run-cost-check-fail",
+            config=rc_config,
+            adapters=adapters,
+            to_stage=Stage.TOPIC_INIT,
+        )
+
+    assert "Cost budget check failed" in caplog.text
+    assert "tracker database locked" in caplog.text
 
 
 def test_execute_pipeline_passes_auto_approve_flag_to_execute_stage(
@@ -811,7 +871,6 @@ def test_package_deliverables_returns_none_when_no_stage_artifacts(
             "provider": "openai-compatible",
             "base_url": "http://localhost:1234/v1",
             "api_key_env": "RC_TEST_KEY",
-            "api_key": "inline",
         },
         "export": {"target_conference": "unknown_conf_9999"},
     }

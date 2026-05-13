@@ -108,6 +108,8 @@
 - **建议:** 从配置文件读取，而非硬编码。
 
 #### 14. 大量 `except Exception: pass` 模式
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-13] Core pipeline runner silent broad catches were converted to warning/debug logs with exception context for EventLog, cost budget checks, ExperimentSpec, PitfallDetector, experiment memory, KB writes, HITL checkpoint/finalization, deliverables, Evolution, and MetaClaw hooks. Remaining occurrences in other modules should be reviewed in follow-up batches.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

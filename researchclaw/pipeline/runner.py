@@ -153,7 +153,7 @@ def _write_checkpoint(
             try:
                 checkpoint["hitl"] = hitl_session.hitl_checkpoint_data()
             except Exception:
-                pass
+                logger.warning("HITL checkpoint data collection failed", exc_info=True)
     target = run_dir / "checkpoint.json"
     fd, tmp_path = tempfile.mkstemp(dir=run_dir, suffix=".tmp", prefix="checkpoint_")
     os.close(fd)
@@ -314,7 +314,11 @@ def _run_experiment_diagnosis(run_dir: Path, config: RCConfig, run_id: str) -> N
                 import yaml as _yaml_diag
                 plan = _yaml_diag.safe_load(candidate.read_text(encoding="utf-8"))
             except Exception:
-                pass
+                logger.warning(
+                    "Experiment diagnosis plan YAML load failed: %s",
+                    candidate,
+                    exc_info=True,
+                )
         if plan is None:
             for candidate in sorted(run_dir.glob("stage-09*/experiment_design.json")):
                 try:
@@ -517,7 +521,7 @@ def execute_pipeline(
             stages=total_stages, from_stage=int(from_stage),
         ))
     except Exception:
-        logger.debug("Event log initialisation skipped")
+        logger.warning("Event log initialisation failed", exc_info=True)
 
     exp_memory = None
     try:
@@ -526,7 +530,7 @@ def execute_pipeline(
         _mem_dir.mkdir(parents=True, exist_ok=True)
         exp_memory = ExperimentMemory(store_dir=str(_mem_dir))
     except Exception:
-        logger.debug("Experiment memory initialisation skipped")
+        logger.warning("Experiment memory initialisation failed", exc_info=True)
 
     cost_budget = getattr(config.experiment.cli_agent, "max_budget_usd", 0.0) or 0.0
 
@@ -552,7 +556,7 @@ def execute_pipeline(
                     EventType.STAGE_START, run_id=run_id, stage=stage.name,
                 ))
             except Exception:
-                pass
+                logger.warning("Event log stage-start append failed", exc_info=True)
 
         # ── Cost budget check ──
         if cost_budget > 0:
@@ -563,7 +567,7 @@ def execute_pipeline(
                     print(f"{prefix} BUDGET EXCEEDED ($%.2f) — stopping" % cost_budget)
                     break
             except Exception:
-                pass
+                logger.warning("Cost budget check failed", exc_info=True)
 
         # BUG-218: Ensure the best stage-14 experiment data is promoted
         # BEFORE paper writing begins.  Without this, the recursive REFINE
@@ -596,7 +600,7 @@ def execute_pipeline(
                     error=result.error,
                 ))
             except Exception:
-                pass
+                logger.warning("Event log stage-end append failed", exc_info=True)
 
         # ── ExperimentSpec: generate after design, validate after analysis ──
         if stage == Stage.HYPOTHESIS_GEN and result.status == StageStatus.DONE:
@@ -608,7 +612,10 @@ def execute_pipeline(
                         manifest_path,
                     )
             except Exception:
-                logger.debug("Parallel hypothesis branch preparation skipped")
+                logger.warning(
+                    "Parallel hypothesis branch preparation failed",
+                    exc_info=True,
+                )
 
         if stage == Stage.EXPERIMENT_DESIGN and result.status == StageStatus.DONE:
             try:
@@ -618,7 +625,7 @@ def execute_pipeline(
                 spec_path.write_text(spec_text, encoding="utf-8")
                 logger.info("Experiment spec generated: %s", spec_path)
             except Exception:
-                logger.debug("Experiment spec generation skipped")
+                logger.warning("Experiment spec generation failed", exc_info=True)
 
         if stage == Stage.RESULT_ANALYSIS and result.status == StageStatus.DONE:
             try:
@@ -637,7 +644,7 @@ def execute_pipeline(
                             json.dumps(violations, indent=2), encoding="utf-8"
                         )
             except Exception:
-                logger.debug("Experiment spec validation skipped")
+                logger.warning("Experiment spec validation failed", exc_info=True)
 
         # ── Pitfall detection after code generation / experiment run ──
         if stage in (Stage.CODE_GENERATION, Stage.EXPERIMENT_RUN) and result.status == StageStatus.DONE:
@@ -657,7 +664,7 @@ def execute_pipeline(
                         json.dumps(pitfall_report, indent=2), encoding="utf-8"
                     )
             except Exception:
-                logger.debug("Pitfall detection skipped")
+                logger.warning("Pitfall detection failed", exc_info=True)
 
         # ── Experiment memory: record outcome after experiment stages ──
         if stage in (Stage.EXPERIMENT_RUN, Stage.ITERATIVE_REFINE) and result.status == StageStatus.DONE and exp_memory:
@@ -681,7 +688,7 @@ def execute_pipeline(
                     timestamp=_time_mod.time(), duration_sec=elapsed,
                 ))
             except Exception:
-                logger.debug("Experiment memory recording skipped")
+                logger.warning("Experiment memory recording failed", exc_info=True)
 
         if result.status == StageStatus.DONE:
             arts = ", ".join(result.artifacts) if result.artifacts else "none"
@@ -716,7 +723,7 @@ def execute_pipeline(
                     topic=config.research.topic,
                 )
             except Exception:  # noqa: BLE001
-                pass
+                logger.warning("Knowledge-base stage write failed", exc_info=True)
 
         if result.status == StageStatus.DONE:
             _write_checkpoint(run_dir, stage, run_id, adapters=adapters)
@@ -743,7 +750,11 @@ def execute_pipeline(
                     if _diag_data.get("repair_needed"):
                         _run_experiment_repair(run_dir, config, run_id)
                 except (json.JSONDecodeError, OSError):
-                    pass
+                    logger.warning(
+                        "[%s] Experiment diagnosis report could not be read",
+                        run_id,
+                        exc_info=True,
+                    )
 
         # --- Heartbeat for sentinel watchdog ---
         if result.status == StageStatus.DONE:
@@ -893,7 +904,7 @@ def execute_pipeline(
                 stages_done=done_count, stages_failed=failed_count,
             ))
         except Exception:
-            pass
+            logger.warning("Event log pipeline-end append failed", exc_info=True)
 
     # --- Evolution: extract and store lessons ---
     lessons: list[object] = []
@@ -904,13 +915,19 @@ def execute_pipeline(
             store.append_many(lessons)
             logger.info("Extracted %d lessons from pipeline run", len(lessons))
     except Exception:  # noqa: BLE001
-        logger.warning("Evolution lesson extraction failed (non-blocking)")
+        logger.warning(
+            "Evolution lesson extraction failed (non-blocking)",
+            exc_info=True,
+        )
 
     # --- MetaClaw bridge: convert high-severity lessons to skills ---
     try:
         _metaclaw_post_pipeline(config, results, lessons, run_id, run_dir)
     except Exception:  # noqa: BLE001
-        logger.warning("MetaClaw post-pipeline hook failed (non-blocking)")
+        logger.warning(
+            "MetaClaw post-pipeline hook failed (non-blocking)",
+            exc_info=True,
+        )
 
     # --- Package deliverables into a single folder ---
     try:
@@ -918,7 +935,7 @@ def execute_pipeline(
         if deliverables_dir is not None:
             print(f"[{run_id}] Deliverables packaged → {deliverables_dir}")
     except Exception:  # noqa: BLE001
-        logger.warning("Deliverables packaging failed (non-blocking)")
+        logger.warning("Deliverables packaging failed (non-blocking)", exc_info=True)
 
     # --- HITL: Finalize session state ---
     try:
@@ -937,7 +954,7 @@ def execute_pipeline(
             else:
                 hitl_session.complete()
     except Exception:  # noqa: BLE001
-        logger.debug("HITL session finalization failed (non-blocking)")
+        logger.warning("HITL session finalization failed (non-blocking)", exc_info=True)
 
     return results
 
@@ -1778,7 +1795,7 @@ def _metaclaw_post_pipeline(
                     active_skills,
                 )
     except Exception:  # noqa: BLE001
-        logger.warning("MetaClaw skill feedback recording failed")
+        logger.warning("MetaClaw skill feedback recording failed", exc_info=True)
 
     # 3. Signal session end (fire-and-forget)
     try:
@@ -1802,6 +1819,6 @@ def _metaclaw_post_pipeline(
         try:
             _urllib_req.urlopen(req, timeout=5)
         except Exception:  # noqa: BLE001
-            pass  # Best-effort signal
+            logger.debug("MetaClaw session-end signal request failed", exc_info=True)
     except Exception:  # noqa: BLE001
-        pass
+        logger.debug("MetaClaw session-end signal setup failed", exc_info=True)
