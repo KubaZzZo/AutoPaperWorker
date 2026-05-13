@@ -97,7 +97,7 @@ def poll_for_response(
             )
             return human_input
         except FileNotFoundError:
-            pass  # Normal — no response yet
+            logger.debug("No HITL response file yet: %s", response_path)
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
             consecutive_errors += 1
             logger.warning(
@@ -109,7 +109,11 @@ def poll_for_response(
                 logger.error("Too many invalid response files — aborting poll")
                 break
         except OSError:
-            pass  # File access issue — retry
+            logger.warning(
+                "Could not read HITL response file; will retry: %s",
+                response_path,
+                exc_info=True,
+            )
 
         time.sleep(poll_interval_sec)
 

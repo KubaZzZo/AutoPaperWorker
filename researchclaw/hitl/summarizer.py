@@ -107,7 +107,11 @@ def generate_pause_summary(
             score = prm.get("prm_score", "N/A")
             lines.append(f"\nQuality score: {score}")
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.warning(
+                "Could not read HITL pause PRM score: %s",
+                prm_path,
+                exc_info=True,
+            )
 
     # --- Dynamic content analysis ---
     lines.extend(_dynamic_stage_analysis(stage_num, run_dir))
@@ -196,7 +200,11 @@ def _dynamic_stage_analysis(stage_num: int, run_dir: Path) -> list[str]:
                     lines.append(f"⚠ {hallucinated} potentially hallucinated citations")
 
     except Exception:
-        pass
+        logger.warning(
+            "Dynamic HITL stage analysis failed for stage %d",
+            stage_num,
+            exc_info=True,
+        )
 
     return lines
 
@@ -210,5 +218,5 @@ def _file_preview(path: Path, max_len: int = 80) -> str:
             if stripped and not stripped.startswith(("{", "[", "---", "#!")):
                 return stripped[:max_len]
     except (OSError, UnicodeDecodeError):
-        pass
+        logger.debug("Could not read HITL preview file: %s", path, exc_info=True)
     return ""

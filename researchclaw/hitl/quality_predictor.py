@@ -146,7 +146,7 @@ class QualityPredictor:
                     score = 2.0
                     risks.append("Few literature references")
             except OSError:
-                pass
+                logger.debug("Could not read literature shortlist", exc_info=True)
         else:
             score = 3.0
             risks.append("Literature screening not completed")
@@ -181,7 +181,7 @@ class QualityPredictor:
                 if marker_count < 2:
                     risks.append("Hypothesis may lack falsifiability")
             except OSError:
-                pass
+                logger.debug("Could not read hypothesis artifact", exc_info=True)
         else:
             score = 0.0
             risks.append("No hypothesis generated")
@@ -215,7 +215,11 @@ class QualityPredictor:
                     else:
                         risks.append("No ablation study planned")
                 except OSError:
-                    pass
+                    logger.debug(
+                        "Could not read experiment design artifact: %s",
+                        exp_path,
+                        exc_info=True,
+                    )
                 break
         else:
             score = 0.0
@@ -239,7 +243,7 @@ class QualityPredictor:
                     score = 3.0
                     risks.append("Thin analysis — may lack depth")
             except OSError:
-                pass
+                logger.debug("Could not read result analysis artifact", exc_info=True)
         else:
             score = 0.0
             risks.append("No result analysis found")
@@ -272,7 +276,7 @@ class QualityPredictor:
                 if found < 4:
                     risks.append(f"Missing paper sections (found {found}/5)")
             except OSError:
-                pass
+                logger.debug("Could not read paper draft artifact", exc_info=True)
         else:
             score = 0.0
             risks.append("No paper draft found")
@@ -302,6 +306,6 @@ class QualityPredictor:
                     score = 3.0
                     risks.append("No citations to verify")
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.debug("Could not read citation verification report", exc_info=True)
 
         return score, risks

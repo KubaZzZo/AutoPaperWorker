@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 import threading
+import builtins
 from pathlib import Path
 
 import pytest
@@ -110,6 +112,44 @@ class TestFileWait:
         )
         assert result.action == HumanAction.ABORT
 
+    def test_poll_logs_transient_file_access_error(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        hitl_dir = tmp_path / "hitl"
+        hitl_dir.mkdir(parents=True)
+        response_path = hitl_dir / "response.json"
+        attempts = {"count": 0}
+
+        def flaky_read_text(self: Path, *_args: object, **_kwargs: object) -> str:
+            if self == response_path and attempts["count"] == 0:
+                attempts["count"] += 1
+                raise OSError("response temporarily locked")
+            return original_read_text(self, *_args, **_kwargs)
+
+        original_read_text = Path.read_text
+        monkeypatch.setattr(Path, "read_text", flaky_read_text)
+
+        def delayed_write() -> None:
+            time.sleep(0.05)
+            write_response(hitl_dir, HumanInput(action=HumanAction.APPROVE))
+
+        t = threading.Thread(target=delayed_write)
+        t.start()
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.file_wait"):
+            result = poll_for_response(
+                hitl_dir,
+                poll_interval_sec=0.05,
+                timeout_sec=1,
+            )
+        t.join()
+
+        assert result.action == HumanAction.APPROVE
+        assert "Could not read HITL response file" in caplog.text
+
     def test_clear_waiting(self, tmp_path: Path) -> None:
         hitl_dir = tmp_path / "hitl"
         ws = WaitingState(stage=8, stage_name="X", reason=PauseReason.POST_STAGE)
@@ -172,6 +212,27 @@ class TestCostGuard:
         display = guard.format_display()
         assert "$" in display
         assert "10.00" in display
+
+    def test_logs_global_tracker_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        real_import = builtins.__import__
+
+        def failing_import(name: str, *args: object, **kwargs: object) -> object:
+            if name == "researchclaw.cost_tracker":
+                raise RuntimeError("cost tracker unavailable")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", failing_import)
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.cost_guard"):
+            status = CostGuard().check()
+
+        assert status.total_usd == 0.0
+        assert "Global cost tracker unavailable" in caplog.text
+        assert "cost tracker unavailable" in caplog.text
 
 
 # ══════════════════════════════════════════════════════════════════

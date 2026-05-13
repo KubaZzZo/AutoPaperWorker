@@ -113,7 +113,7 @@ class CostGuard:
             tracker = get_global_tracker()
             return tracker.total_cost_usd
         except Exception:
-            pass
+            logger.warning("Global cost tracker unavailable", exc_info=True)
 
         # Try cost_log.jsonl in run_dir
         if run_dir is not None:
@@ -127,6 +127,10 @@ class CostGuard:
                             total += entry.get("cost_usd", 0.0)
                     return total
                 except (json.JSONDecodeError, OSError):
-                    pass
+                    logger.warning(
+                        "Failed to read HITL cost log: %s",
+                        cost_log,
+                        exc_info=True,
+                    )
 
         return 0.0

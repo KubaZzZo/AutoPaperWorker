@@ -192,4 +192,8 @@ class NotificationManager:
             ) as fh:
                 fh.write(json.dumps(notification.to_dict()) + "\n")
         except OSError:
-            pass
+            logger.warning(
+                "Failed to persist HITL notification: %s",
+                log_dir / "notifications.jsonl",
+                exc_info=True,
+            )

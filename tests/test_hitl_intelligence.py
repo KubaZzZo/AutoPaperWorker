@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -315,3 +316,22 @@ class TestNotificationManager:
         assert log_path.exists()
         lines = log_path.read_text(encoding="utf-8").strip().split("\n")
         assert len(lines) == 1
+
+    def test_persistence_failure_is_logged(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mgr = NotificationManager(channels=(), run_dir=tmp_path)
+
+        def fail_open(*_args: object, **_kwargs: object) -> object:
+            raise OSError("notification disk full")
+
+        monkeypatch.setattr("builtins.open", fail_open)
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.notify"):
+            mgr.notify_complete("rc-test", 23)
+
+        assert "Failed to persist HITL notification" in caplog.text
+        assert "notification disk full" in caplog.text
