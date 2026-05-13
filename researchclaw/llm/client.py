@@ -121,6 +121,26 @@ class LLMClient:
         normalized = (model or "").strip().lower()
         return normalized not in _NO_TEMPERATURE_MODELS
 
+    def close(self) -> None:
+        """Close provider-specific resources such as HTTP connection pools."""
+
+        for attr, label in (("_anthropic", "Anthropic"), ("_gemini", "Gemini")):
+            adapter = getattr(self, attr, None)
+            if adapter is None:
+                continue
+            try:
+                adapter.close()
+            except Exception:  # noqa: BLE001
+                logger.warning("%s adapter close failed", label, exc_info=True)
+            finally:
+                setattr(self, attr, None)
+
+    def __enter__(self) -> LLMClient:
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        self.close()
+
     @classmethod
     def from_rc_config(cls, rc_config: Any) -> LLMClient:
         from researchclaw.llm import PROVIDER_PRESETS

@@ -7,6 +7,7 @@ import urllib.request
 from http.client import HTTPMessage
 from types import SimpleNamespace
 from typing import Any, Mapping
+from unittest.mock import Mock
 
 import pytest
 
@@ -128,6 +129,33 @@ def test_llm_client_model_chain_is_primary_plus_fallbacks():
         primary_model="gpt-5.4", fallback_models=["gpt-4.1", "gpt-4o"]
     )
     assert client._model_chain == ["gpt-5.4", "gpt-4.1", "gpt-4o"]
+
+
+def test_llm_client_close_closes_provider_adapters():
+    client = _make_client()
+    anthropic = SimpleNamespace(close=Mock())
+    gemini = SimpleNamespace(close=Mock())
+    client._anthropic = anthropic
+    client._gemini = gemini
+
+    client.close()
+
+    assert anthropic.close.call_count == 1
+    assert gemini.close.call_count == 1
+    assert client._anthropic is None
+    assert client._gemini is None
+
+
+def test_llm_client_context_manager_closes_adapters():
+    client = _make_client()
+    anthropic = SimpleNamespace(close=Mock())
+    client._anthropic = anthropic
+
+    with client as active:
+        assert active is client
+
+    assert anthropic.close.call_count == 1
+    assert client._anthropic is None
 
 
 def test_needs_max_completion_tokens_for_new_models():

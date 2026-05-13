@@ -157,6 +157,8 @@
 ### 高 (HIGH)
 
 #### 18. AnthropicAdapter httpx.Client 连接池永不关闭
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] `LLMClient` now exposes `close()` plus context manager support and forwards cleanup to Anthropic/Gemini provider adapters, clearing adapter references even if close logging is needed. Regression tests cover explicit close and `with LLMClient(...)` cleanup.</span>
+
 - **文件:** `researchclaw/llm/anthropic_adapter.py:34-51`, `llm/client.py:96-100`
 - **问题:** `AnthropicAdapter` 创建 `httpx.Client` 连接池，但 `LLMClient` 无 `close()` 方法，连接池永不被清理。在长时间运行的服务进程中会累积 TCP 连接和文件描述符。
 - **建议:** 为 `LLMClient` 添加 `close()` 方法，或使用 `with` 上下文管理器。
