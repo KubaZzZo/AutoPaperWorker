@@ -11,6 +11,7 @@ from researchclaw.experiment.validator import (
     ValidationIssue,
     check_data_split_overlap,
     check_filename_collisions,
+    check_loss_direction,
     extract_imports,
     format_issues_for_llm,
     validate_code,
@@ -444,3 +445,44 @@ val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
 """
 
     assert check_data_split_overlap(code, "main.py") == []
+
+
+# ---------------------------------------------------------------------------
+# check_loss_direction (Q23)
+# ---------------------------------------------------------------------------
+
+
+def test_loss_direction_detects_accuracy_added_to_loss():
+    code = """
+accuracy = correct / total
+loss = ce_loss + accuracy
+"""
+
+    warnings = check_loss_direction(code, "train.py")
+
+    assert warnings
+    assert "loss direction" in warnings[0].lower()
+    assert "accuracy" in warnings[0].lower()
+
+
+def test_loss_direction_detects_error_subtracted_from_loss():
+    code = """
+reconstruction_error = ((pred - target) ** 2).mean()
+loss = base_loss - reconstruction_error
+"""
+
+    warnings = check_loss_direction(code, "train.py")
+
+    assert warnings
+    assert "loss direction" in warnings[0].lower()
+    assert "reconstruction_error" in warnings[0]
+
+
+def test_loss_direction_allows_penalty_added_and_metric_subtracted():
+    code = """
+accuracy = correct / total
+kl_penalty = compute_kl(model)
+loss = ce_loss + 0.1 * kl_penalty - 0.01 * accuracy
+"""
+
+    assert check_loss_direction(code, "train.py") == []

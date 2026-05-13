@@ -16,6 +16,7 @@ reproducibility updates were integrated.
 | P4.1 non-ML benchmark support | Integrated | `researchclaw/data/benchmark_knowledge.yaml`; domain-aware survey/acquire paths |
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |
 | Q22 train/validation overlap detection | Integrated | `check_data_split_overlap()` in `researchclaw/experiment/validator.py`; covered by validator tests |
+| Q23 loss direction detection | Integrated | `check_loss_direction()` flags wrong-sign metric, error, and penalty terms in generated losses |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -24,7 +25,6 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Q23 loss direction detection | High | Add checks that loss terms penalize the intended failure mode and respect metric direction. |
 | Q25 capacity fairness detection | Medium | Detect unfair parameter-count/model-capacity differences across compared methods. |
 | MCP SSE transport | Medium | `SSETransport.receive()` is still a stub. |
 | WebSocket synchronous HITL input | Medium | `WebSocketHITLAdapter.collect_input()` is intentionally not implemented. |

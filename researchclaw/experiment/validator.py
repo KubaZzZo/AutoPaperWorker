@@ -1256,6 +1256,101 @@ def check_data_split_overlap(code: str, fname: str = "main.py") -> list[str]:
     return warnings
 
 
+def check_loss_direction(code: str, fname: str = "main.py") -> list[str]:
+    """Detect likely wrong-sign terms in generated training losses.
+
+    Q23 focuses on high-confidence static mistakes: adding a metric that should
+    be maximized into a minimized loss, or subtracting an error/penalty term.
+    """
+    warnings: list[str] = []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return warnings
+
+    maximize_tokens = {
+        "accuracy", "acc", "f1", "precision", "recall", "auc", "auroc",
+        "bleu", "rouge", "meteor", "map", "ndcg", "r2", "score",
+    }
+    minimize_tokens = {
+        "error", "mse", "mae", "rmse", "loss", "penalty", "regularization",
+        "reg", "distance", "divergence", "kl", "nll", "cross_entropy",
+        "ce",
+    }
+
+    def _target_names(target: ast.AST) -> list[str]:
+        if isinstance(target, ast.Name):
+            return [target.id]
+        if isinstance(target, ast.Tuple | ast.List):
+            names: list[str] = []
+            for elt in target.elts:
+                names.extend(_target_names(elt))
+            return names
+        return []
+
+    def _contains_loss_name(names: list[str]) -> bool:
+        return any("loss" in name.lower() or "objective" in name.lower() for name in names)
+
+    def _term_names(node: ast.AST) -> set[str]:
+        names: set[str] = set()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name):
+                names.add(child.id)
+            elif isinstance(child, ast.Attribute):
+                names.add(child.attr)
+        return names
+
+    def _has_token(name: str, tokens: set[str]) -> bool:
+        lowered = name.lower()
+        return any(token in lowered for token in tokens)
+
+    def _warn(node: ast.AST, term: str, detail: str) -> None:
+        warnings.append(
+            f"[{fname}:{getattr(node, 'lineno', '?')}] Potential loss direction error: "
+            f"'{term}' {detail}. Losses are minimized, so reward/quality metrics "
+            f"should usually be subtracted and error/penalty terms added."
+        )
+
+    def _scan(node: ast.AST, sign: int, owner: ast.AST) -> None:
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+            _scan(node.left, sign, owner)
+            _scan(node.right, sign if isinstance(node.op, ast.Add) else -sign, owner)
+            return
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            _scan(node.operand, -sign, owner)
+            return
+
+        names = _term_names(node)
+        if sign > 0:
+            bad = sorted(name for name in names if _has_token(name, maximize_tokens))
+            if bad:
+                _warn(owner, bad[0], "is a higher-is-better metric added to a minimized loss")
+        elif sign < 0:
+            bad = sorted(name for name in names if _has_token(name, minimize_tokens))
+            if bad:
+                _warn(owner, bad[0], "is an error/penalty term subtracted from a minimized loss")
+
+    for node in ast.walk(tree):
+        value: ast.AST | None = None
+        owner: ast.AST = node
+        if isinstance(node, ast.Assign):
+            target_names = [
+                name
+                for target in node.targets
+                for name in _target_names(target)
+            ]
+            if _contains_loss_name(target_names):
+                value = node.value
+        elif isinstance(node, ast.AugAssign):
+            target_names = _target_names(node.target)
+            if _contains_loss_name(target_names):
+                value = ast.BinOp(left=node.target, op=node.op, right=node.value)
+        if value is not None:
+            _scan(value, 1, owner)
+
+    return warnings
+
+
 def deep_validate_files(
     files: dict[str, str],
 ) -> list[str]:
@@ -1273,4 +1368,5 @@ def deep_validate_files(
         warnings.extend(check_api_correctness(code, fname))
         warnings.extend(check_undefined_calls(code, fname))
         warnings.extend(check_data_split_overlap(code, fname))
+        warnings.extend(check_loss_direction(code, fname))
     return warnings
