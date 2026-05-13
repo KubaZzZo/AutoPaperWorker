@@ -193,41 +193,116 @@ class SurveyorAgent(BaseAgent):
             keywords.append(filtered[0])
         return keywords
 
+    # -- Domain guidance ---------------------------------------------------
+
+    _DOMAIN_GUIDANCE: dict[str, str] = {
+        "ml_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- ML/CV: Use torchvision datasets (CIFAR, ImageNet, MNIST). "
+            "Baselines: ResNet, ViT, EfficientNet.\n"
+            "- ML/NLP: Use HuggingFace datasets. Baselines: BERT, GPT, T5.\n"
+            "- ML/RL: Use Gymnasium envs. Baselines: PPO, SAC, DQN, TD3.\n"
+            "- ML/Graph: Use Cora, CiteSeer, ogbn-arxiv. Baselines: GCN, GAT.\n"
+        ),
+        "physics_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Physics/PDE: Use SYNTHETIC data (Burgers eq, Darcy flow, "
+            "Navier-Stokes, heat equation, wave equation). Baselines: FNO, "
+            "DeepONet, PINN, spectral methods, finite difference.\n"
+            "- Physics/Quantum: Use Heisenberg model, Hubbard model, Ising model. "
+            "Baselines: exact diagonalization, DMRG, VQE, coupled cluster.\n"
+            "- Physics/Simulation: Use n-body, Lennard-Jones, double pendulum. "
+            "Baselines: Velocity Verlet, RK4, leapfrog, symplectic integrators.\n"
+        ),
+        "chemistry_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Chemistry/Molecular: Use QM9 subset, ESOL, Lipophilicity, Tox21. "
+            "Baselines: RF+XGBoost, GCN, SchNet, MPNN, ChemBERTa.\n"
+            "- Chemistry/QM: Use H2/H2O PES data. Baselines: HF, DFT/B3LYP, "
+            "MP2, CCSD(T), coupled cluster.\n"
+        ),
+        "biology_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Biology/Genomics: Use synthetic gene expression matrices, "
+            "regulatory networks. Baselines: BLAST, GATK, random forest.\n"
+            "- Biology/Protein: Use PDB subsets, mutation stability data. "
+            "Baselines: ESM-2, ProtBERT, Rosetta, AlphaFold.\n"
+            "- Biology/SingleCell: Use PBMC simulated data, cell cycle synthetic. "
+            "Baselines: Leiden, Louvain, scanpy, Seurat.\n"
+        ),
+        "economics_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Economics: Use SYNTHETIC panel/cross-section data. "
+            "Baselines: OLS, OLS+controls, fixed effects, 2SLS/IV, "
+            "difference-in-differences, RDD.\n"
+        ),
+        "mathematics_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Mathematics/Numerical: Use Poisson, advection, Helmholtz eqs. "
+            "Baselines: Euler, RK4, Adams-Bashforth, Crank-Nicolson, FEM.\n"
+            "- Mathematics/Optimization: Use Rosenbrock, Rastrigin, Ackley "
+            "functions. Baselines: GD, L-BFGS, Nelder-Mead, Adam, CMA-ES.\n"
+        ),
+        "neuroscience_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Neuroscience/Computational: Use Izhikevich tuning curves, "
+            "Hodgkin-Huxley step response. Baselines: LIF, HH, Izhikevich, "
+            "rate-coded models.\n"
+            "- Neuroscience/Imaging: Use resting-state correlation matrices, "
+            "BOLD synthetic. Baselines: SVM, correlation, atlas parcellation.\n"
+        ),
+        "robotics_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Robotics/Control: Use pendulum swing-up, cartpole balance, "
+            "reacher. Baselines: PPO, SAC, TD3, PID, LQR, MPC.\n"
+        ),
+        "security_": (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Security/Detection: Use NSL-KDD subset, CICIDS subset, "
+            "synthetic attack traces. Baselines: RF, XGBoost, SVM, "
+            "isolation forest, one-class SVM.\n"
+        ),
+    }
+
+    @classmethod
+    def _build_domain_guidance(cls, domain_id: str) -> str:
+        """Build domain-specific guidance for the LLM fallback prompt."""
+        for prefix, guidance in cls._DOMAIN_GUIDANCE.items():
+            if domain_id.startswith(prefix):
+                return guidance
+        return (
+            "DOMAIN-SPECIFIC GUIDANCE:\n"
+            "- Use synthetic/generated data when real datasets are unavailable.\n"
+            "- Baselines should be well-established methods from the literature.\n"
+        )
+
     # -- LLM fallback ------------------------------------------------------
 
-    def _llm_suggest_benchmarks(self, topic: str, hypothesis: str) -> dict[str, Any]:
+    def _llm_suggest_benchmarks(
+        self, topic: str, hypothesis: str, domain_id: str = ""
+    ) -> dict[str, Any]:
         """Ask LLM to suggest benchmarks and baselines when APIs unavailable."""
+        _domain_guidance = self._build_domain_guidance(domain_id)
         system = (
-            "You are an expert ML researcher. Given a research topic and hypothesis, "
+            "You are an expert researcher. Given a research topic and hypothesis, "
             "suggest appropriate benchmarks, datasets, and baseline methods.\n\n"
             "Return a JSON object with:\n"
             "- benchmarks: array of {name, domain, metrics: [], api (Python one-liner), "
-            "  tier (1=pre-cached, 2=downloadable), size_mb}\n"
+            "  tier (1=pre-cached/generated, 2=downloadable), size_mb}\n"
             "- baselines: array of {name, source (Python code), paper (citation), pip: []}\n"
             "- rationale: string explaining why these are the right choices\n\n"
             "CRITICAL RULES:\n"
             "- Benchmarks and baselines MUST be DOMAIN-APPROPRIATE for the topic.\n"
             "- Do NOT suggest image classification datasets (CIFAR, ImageNet, MNIST) "
-            "for non-image topics like PDE solvers, RL, combinatorial optimization, etc.\n"
+            "for non-image topics like PDE solvers, physics, chemistry, etc.\n"
             "- Do NOT suggest optimizers (SGD, Adam, AdamW) as METHOD baselines — "
             "optimizers are training tools, NOT research methods to compare against.\n"
-            "- Baselines must be COMPETING METHODS from the same research domain.\n\n"
-            "DOMAIN-SPECIFIC GUIDANCE:\n"
-            "- Physics/PDE/Scientific computing: Use SYNTHETIC data (Burgers eq, "
-            "Darcy flow, Navier-Stokes, heat equation). Baselines: FNO, DeepONet, "
-            "PINN, spectral methods.\n"
-            "- Combinatorial optimization (TSP, graph coloring, scheduling): Use "
-            "SYNTHETIC instances (random TSP, Erdos-Renyi graphs). Baselines: "
-            "classical MCTS, LKH, OR-Tools, Concorde, RL-based methods.\n"
-            "- Reinforcement learning: Use Gymnasium environments (CartPole, "
-            "LunarLander, HalfCheetah). Baselines: PPO, SAC, DQN, TD3.\n"
-            "- Graph learning: Use standard graph benchmarks (Cora, CiteSeer, "
-            "ogbn-arxiv). Baselines: GCN, GAT, GraphSAGE.\n"
+            "- Baselines must be COMPETING METHODS from the same research domain.\n"
             "- If the domain naturally requires SYNTHETIC data (PDE, optimization, "
             "theoretical analysis), explicitly set tier=1 and api='synthetic' and "
-            "describe the data generation procedure in the 'source' field.\n\n"
-            "- Prefer well-known, widely-used benchmarks from top venues\n"
-            "- Prefer baselines with open-source PyTorch implementations\n"
+            "describe the data generation procedure in the 'note' field.\n\n"
+            + _domain_guidance +
+            "\n- Prefer well-known, widely-used benchmarks from top venues\n"
             "- Include at least 2 datasets and 2 baselines"
         )
         user = (
@@ -248,9 +323,11 @@ class SurveyorAgent(BaseAgent):
             topic (str): Research topic/title
             hypothesis (str): Research hypothesis
             experiment_plan (str): Experiment plan from previous stages
+            domain_id (str, optional): Detected domain profile ID
         """
         topic = context.get("topic", "")
         hypothesis = context.get("hypothesis", "")
+        domain_id = context.get("domain_id", "")
 
         if not topic:
             return self._make_result(False, error="No topic provided")
@@ -268,14 +345,22 @@ class SurveyorAgent(BaseAgent):
         # 2. Get local candidates
         local = self._get_local_candidates(domain_ids)
 
-        # 3. Search HuggingFace Hub (if available)
-        hf_datasets = self._search_hf_datasets(topic, domain_ids)
+        # 3. Search HuggingFace Hub — only for ML domains
+        hf_datasets: list[dict[str, Any]] = []
+        _is_ml = domain_id.startswith("ml_") if domain_id else bool(domain_ids)
+        if _is_ml:
+            hf_datasets = self._search_hf_datasets(topic, domain_ids)
+        else:
+            self.logger.info(
+                "Non-ML domain '%s' — skipping HuggingFace search", domain_id
+            )
 
-        # 4. LLM fallback if no local matches
+        # 4. LLM fallback (used when no local matches, or always for non-ML domains)
         llm_suggestions: dict[str, Any] = {}
-        if not local["benchmarks"] and not hf_datasets:
-            self.logger.info("No local/HF matches — falling back to LLM")
-            llm_suggestions = self._llm_suggest_benchmarks(topic, hypothesis)
+        _need_llm = not local["benchmarks"] and not hf_datasets
+        if _need_llm or (not _is_ml and not local["benchmarks"]):
+            self.logger.info("Falling back to LLM for benchmark suggestions")
+            llm_suggestions = self._llm_suggest_benchmarks(topic, hypothesis, domain_id=domain_id)
 
         # 5. Combine results
         all_benchmarks = local["benchmarks"] + hf_datasets

@@ -25,6 +25,7 @@ class AcquirerAgent(BaseAgent):
         self,
         benchmarks: list[dict[str, Any]],
         topic: str,
+        domain_id: str = "",
     ) -> str:
         """Ask LLM to generate a robust data loading function."""
         bench_specs = []
@@ -38,21 +39,29 @@ class AcquirerAgent(BaseAgent):
             )
             bench_specs.append(spec)
 
+        _is_ml = domain_id.startswith("ml_") if domain_id else True
+        _domain_libs = self._get_domain_libraries(domain_id)
+
         system = (
-            "You are an expert ML engineer. Generate a Python function that loads "
-            "and prepares datasets for an ML experiment.\n\n"
+            "You are an expert engineer. Generate a Python function that loads "
+            "and prepares datasets for a research experiment.\n\n"
             "REQUIREMENTS:\n"
             "- Function signature: def get_datasets(data_root='/workspace/data') -> dict\n"
             "- Returns dict with keys: 'train', 'val', 'test' (each a Dataset or DataLoader)\n"
-            "- Include appropriate transforms (normalization, augmentation for training)\n"
-            "- Handle both torchvision and HuggingFace datasets APIs\n"
             "- Include proper train/val/test splits\n"
             "- Add error handling with informative messages\n"
             "- For pre-cached datasets (tier 1), use download=False\n"
             "- For downloadable datasets (tier 2), use download=True in setup.py\n"
-            "- Include a DATA_CONFIG dict with dataset metadata (num_classes, input_shape, etc.)\n\n"
-            "Return ONLY the Python code, no explanation."
+            "- Include a DATA_CONFIG dict with dataset metadata\n"
         )
+        if _is_ml:
+            system += (
+                "- Include appropriate transforms (normalization, augmentation for training)\n"
+                "- Handle both torchvision and HuggingFace datasets APIs\n"
+            )
+        if _domain_libs:
+            system += f"- Prefer these libraries: {', '.join(_domain_libs)}\n"
+        system += "\nReturn ONLY the Python code, no explanation."
         user = (
             f"Research Topic: {topic}\n\n"
             f"Datasets to load:\n" + "\n".join(bench_specs) + "\n\n"
@@ -206,6 +215,26 @@ class AcquirerAgent(BaseAgent):
         extra = [p for p in required_pip if p.lower() not in builtin]
         return "\n".join(extra) if extra else ""
 
+    # -- Domain awareness ----------------------------------------------------
+
+    _DOMAIN_LIBRARIES: dict[str, list[str]] = {
+        "physics_": ["numpy", "scipy", "torch"],
+        "chemistry_": ["numpy", "scipy", "rdkit", "pyscf"],
+        "biology_": ["numpy", "scipy", "biopython", "scanpy"],
+        "economics_": ["numpy", "pandas", "statsmodels", "scipy"],
+        "mathematics_": ["numpy", "scipy"],
+        "neuroscience_": ["numpy", "scipy", "brian2", "nibabel"],
+        "robotics_": ["numpy", "gymnasium", "torch"],
+        "security_": ["numpy", "scipy", "sklearn"],
+    }
+
+    @classmethod
+    def _get_domain_libraries(cls, domain_id: str) -> list[str]:
+        for prefix, libs in cls._DOMAIN_LIBRARIES.items():
+            if domain_id.startswith(prefix):
+                return libs
+        return []
+
     # -- Code cleanup ------------------------------------------------------
 
     @staticmethod
@@ -228,9 +257,11 @@ class AcquirerAgent(BaseAgent):
         Context keys:
             topic (str): Research topic
             selection (dict): Output from SelectorAgent
+            domain_id (str, optional): Detected domain profile ID
         """
         topic = context.get("topic", "")
         selection = context.get("selection", {})
+        domain_id = context.get("domain_id", "")
 
         benchmarks = selection.get("selected_benchmarks", [])
         baselines = selection.get("selected_baselines", [])
@@ -242,7 +273,7 @@ class AcquirerAgent(BaseAgent):
         # 1. Generate data loading code
         self.logger.info("Generating data loading code for %d datasets", len(benchmarks))
         data_loader_code = self._strip_fences(
-            self._generate_data_loader(benchmarks, topic)
+            self._generate_data_loader(benchmarks, topic, domain_id=domain_id)
         )
 
         # 2. Generate baseline code

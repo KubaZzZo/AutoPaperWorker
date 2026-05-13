@@ -278,6 +278,24 @@ class DockerSandbox:
         if cfg.network_policy in ("pip_only", "setup_only", "full"):
             self._write_requirements_txt(staging_dir)
 
+        # P4.2: Save sandbox environment metadata for reproducibility
+        try:
+            import json as _json_env
+            _env_meta = {
+                "sandbox_type": "docker",
+                "docker_image": cfg.image,
+                "gpu_enabled": cfg.gpu_enabled,
+                "gpu_device_ids": cfg.gpu_device_ids,
+                "network_policy": cfg.network_policy,
+                "pip_pre_install": cfg.pip_pre_install,
+                "timeout_sec": timeout_sec,
+            }
+            (staging_dir / "environment.json").write_text(
+                _json_env.dumps(_env_meta, indent=2), encoding="utf-8",
+            )
+        except Exception:
+            pass
+
         # Build the docker run command
         cmd = self._build_run_command(
             staging_dir,

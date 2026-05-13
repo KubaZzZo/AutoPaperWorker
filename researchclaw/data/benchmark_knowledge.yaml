@@ -853,3 +853,587 @@ domains:
         source: "sklearn.neural_network.MLPClassifier(hidden_layer_sizes=(256, 128))"
         paper: "Standard neural network baseline"
         pip: []
+
+  # ── Physics ─────────────────────────────────────────────────────
+
+  physics_pde:
+    keywords:
+      - partial differential equation
+      - pde solver
+      - physics informed
+      - scientific computing
+      - numerical simulation
+      - fluid dynamics
+    standard_benchmarks:
+      - name: BurgersEquation
+        tier: 1
+        domain: physics_pde
+        size_mb: 0.01
+        metrics: [mse, relative_l2_error]
+        api: "synthetic — generate u(x,t) from Burgers equation via numpy"
+        note: "Generate 1D Burgers equation data: u_t + u*u_x = nu*u_xx with viscosity nu. Sample 1000-2000 trajectories."
+      - name: PoissonEquation2D
+        tier: 1
+        domain: physics_pde
+        size_mb: 0.01
+        metrics: [mse, relative_l2_error]
+        api: "synthetic — generate via scipy/numpy finite difference solver"
+        note: "Solve -Δu = f on unit square with Dirichlet BCs. Use manufactured solution for ground truth."
+      - name: HeatEquation2D
+        tier: 1
+        domain: physics_pde
+        size_mb: 0.01
+        metrics: [mse, relative_l2_error]
+        api: "synthetic — generate u(x,y,t) from heat equation via numpy"
+        note: "Solve u_t = αΔu on rectangle domain. Sample 500-1000 temporal snapshots."
+    common_baselines:
+      - name: FiniteDifference
+        source: "scipy.sparse.linalg.spsolve for discretized Laplacian"
+        paper: "Standard numerical method"
+        pip: []
+      - name: FourierNeuralOperator
+        paper: "Li et al., Fourier Neural Operator, ICLR 2021"
+        source: "neuralop.models.FNO(n_modes=16, hidden_channels=64)"
+        pip: [neuralop]
+      - name: DeepONet
+        paper: "Lu et al., DeepONet, Nature Machine Intelligence 2021"
+        source: "deepxde.nn.DeepONet(...)"
+        pip: [deepxde]
+      - name: PINN
+        paper: "Raissi et al., Physics-Informed Neural Networks, JCP 2019"
+        source: "deepxde.Model(data, net)"
+        pip: [deepxde]
+
+  physics_simulation:
+    keywords:
+      - molecular dynamics
+      - particle simulation
+      - n body
+      - lennard jones
+      - classical mechanics
+    standard_benchmarks:
+      - name: NBODY_Gravitational
+        tier: 1
+        domain: physics_simulation
+        size_mb: 0.01
+        metrics: [energy_error, position_mse]
+        api: "synthetic — generate N-body initial conditions via numpy"
+        note: "Generate 2D/3D N-body gravitational system with 10-100 particles. Integrate with RK4/Verlet."
+      - name: LennardJonesFluid
+        tier: 1
+        domain: physics_simulation
+        size_mb: 0.01
+        metrics: [energy_conservation, radial_distribution]
+        api: "synthetic — initialize LJ particles in FCC lattice"
+        note: "Simulate 64-256 LJ particles at reduced density 0.8, temperature 1.0."
+    common_baselines:
+      - name: VelocityVerlet
+        source: "numpy implementation of velocity Verlet integrator"
+        paper: "Swope et al., JCP 1982"
+        pip: []
+      - name: RungeKutta4
+        source: "scipy.integrate.solve_ivp(method='RK45')"
+        paper: "Standard numerical method"
+        pip: [scipy]
+      - name: Leapfrog
+        source: "numpy implementation of leapfrog integrator"
+        paper: "Hockney & Eastwood, Computer Simulation Using Particles"
+        pip: []
+
+  physics_quantum:
+    keywords:
+      - quantum mechanics
+      - schrodinger equation
+      - heisenberg model
+      - hubbard model
+      - many body
+      - variational quantum
+    standard_benchmarks:
+      - name: HeisenbergChain
+        tier: 1
+        domain: physics_quantum
+        size_mb: 0.01
+        metrics: [energy_error, correlation_function]
+        api: "synthetic — construct Heisenberg Hamiltonian via numpy"
+        note: "1D spin-1/2 Heisenberg chain with 8-20 sites. Compare ground state energy."
+      - name: HubbardModel1D
+        tier: 1
+        domain: physics_quantum
+        size_mb: 0.01
+        metrics: [energy_error, double_occupancy]
+        api: "synthetic — construct Hubbard Hamiltonian via numpy/scipy"
+        note: "1D Hubbard model at half-filling with 4-10 sites, U/t = 1..8."
+    common_baselines:
+      - name: ExactDiagonalization
+        source: "numpy.linalg.eigh for Hamiltonian matrix"
+        paper: "Standard quantum many-body method"
+        pip: []
+      - name: DMRG
+        paper: "White, Density Matrix Renormalization Group, PRL 1992"
+        source: "tenpy.algorithms.dmrg.TwoSiteDMRGEngine"
+        pip: [tenpy]
+
+  # ── Chemistry ────────────────────────────────────────────────────
+
+  chemistry_molprop:
+    keywords:
+      - molecular property
+      - qsar
+      - drug discovery
+      - molecular descriptor
+      - cheminformatics
+      - toxicity prediction
+    standard_benchmarks:
+      - name: QM9_subset
+        tier: 2
+        domain: chemistry_molprop
+        size_mb: 80
+        metrics: [mae, rmse]
+        api: "deepchem.molnet.load_qm9() or preprocessed CSV"
+      - name: ESOL
+        tier: 2
+        domain: chemistry_molprop
+        size_mb: 2
+        samples: 1128
+        metrics: [mae, rmse, r2]
+        api: "deepchem.molnet.load_delaney()"
+      - name: Lipophilicity
+        tier: 2
+        domain: chemistry_molprop
+        size_mb: 1
+        samples: 4200
+        metrics: [mae, rmse, r2]
+        api: "deepchem.molnet.load_lipophilicity()"
+    common_baselines:
+      - name: RF_MorganFP
+        source: "sklearn.ensemble.RandomForestRegressor(n_estimators=100)"
+        paper: "Breiman, Random Forests, Machine Learning 2001"
+        pip: []
+      - name: XGBoost_MorganFP
+        source: "xgboost.XGBRegressor(n_estimators=100)"
+        paper: "Chen & Guestrin, XGBoost, KDD 2016"
+        pip: [xgboost]
+      - name: GCN
+        paper: "Kipf & Welling, GCN, ICLR 2017"
+        source: "torch_geometric.nn.GCNConv"
+        pip: [torch_geometric]
+
+  chemistry_qm:
+    keywords:
+      - quantum chemistry
+      - density functional theory
+      - coupled cluster
+      - hartree fock
+      - electronic structure
+      - potential energy surface
+    standard_benchmarks:
+      - name: H2_PES
+        tier: 1
+        domain: chemistry_qm
+        size_mb: 0.01
+        metrics: [energy_mae, force_mae]
+        api: "synthetic — compute via pyscf at HF/CCSD level"
+        note: "H2 potential energy surface: 20-50 bond lengths from 0.4 to 5.0 Å. Compute at HF, MP2, CCSD levels."
+      - name: WaterDimer
+        tier: 1
+        domain: chemistry_qm
+        size_mb: 0.01
+        metrics: [binding_energy_error, energy_mae]
+        api: "synthetic — compute via pyscf at HF/MP2 level"
+        note: "Water dimer binding energy curve: 10-30 O-O distances."
+    common_baselines:
+      - name: HartreeFock
+        source: "pyscf.scf.RHF(mol).kernel()"
+        paper: "Roothaan, RMP 1951"
+        pip: [pyscf]
+      - name: DFT_B3LYP
+        source: "pyscf.dft.RKS(mol, xc='b3lyp').kernel()"
+        paper: "Becke, JCP 1993; Lee, Yang, Parr, PRB 1988"
+        pip: [pyscf]
+      - name: MP2
+        source: "pyscf.mp.MP2(mf).kernel()"
+        paper: "Møller & Plesset, PR 1934"
+        pip: [pyscf]
+
+  # ── Biology ───────────────────────────────────────────────────────
+
+  biology_genomics:
+    keywords:
+      - genomics
+      - gene expression
+      - dna sequence
+      - rna seq
+      - genome
+      - regulatory network
+    standard_benchmarks:
+      - name: SyntheticGeneExpression
+        tier: 1
+        domain: biology_genomics
+        size_mb: 0.1
+        metrics: [mse, correlation]
+        api: "synthetic — generate expression matrix via numpy"
+        note: "Generate 500 genes × 100 samples expression matrix with known ground truth regulatory network."
+      - name: RegulatoryNetwork
+        tier: 1
+        domain: biology_genomics
+        size_mb: 0.01
+        metrics: [auroc, auprc]
+        api: "synthetic — generate via networkx random graph"
+        note: "Generate synthetic gene regulatory network with 100-500 nodes, scale-free topology."
+    common_baselines:
+      - name: RandomForest
+        source: "sklearn.ensemble.RandomForestClassifier(n_estimators=100)"
+        paper: "Breiman, Random Forests, Machine Learning 2001"
+        pip: []
+      - name: BLAST
+        paper: "Altschul et al., JMB 1990"
+        source: "Bio.Blast.NCBIWWW.qblast('blastn', 'nt', sequence)"
+        pip: [biopython]
+      - name: GENIE3
+        paper: "Huynh-Thu et al., PLoS ONE 2010"
+        source: "arboreto.algorithms.GENIE3"
+        pip: [arboreto]
+
+  biology_protein:
+    keywords:
+      - protein structure
+      - protein folding
+      - amino acid
+      - mutation stability
+      - binding affinity
+    standard_benchmarks:
+      - name: MutationStability
+        tier: 2
+        domain: biology_protein
+        size_mb: 2
+        samples: 2000
+        metrics: [mae, pearson_correlation]
+        api: "load from ProTherm/S2648 dataset CSV"
+        note: "Protein mutation stability prediction (ΔΔG). Use S2648 or ProTherm subsets."
+      - name: PDB_Subset
+        tier: 2
+        domain: biology_protein
+        size_mb: 50
+        metrics: [tm_score, rmsd]
+        api: "Bio.PDB.PDBParser().get_structure()"
+        note: "Select 50-200 diverse PDB structures for structure prediction benchmarks."
+    common_baselines:
+      - name: ESM2
+        paper: "Lin et al., ESM-2, Science 2023"
+        source: "esm.pretrained.esm2_t33_650M_UR50D()"
+        pip: [fair-esm]
+      - name: ProtBERT
+        paper: "Elnaggar et al., ProtBERT, IEEE TPAMI 2021"
+        source: "transformers.BertModel.from_pretrained('Rostlab/prot_bert')"
+        pip: [transformers]
+      - name: Rosetta
+        paper: "Leaver-Fay et al., Rosetta3, Methods in Enzymology 2011"
+        source: "pyrosetta.init()"
+        pip: [pyrosetta]
+
+  biology_singlecell:
+    keywords:
+      - single cell
+      - scrna seq
+      - clustering
+      - cell type
+      - trajectory inference
+      - pseudotime
+    standard_benchmarks:
+      - name: PBMC_3K_Simulated
+        tier: 1
+        domain: biology_singlecell
+        size_mb: 0.5
+        metrics: [ari, nmi, silhouette_score]
+        api: "synthetic — generate via scprep or scanpy simulation"
+        note: "Generate simulated scRNA-seq data with 3000 cells × 2000 genes, 5-8 known cell types."
+    common_baselines:
+      - name: Leiden
+        source: "scanpy.tl.leiden(adata, resolution=1.0)"
+        paper: "Traag et al., Leiden algorithm, Scientific Reports 2019"
+        pip: [scanpy]
+      - name: Louvain
+        source: "scanpy.tl.louvain(adata, resolution=1.0)"
+        paper: "Blondel et al., Louvain method, JSTAT 2008"
+        pip: [scanpy]
+      - name: KMeans
+        source: "sklearn.cluster.KMeans(n_clusters=n)"
+        paper: "MacQueen, K-Means, 1967"
+        pip: []
+
+  # ── Economics ─────────────────────────────────────────────────────
+
+  economics_empirical:
+    keywords:
+      - economics
+      - econometrics
+      - causal inference
+      - regression
+      - instrumental variable
+      - difference in difference
+    standard_benchmarks:
+      - name: WageRegression
+        tier: 1
+        domain: economics_empirical
+        size_mb: 0.01
+        metrics: [rmse, r2, coefficient_bias]
+        api: "synthetic — generate via numpy Mincer wage equation"
+        note: "Generate synthetic wage data: log(wage) = β0 + β1*educ + β2*exper + β3*exper² + ε with known DGP."
+      - name: DemandEstimation
+        tier: 1
+        domain: economics_empirical
+        size_mb: 0.01
+        metrics: [elasticity_error, rmse]
+        api: "synthetic — generate via numpy demand system"
+        note: "Synthetic demand data with endogenous price: log(q) = α + β*log(p) + γ*log(income) + ε. Use cost shifters as IV."
+    common_baselines:
+      - name: OLS
+        source: "statsmodels.OLS(y, X).fit()"
+        paper: "Standard linear regression"
+        pip: [statsmodels]
+      - name: FixedEffects
+        source: "statsmodels.OLS(y, X_with_dummies).fit()"
+        paper: "Standard panel data method"
+        pip: [statsmodels]
+      - name: IV_2SLS
+        source: "statsmodels.sandbox.regression.gmm.IV2SLS(endog=y, exog=X_exog, instrument=Z).fit()"
+        paper: "Angrist & Krueger, QJE 1991"
+        pip: [statsmodels]
+
+  # ── Mathematics ───────────────────────────────────────────────────
+
+  mathematics_numerical:
+    keywords:
+      - numerical analysis
+      - ode solver
+      - finite element
+      - spectral method
+      - time stepping
+    standard_benchmarks:
+      - name: PoissonEquation
+        tier: 1
+        domain: mathematics_numerical
+        size_mb: 0.01
+        metrics: [l2_error, h1_error, convergence_rate]
+        api: "synthetic — solve via scipy/numpy with manufactured solution"
+        note: "Poisson equation -Δu = f on unit square. Manufactured solution u = sin(πx)sin(πy)."
+      - name: AdvectionEquation
+        tier: 1
+        domain: mathematics_numerical
+        size_mb: 0.01
+        metrics: [l2_error, mass_conservation]
+        api: "synthetic — solve linear advection via numpy"
+        note: "1D linear advection: u_t + c*u_x = 0. Compare numerical schemes at various CFL numbers."
+    common_baselines:
+      - name: RungeKutta4
+        source: "scipy.integrate.solve_ivp(method='RK45')"
+        paper: "Standard numerical ODE solver"
+        pip: [scipy]
+      - name: CrankNicolson
+        source: "numpy implementation of Crank-Nicolson scheme"
+        paper: "Crank & Nicolson, 1947"
+        pip: []
+      - name: FiniteElement
+        source: "scipy.sparse.linalg.spsolve for stiffness matrix"
+        paper: "Standard numerical method"
+        pip: [scipy]
+      - name: SpectralMethod
+        source: "numpy.fft for spectral differentiation matrix"
+        paper: "Trefethen, Spectral Methods in MATLAB, 2000"
+        pip: []
+
+  mathematics_optimization:
+    keywords:
+      - optimization
+      - gradient descent
+      - convex optimization
+      - nonlinear programming
+      - black box optimization
+    standard_benchmarks:
+      - name: Rosenbrock
+        tier: 1
+        domain: mathematics_optimization
+        size_mb: 0.01
+        metrics: [final_value, iterations, distance_to_optimum]
+        api: "scipy.optimize.rosen(x)"
+        note: "Minimize 2D/10D Rosenbrock function f(x) = Σ[100(x_{i+1}-x_i²)² + (1-x_i)²]."
+      - name: Rastrigin
+        tier: 1
+        domain: mathematics_optimization
+        size_mb: 0.01
+        metrics: [final_value, iterations, distance_to_optimum]
+        api: "synthetic — implement Rastrigin function via numpy"
+        note: "Minimize 10D Rastrigin: f(x) = 10n + Σ[x_i² - 10cos(2πx_i)]. Global min at x=0."
+      - name: Ackley
+        tier: 1
+        domain: mathematics_optimization
+        size_mb: 0.01
+        metrics: [final_value, iterations, distance_to_optimum]
+        api: "synthetic — implement Ackley function via numpy"
+        note: "Minimize 10D Ackley function with many local minima."
+    common_baselines:
+      - name: GradientDescent
+        source: "scipy.optimize.minimize(method='BFGS')"
+        paper: "Standard optimization method"
+        pip: [scipy]
+      - name: L_BFGS
+        source: "scipy.optimize.minimize(method='L-BFGS-B')"
+        paper: "Liu & Nocedal, Mathematical Programming 1989"
+        pip: [scipy]
+      - name: NelderMead
+        source: "scipy.optimize.minimize(method='Nelder-Mead')"
+        paper: "Nelder & Mead, Computer Journal 1965"
+        pip: [scipy]
+      - name: CMA_ES
+        source: "cma.CMAEvolutionStrategy(x0, sigma0)"
+        paper: "Hansen, CMA-ES, 2006"
+        pip: [cma]
+
+  # ── Neuroscience ──────────────────────────────────────────────────
+
+  neuroscience_computational:
+    keywords:
+      - neuron model
+      - spiking neural network
+      - hodgkin huxley
+      - izhikevich
+      - neural dynamics
+      - synaptic plasticity
+    standard_benchmarks:
+      - name: IzhikevichTuning
+        tier: 1
+        domain: neuroscience_computational
+        size_mb: 0.01
+        metrics: [firing_rate_error, spike_time_error]
+        api: "synthetic — implement Izhikevich neuron via numpy"
+        note: "Simulate Izhikevich neuron with varying input currents, measure f-I curve and spike patterns."
+      - name: HodgkinHuxleyStep
+        tier: 1
+        domain: neuroscience_computational
+        size_mb: 0.01
+        metrics: [v_rest_error, spike_threshold_error, waveform_mse]
+        api: "synthetic — implement HH model via numpy/scipy"
+        note: "Simulate squid giant axon HH model: Cm*dV/dt = -gNa*m³*h*(V-ENa) - gK*n⁴*(V-EK) - gL*(V-EL) + I."
+    common_baselines:
+      - name: HodgkinHuxley
+        source: "brian2.NeuronGroup for HH equations"
+        paper: "Hodgkin & Huxley, J. Physiol. 1952"
+        pip: [brian2]
+      - name: Izhikevich
+        source: "numpy implementation: dv/dt = 0.04v² + 5v + 140 - u + I"
+        paper: "Izhikevich, IEEE TNN 2003"
+        pip: []
+      - name: LIF
+        source: "brian2.NeuronGroup for LIF equations"
+        paper: "Lapicque, 1907"
+        pip: [brian2]
+
+  neuroscience_imaging:
+    keywords:
+      - fmri
+      - brain imaging
+      - functional connectivity
+      - bold signal
+      - neuroimaging
+      - resting state
+    standard_benchmarks:
+      - name: RestingStateCorrelation
+        tier: 1
+        domain: neuroscience_imaging
+        size_mb: 0.1
+        metrics: [correlation_error, modularity_score]
+        api: "synthetic — generate correlation matrices via numpy"
+        note: "Generate 50-200 ROI correlation matrices with known community structure."
+    common_baselines:
+      - name: AtlasParcellation
+        source: "nilearn.datasets.fetch_atlas_harvard_oxford()"
+        paper: "Harvard-Oxford Atlas"
+        pip: [nilearn]
+      - name: BandPassFilter
+        source: "scipy.signal.butter + filtfilt for 0.01-0.1 Hz"
+        paper: "Standard fMRI preprocessing"
+        pip: [scipy]
+      - name: SVM
+        source: "sklearn.svm.SVC(kernel='linear')"
+        paper: "Standard classifier"
+        pip: []
+
+  # ── Robotics ──────────────────────────────────────────────────────
+
+  robotics_control:
+    keywords:
+      - robot control
+      - trajectory optimization
+      - motor control
+      - inverse kinematics
+      - impedance control
+    standard_benchmarks:
+      - name: PendulumSwingup
+        tier: 1
+        domain: robotics_control
+        size_mb: 0.01
+        metrics: [settling_time, control_effort, tracking_error]
+        api: "synthetic — implement pendulum dynamics via numpy"
+        note: "Simulate pendulum swing-up: θ̈ = (mgl*sin(θ) - bθ̇ + u) / (ml²). Swing from θ=π to θ=0."
+      - name: CartpoleBalance
+        tier: 1
+        domain: robotics_control
+        size_mb: 0.01
+        metrics: [balance_time, max_deviation, control_effort]
+        api: "synthetic — implement cartpole dynamics via numpy"
+        note: "Cartpole balancing around unstable equilibrium."
+    common_baselines:
+      - name: PID
+        source: "simple_pid.PID(Kp=1.0, Ki=0.1, Kd=0.05)"
+        paper: "Standard control method"
+        pip: [simple-pid]
+      - name: LQR
+        source: "scipy.linalg.solve_continuous_are + gain matrix"
+        paper: "Kalman, 1960"
+        pip: [scipy]
+      - name: MPC
+        source: "cvxopt.solvers.qp for quadratic programming"
+        paper: "Model Predictive Control"
+        pip: [cvxopt]
+
+  # ── Security ──────────────────────────────────────────────────────
+
+  security_detection:
+    keywords:
+      - intrusion detection
+      - malware detection
+      - network security
+      - anomaly detection
+      - cyber attack
+    standard_benchmarks:
+      - name: NSL_KDD_Subset
+        tier: 2
+        domain: security_detection
+        size_mb: 5
+        samples: 25000
+        metrics: [accuracy, f1, false_positive_rate, detection_rate]
+        api: "load from preprocessed CSV"
+      - name: CICIDS_Subset
+        tier: 2
+        domain: security_detection
+        size_mb: 10
+        metrics: [accuracy, precision, recall, f1]
+        api: "load from preprocessed CSV"
+        note: "Subset of CICIDS2017 with balanced attack/normal traffic."
+    common_baselines:
+      - name: RandomForest
+        source: "sklearn.ensemble.RandomForestClassifier(n_estimators=100)"
+        paper: "Breiman, Random Forests, Machine Learning 2001"
+        pip: []
+      - name: XGBoost
+        source: "xgboost.XGBClassifier(n_estimators=100)"
+        paper: "Chen & Guestrin, XGBoost, KDD 2016"
+        pip: [xgboost]
+      - name: IsolationForest
+        source: "sklearn.ensemble.IsolationForest(n_estimators=100)"
+        paper: "Liu et al., Isolation Forest, ICDM 2008"
+        pip: []
+      - name: OneClassSVM
+        source: "sklearn.svm.OneClassSVM(nu=0.1)"
+        paper: "Schölkopf et al., Neural Computation 2001"
+        pip: []

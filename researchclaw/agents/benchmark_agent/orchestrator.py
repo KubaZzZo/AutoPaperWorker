@@ -219,10 +219,12 @@ class BenchmarkOrchestrator(AgentOrchestrator):
             topic (str): Research topic/title
             hypothesis (str): Research hypothesis
             experiment_plan (str): Experiment plan text
+            domain_id (str, optional): Detected domain profile ID
         """
         t0 = time.monotonic()
         topic = context.get("topic", "")
         hypothesis = context.get("hypothesis", "")
+        domain_id = context.get("domain_id", "")
 
         self.logger.info("BenchmarkAgent starting for: %s", topic[:80])
 
@@ -233,6 +235,7 @@ class BenchmarkOrchestrator(AgentOrchestrator):
         survey_result = self._surveyor.execute({
             "topic": topic,
             "hypothesis": hypothesis,
+            "domain_id": domain_id,
             "experiment_plan": context.get("experiment_plan", ""),
         })
         self._accumulate(survey_result)
@@ -280,6 +283,7 @@ class BenchmarkOrchestrator(AgentOrchestrator):
             # Acquire
             acq_result = self._acquirer.execute({
                 "topic": topic,
+                "domain_id": domain_id,
                 "selection": selection,
             })
             self._accumulate(acq_result)

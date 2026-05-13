@@ -207,6 +207,22 @@ def _execute_experiment_run(
                 result.elapsed_sec,
             )
 
+        # P4.2: Capture environment for reproducibility
+        _env_info: dict[str, Any] = {}
+        try:
+            from researchclaw.experiment.environment import (
+                capture_environment,
+                write_reproducibility_artifacts,
+            )
+            _env_info = capture_environment()
+            _artifacts = write_reproducibility_artifacts(stage_dir, _env_info)
+            logger.info(
+                "Stage 12: Reproducibility artifacts — %s",
+                list(_artifacts.keys()),
+            )
+        except Exception:
+            logger.debug("Environment capture failed (non-fatal)", exc_info=True)
+
         run_payload: dict[str, Any] = {
             "run_id": "run-1",
             "task_id": "sandbox-main",
@@ -217,6 +233,7 @@ def _execute_experiment_run(
             "stderr": result.stderr,
             "timed_out": result.timed_out,
             "completed_at": _utcnow_iso(),
+            "environment": _env_info,
         }
         if structured_results is not None:
             run_payload["structured_results"] = structured_results

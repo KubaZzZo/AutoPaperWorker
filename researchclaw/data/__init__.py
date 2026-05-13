@@ -59,12 +59,27 @@ def detect_frameworks(topic: str, hypothesis: str = "", plan: str = "") -> list[
     return matched
 
 
-def load_framework_docs(framework_ids: list[str], max_chars: int = 8000) -> str:
+def load_framework_docs(
+    framework_ids: list[str], max_chars: int = 8000, use_live_fetch: bool = False
+) -> str:
     """Load and concatenate framework API documentation for the given IDs.
+
+    When *use_live_fetch* is True, delegates to FrameworkDocFetcher which tries
+    llms.txt → web crawl → static fallback.  Cached for 7 days.
 
     Returns a single string with all relevant docs, truncated to max_chars
     to avoid overwhelming the prompt context.
     """
+    if use_live_fetch:
+        try:
+            from researchclaw.literature.framework_docs import fetch_all
+            result = fetch_all(framework_ids, max_chars=max_chars)
+            if result:
+                return result
+            logger.debug("Live fetch returned empty, falling back to static docs")
+        except Exception:
+            logger.debug("Live fetch unavailable, falling back to static docs", exc_info=True)
+
     parts: list[str] = []
     total = 0
     for fw_id in framework_ids:

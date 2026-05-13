@@ -26,7 +26,12 @@ _BUILTIN_MODULES = {
     "timm", "einops", "torchmetrics", "transformers", "datasets",
     "accelerate", "peft", "trl", "bitsandbytes", "tokenizers",
     "safetensors", "h5py", "tensorboard", "PIL", "yaml", "kornia",
-    "albumentations", "cv2", "mujoco", "os", "sys", "json", "re",
+    "albumentations", "cv2", "mujoco",
+    # Non-ML domain packages (P4.1)
+    "rdkit", "pyscf", "biopython", "scanpy", "statsmodels",
+    "brian2", "nibabel", "gym",
+    # Standard library
+    "os", "sys", "json", "re",
     "pathlib", "typing", "collections", "functools", "itertools",
     "math", "random", "copy", "dataclasses", "abc", "io", "csv",
     "glob", "shutil", "time", "datetime", "logging", "warnings",

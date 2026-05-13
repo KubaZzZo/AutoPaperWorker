@@ -152,7 +152,8 @@ def _execute_experiment_design(
             from researchclaw.data import detect_frameworks, load_framework_docs
             _fw_ids = detect_frameworks(config.research.topic, hypotheses)
             if _fw_ids:
-                _fw_docs = load_framework_docs(_fw_ids, max_chars=4000)
+                _use_live = getattr(config.experiment, "framework_doc_fetch", False)
+                _fw_docs = load_framework_docs(_fw_ids, max_chars=4000, use_live_fetch=_use_live)
                 if _fw_docs:
                     _dg_block += _fw_docs
         except Exception:  # noqa: BLE001
@@ -312,9 +313,8 @@ def _execute_experiment_design(
         }
     # ── BA: BenchmarkAgent — intelligent dataset/baseline selection ──────
     _benchmark_plan = None
-    # BUG-40: Skip BenchmarkAgent for non-ML domains — it has no relevant
-    # benchmarks for physics/chemistry/mathematics/etc. and would inject
-    # wrong datasets (e.g., CIFAR-10 for PDE topics).
+    # Domain-aware: ML domains use HF search + knowledge base; non-ML domains
+    # use local knowledge base + LLM fallback from their domain profiles.
     _ba_domain_profile = _domain_profile
     if _ba_domain_profile is None:
         try:
@@ -330,7 +330,7 @@ def _execute_experiment_design(
         if _ba_domain_profile is not None
         else "generic"
     )
-    _ba_domain_ok = _ba_domain_id.startswith("ml_")
+    _ba_domain_ok = True  # P4.1: Support all domains, not just ML
     if not _ba_domain_ok:
         logger.info(
             "BenchmarkAgent skipped: domain profile '%s' is not an ML profile (topic: %s)",
@@ -381,6 +381,8 @@ def _execute_experiment_design(
             _benchmark_plan = _ba.orchestrate({
                 "topic": config.research.topic,
                 "hypothesis": hypotheses,
+                "domain_id": _ba_domain_id,
+                "domain_profile": _ba_domain_profile,
                 "experiment_plan": plan.get("objectives", "") if isinstance(plan, dict) else "",
             })
 

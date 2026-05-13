@@ -255,7 +255,8 @@ def _execute_code_generation(
             config.research.topic, _hypothesis_text, exp_plan or ""
         )
         if _fw_ids:
-            _fw_docs = load_framework_docs(_fw_ids, max_chars=8000)
+            _use_live = getattr(config.experiment, "framework_doc_fetch", False)
+            _fw_docs = load_framework_docs(_fw_ids, max_chars=8000, use_live_fetch=_use_live)
             if _fw_docs:
                 extra_guidance += _fw_docs
                 logger.info("F-01: Injected framework docs for: %s", _fw_ids)

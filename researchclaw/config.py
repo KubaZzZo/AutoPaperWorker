@@ -438,6 +438,8 @@ class ExperimentConfig:
     figure_agent: FigureAgentConfig = field(default_factory=FigureAgentConfig)
     repair: ExperimentRepairConfig = field(default_factory=ExperimentRepairConfig)
     cli_agent: CliAgentConfig = field(default_factory=CliAgentConfig)
+    # F-01 Phase 2: live framework doc fetching (llms.txt → web crawl → static)
+    framework_doc_fetch: bool = False
 
 
 @dataclass(frozen=True)

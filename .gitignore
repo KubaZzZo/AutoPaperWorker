@@ -36,6 +36,7 @@ config_run*.yaml
 
 # Literature search cache
 .researchclaw_cache/
+researchclaw/data/code_search_cache/
 
 # Playwright MCP logs
 .playwright-mcp/

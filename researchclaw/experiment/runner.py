@@ -29,6 +29,7 @@ class ExperimentResult:
     stdout: str
     stderr: str
     error: str | None = None
+    environment: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -158,6 +159,14 @@ class ExperimentRunner:
                 or f"Process exited with {sandbox_result.returncode}"
             )
 
+        # P4.2: Capture environment for reproducibility
+        env_info: dict[str, object] = {}
+        try:
+            from researchclaw.experiment.environment import capture_environment
+            env_info = capture_environment(sandbox=self.sandbox)
+        except Exception:
+            logger.debug("Environment capture failed (non-fatal)", exc_info=True)
+
         result = ExperimentResult(
             run_id=run_id,
             iteration=iteration,
@@ -170,6 +179,7 @@ class ExperimentRunner:
             stdout=sandbox_result.stdout,
             stderr=sandbox_result.stderr,
             error=error,
+            environment=env_info,
         )
 
         if kept:
@@ -324,6 +334,7 @@ def _result_from_dict(data: dict[str, object]) -> ExperimentResult | None:
     stdout = data.get("stdout")
     stderr = data.get("stderr")
     error = data.get("error")
+    environment = data.get("environment", {})
 
     if not isinstance(run_id, str) or not isinstance(iteration, int):
         return None
@@ -343,6 +354,10 @@ def _result_from_dict(data: dict[str, object]) -> ExperimentResult | None:
     typed_metrics: dict[str, object] = {}
     for key, value in cast(dict[object, object], metrics).items():
         typed_metrics[str(key)] = value
+    typed_env: dict[str, object] = {}
+    if isinstance(environment, dict):
+        for k, v in cast(dict[object, object], environment).items():
+            typed_env[str(k)] = v
     return ExperimentResult(
         run_id=run_id,
         iteration=iteration,
@@ -357,4 +372,5 @@ def _result_from_dict(data: dict[str, object]) -> ExperimentResult | None:
         stdout=stdout,
         stderr=stderr,
         error=error,
+        environment=typed_env,
     )
