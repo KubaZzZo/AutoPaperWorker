@@ -20,6 +20,7 @@ reproducibility updates were integrated.
 | Q25 capacity fairness detection | Integrated | `check_capacity_fairness()` detects obvious proposed-vs-baseline model capacity mismatches |
 | General domain profiles | Integrated | Added `chemistry_general`, `biology_general`, `mathematics_general`, and `economics_general` YAML profiles |
 | MCP SSE transport | Integrated | `SSETransport` now supports queued JSON-RPC receive and SSE data-frame send semantics |
+| WebSocket synchronous HITL input | Integrated | `WebSocketHITLAdapter.collect_input()` now uses waiting/response file IPC for blocking pipeline callbacks |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -28,7 +29,6 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| WebSocket synchronous HITL input | Medium | `WebSocketHITLAdapter.collect_input()` is intentionally not implemented. |
 | Recommendation systems domain | Medium | Add `ml_recommendation` detector rules, profile, and skill coverage. |
 | Multi-GPU training | Medium | DeepSpeed/FSDP support is not wired into the main experiment path. |
 | Conference template expansion | Low | Add CVPR, ACL, AAAI, KDD, Nature/Science-style templates. |

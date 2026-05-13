@@ -163,9 +163,23 @@ class WebSocketHITLAdapter:
     # ── HITLAdapter protocol methods ──────────────────────────────
 
     def collect_input(self, waiting: WaitingState) -> HumanInput:
-        """Not used directly — WebSocket interaction is async message-based."""
-        raise NotImplementedError(
-            "WebSocket adapter uses async message handling, not collect_input"
+        """Block for browser input using the existing file IPC channel."""
+        from researchclaw.hitl.file_wait import (
+            poll_for_response,
+            write_waiting,
+        )
+
+        self._resolve_dirs()
+        if self._hitl_dir is None:
+            return HumanInput(
+                action=HumanAction.ABORT,
+                message="WebSocket HITL run directory not found",
+            )
+
+        write_waiting(self._hitl_dir, waiting)
+        return poll_for_response(
+            self._hitl_dir,
+            poll_interval_sec=self.poll_interval,
         )
 
     async def show_stage_output(

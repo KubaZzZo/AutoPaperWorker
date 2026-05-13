@@ -565,19 +565,30 @@ async def test_resolve_run_dir_missing(tmp_path: Path, ws: MockWebSocket) -> Non
     assert adapter._hitl_dir is None
 
 
-# ── Tests: collect_input raises ────────────────────────────────────
+# ── Tests: collect_input ───────────────────────────────────────────
 
 
-def test_collect_input_raises(ws: MockWebSocket, tmp_path: Path) -> None:
-    """collect_input raises NotImplementedError (WebSocket is async)."""
+def test_collect_input_reads_response_file(
+    ws: MockWebSocket, tmp_run: Path
+) -> None:
+    """collect_input uses file IPC so pipeline callbacks can block safely."""
     adapter = WebSocketHITLAdapter(
-        ws=ws, artifacts_dir=tmp_path, run_id="test"
+        ws=ws, artifacts_dir=tmp_run.parent, run_id=tmp_run.name, poll_interval=0.01
     )
     waiting = WaitingState(
         stage=1, stage_name="Test", reason=PauseReason.POST_STAGE
     )
-    with pytest.raises(NotImplementedError):
-        adapter.collect_input(waiting)
+    response = HumanInput(action=HumanAction.APPROVE, message="ok")
+    (tmp_run / "hitl" / "response.json").write_text(
+        json.dumps(response.to_dict()), encoding="utf-8"
+    )
+
+    result = adapter.collect_input(waiting)
+
+    assert result.action is HumanAction.APPROVE
+    assert result.message == "ok"
+    assert not (tmp_run / "hitl" / "response.json").exists()
+    assert (tmp_run / "hitl" / "waiting.json").exists()
 
 
 # ── Tests: graceful stop ──────────────────────────────────────────
