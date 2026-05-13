@@ -125,6 +125,23 @@ def _collect_py_files(workdir: Path) -> dict[str, str]:
     return files
 
 
+def _filter_claude_extra_args(args: list[str]) -> list[str]:
+    """Drop Claude CLI flags that bypass permissions or re-enable shell access."""
+    filtered: list[str] = []
+    skip_next = False
+    for arg in args:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--dangerously-skip-permissions":
+            continue
+        if arg == "--allowed-tools":
+            skip_next = True
+            continue
+        filtered.append(arg)
+    return filtered
+
+
 def _seed_workdir(workdir: Path, files: dict[str, str]) -> None:
     """Pre-populate workdir with files for refinement/repair."""
     workdir.mkdir(parents=True, exist_ok=True)
@@ -567,16 +584,15 @@ class ClaudeCodeAgent(_CliAgentBase):
         cmd = [
             self._binary,
             "-p", prompt,
-            "--dangerously-skip-permissions",
             "--output-format", "text",
-            "--allowed-tools", "Bash Edit Write Read",
+            "--allowed-tools", "Edit Write Read",
             "--add-dir", str(workdir),
         ]
         if self._model:
             cmd += ["--model", self._model]
         if self._max_budget_usd:
             cmd += ["--max-budget-usd", str(self._max_budget_usd)]
-        cmd.extend(self._extra_args)
+        cmd.extend(_filter_claude_extra_args(self._extra_args))
         return cmd
 
     def generate(

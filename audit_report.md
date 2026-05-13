@@ -18,6 +18,8 @@
 - **建议:** 不自动转发 HF_TOKEN。添加显式配置选项 `docker_sandbox.forward_hf_token: false` (默认关闭)。
 
 #### 2. ClaudeCodeAgent 使用 `--dangerously-skip-permissions`
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Claude Code commands no longer include `--dangerously-skip-permissions`; default allowed tools are limited to `Edit Write Read`, and dangerous extra_args attempting to re-enable permission bypass or Bash are filtered.</span>
+
 - **文件:** `researchclaw/experiment/code_agent.py:566-580`
 - **问题:** `--dangerously-skip-permissions` 标志允许 Claude Code CLI 执行任意系统命令，无需用户批准。`--allowed-tools "Bash Edit Write Read"` 权限极宽。
 - **建议:** 移除 `--dangerously-skip-permissions` 或从 allowed-tools 中移除 Bash。
