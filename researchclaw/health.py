@@ -295,7 +295,7 @@ def check_api_key_valid(base_url: str, api_key: str) -> CheckResult:
             name="api_key_valid",
             status="fail",
             detail="API key is empty",
-            fix="Set llm.api_key or environment variable defined by llm.api_key_env",
+            fix="Set the environment variable defined by llm.api_key_env",
         )
 
     try:
@@ -580,7 +580,7 @@ def run_doctor(config_path: str | Path) -> DoctorReport:
         config = RCConfig.load(path, check_paths=False)
         provider = config.llm.provider
         base_url = config.llm.base_url
-        api_key = config.llm.api_key or os.environ.get(config.llm.api_key_env, "")
+        api_key = os.environ.get(config.llm.api_key_env, "")
         model = config.llm.primary_model
         fallback_models = config.llm.fallback_models
         sandbox_python_path = config.experiment.sandbox.python_path

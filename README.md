@@ -599,7 +599,6 @@ llm:
   provider: "openai-compatible"    # openai | openrouter | deepseek | minimax | volcengine | volcengine-coding-plan | byteplus | byteplus-coding-plan | acp | openai-compatible
   base_url: "https://..."          # API endpoint (required for openai-compatible)
   api_key_env: "OPENAI_API_KEY"    # Env var for API key (required for openai-compatible)
-  api_key: ""                      # Or hardcode key here
   primary_model: "gpt-4o"          # Primary model
   fallback_models: ["gpt-4o-mini"] # Fallback chain
   s2_api_key: ""                   # Semantic Scholar API key (optional, higher rate limits)

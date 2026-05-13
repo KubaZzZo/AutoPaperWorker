@@ -214,7 +214,7 @@ def test_from_rc_config_builds_expected_llm_config():
     rc_config = SimpleNamespace(
         llm=SimpleNamespace(
             base_url="https://proxy.example/v1",
-            api_key="inline-key",
+            api_key="",
             api_key_env="OPENAI_API_KEY",
             wire_api="responses",
             primary_model="o3",
@@ -223,10 +223,28 @@ def test_from_rc_config_builds_expected_llm_config():
     )
     client = LLMClient.from_rc_config(rc_config)
     assert client.config.base_url == "https://proxy.example/v1"
-    assert client.config.api_key == "inline-key"
+    assert client.config.api_key == ""
     assert client.config.wire_api == "responses"
     assert client.config.primary_model == "o3"
     assert client.config.fallback_models == ["o3-mini", "gpt-4o"]
+
+
+def test_from_rc_config_ignores_inline_api_key(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    rc_config = SimpleNamespace(
+        llm=SimpleNamespace(
+            base_url="https://proxy.example/v1",
+            api_key="inline-key",
+            api_key_env="OPENAI_API_KEY",
+            wire_api="chat_completions",
+            primary_model="gpt-4o",
+            fallback_models=(),
+        )
+    )
+
+    client = LLMClient.from_rc_config(rc_config)
+
+    assert client.config.api_key == ""
 
 
 def test_responses_wire_api_uses_responses_endpoint(monkeypatch: pytest.MonkeyPatch):

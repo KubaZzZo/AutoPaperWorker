@@ -192,6 +192,8 @@ class LlmConfig:
     base_url: str = ""
     wire_api: str = "chat_completions"
     api_key_env: str = ""
+    # Deprecated: kept for backward-compatible attribute access only.
+    # YAML parsing rejects and ignores llm.api_key; use api_key_env.
     api_key: str = ""
     primary_model: str = ""
     fallback_models: tuple[str, ...] = ()
@@ -951,6 +953,13 @@ def validate_config(
     ):
         errors.append(f"Invalid llm.wire_api: {llm_wire_api}")
 
+    inline_llm_api_key = _get_by_path(data, "llm.api_key")
+    if not _is_blank(inline_llm_api_key):
+        errors.append(
+            "llm.api_key is deprecated and must not be stored in YAML; "
+            "set llm.api_key_env instead."
+        )
+
     hitl_required_stages = _get_by_path(data, "security.hitl_required_stages")
     if hitl_required_stages is not None:
         if not isinstance(hitl_required_stages, list):
@@ -1000,7 +1009,7 @@ def _parse_llm_config(data: dict[str, Any]) -> LlmConfig:
         base_url=data.get("base_url", ""),
         wire_api=data.get("wire_api", "chat_completions"),
         api_key_env=data.get("api_key_env", ""),
-        api_key=data.get("api_key", ""),
+        api_key="",
         primary_model=data.get("primary_model", ""),
         fallback_models=tuple(data.get("fallback_models") or ()),
         s2_api_key=data.get("s2_api_key", ""),

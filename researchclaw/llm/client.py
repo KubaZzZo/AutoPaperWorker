@@ -129,9 +129,7 @@ class LLMClient:
         preset = PROVIDER_PRESETS.get(provider, {})
         preset_base_url = preset.get("base_url")
 
-        api_key = str(
-            rc_config.llm.api_key or os.environ.get(rc_config.llm.api_key_env, "") or ""
-        )
+        api_key = str(os.environ.get(rc_config.llm.api_key_env, "") or "")
 
         # Use preset base_url if available and config doesn't override
         base_url = rc_config.llm.base_url or preset_base_url or ""
@@ -669,7 +667,7 @@ class LLMClient:
 def create_client_from_yaml(yaml_path: str | None = None) -> LLMClient:
     """Create an LLMClient from the ARC config file.
 
-    Reads base_url and api_key from config.arc.yaml's llm section.
+    Reads base_url and api_key_env from config.arc.yaml's llm section.
     """
     import yaml as _yaml
 
@@ -680,13 +678,7 @@ def create_client_from_yaml(yaml_path: str | None = None) -> LLMClient:
         raw = _yaml.safe_load(f)
 
     llm_section = raw.get("llm", {})
-    api_key = str(
-        os.environ.get(
-            llm_section.get("api_key_env", "OPENAI_API_KEY"),
-            llm_section.get("api_key", ""),
-        )
-        or ""
-    )
+    api_key = str(os.environ.get(llm_section.get("api_key_env", "OPENAI_API_KEY"), "") or "")
 
     return LLMClient(
         LLMConfig(

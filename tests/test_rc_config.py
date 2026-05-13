@@ -112,6 +112,24 @@ def test_validate_config_with_valid_data_returns_ok_true(tmp_path: Path):
     assert result.errors == ()
 
 
+def test_validate_config_rejects_inline_llm_api_key(tmp_path: Path):
+    data = _valid_config_data()
+    data["llm"]["api_key"] = "sk-inline-secret"
+
+    result = validate_config(data, project_root=tmp_path, check_paths=False)
+
+    assert result.ok is False
+    assert any("llm.api_key" in err for err in result.errors)
+
+
+def test_rcconfig_from_dict_rejects_inline_llm_api_key(tmp_path: Path):
+    data = _valid_config_data()
+    data["llm"]["api_key"] = "sk-inline-secret"
+
+    with pytest.raises(ValueError, match="llm.api_key"):
+        RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+
 def test_validate_config_missing_required_fields_returns_errors(tmp_path: Path):
     data = _valid_config_data()
     data["research"] = {}

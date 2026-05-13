@@ -121,7 +121,6 @@ This is the only section you **must** configure. Everything else has sensible de
 llm:
   base_url: "https://api.openai.com/v1"     # Your LLM API endpoint
   api_key_env: "OPENAI_API_KEY"              # Environment variable name...
-  api_key: ""                                # ...or paste the key directly here
   primary_model: "gpt-4o"                    # Model to use (gpt-4o, gpt-5.2, etc.)
   fallback_models:                           # Tried in order if primary fails
     - "gpt-4.1"
@@ -129,22 +128,16 @@ llm:
   s2_api_key: ""                             # Optional: Semantic Scholar API key for higher rate limits
 ```
 
-**Using an environment variable** (recommended for security):
+**Using an environment variable**:
 ```bash
 export OPENAI_API_KEY="sk-..."
-```
-
-**Using a direct key** (simpler, less secure):
-```yaml
-llm:
-  api_key: "sk-your-key-here"
 ```
 
 **Using a proxy or alternative provider**:
 ```yaml
 llm:
   base_url: "https://your-proxy.example.com/v1"
-  api_key: "your-proxy-key"
+  api_key_env: "OPENAI_API_KEY"
   primary_model: "gpt-4o"    # Must be supported by your endpoint
 ```
 
@@ -885,7 +878,7 @@ researchclaw doctor --config config.yaml
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `Missing required field: llm.base_url` | Config incomplete | Set `llm.base_url` and `llm.api_key` (or `api_key_env`) |
+| `Missing required field: llm.base_url` | Config incomplete | Set `llm.base_url` and `llm.api_key_env` |
 | `Config validation FAILED` | Invalid YAML or missing fields | Run `researchclaw validate -c config.yaml` for details |
 | `Preflight check... FAILED` | LLM API unreachable | Check `base_url`, API key, and network connectivity |
 | Sandbox execution fails | Python path wrong or missing packages | Verify `experiment.sandbox.python_path` exists; ensure numpy is installed |

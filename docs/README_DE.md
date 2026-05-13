@@ -599,7 +599,6 @@ llm:
   provider: "openai-compatible"    # openai | openrouter | deepseek | minimax | acp | openai-compatible
   base_url: "https://..."          # API-Endpunkt (erforderlich fuer openai-compatible)
   api_key_env: "OPENAI_API_KEY"    # Umgebungsvariable fuer API-Schluessel (erforderlich fuer openai-compatible)
-  api_key: ""                      # Oder Schluessel direkt eintragen
   primary_model: "gpt-4o"          # Primaeres Modell
   fallback_models: ["gpt-4o-mini"] # Fallback-Kette
   s2_api_key: ""                   # Semantic Scholar API-Schluessel (optional, hoehere Rate-Limits)

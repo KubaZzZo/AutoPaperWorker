@@ -57,6 +57,8 @@
 ### 中 (MEDIUM)
 
 #### 7. YAML 配置中可直接存储 API 密钥
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] llm.api_key is now rejected during config validation and ignored by parsing/runtime clients; LLM credentials must come from llm.api_key_env, and user-facing examples were updated.</span>
+
 - **文件:** `researchclaw/config.py:194-195`
 - **问题:** `LlmConfig` 同时支持 `api_key` (纯文本) 和 `api_key_env` (环境变量)，用户可能将真实密钥放入配置文件。
 - **建议:** 弃用 `api_key` 字段，仅保留 `api_key_env`。
