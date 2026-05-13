@@ -78,6 +78,8 @@
 - **建议:** 返回通用错误消息，完整异常仅记录在服务器端。
 
 #### 10. 宽松的 CORS 策略
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] CORS defaults are now restricted to localhost origins, and FastAPI only allows GET/POST/OPTIONS plus Authorization/Content-Type headers instead of wildcard methods and headers.</span>
+
 - **文件:** `researchclaw/server/app.py:49-55`
 - **问题:** `allow_methods=["*"]` + `allow_headers=["*"]` + 默认 `cors_origins=("*",)` 过宽。
 - **建议:** 生产环境限制 CORS 源和允许的方法/头。

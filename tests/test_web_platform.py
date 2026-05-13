@@ -32,7 +32,7 @@ class TestServerConfig:
         assert cfg.enabled is False
         assert cfg.host == "0.0.0.0"
         assert cfg.port == 8080
-        assert cfg.cors_origins == ("*",)
+        assert cfg.cors_origins == ("http://127.0.0.1:8080", "http://localhost:8080")
         assert cfg.auth_token
         assert len(cfg.auth_token) >= 32
         assert cfg.voice_enabled is False
@@ -65,6 +65,7 @@ class TestServerConfig:
         cfg = _parse_server_config({})
         assert cfg.enabled is False
         assert cfg.port == 8080
+        assert cfg.cors_origins == ("http://127.0.0.1:8080", "http://localhost:8080")
         assert cfg.auth_token
         assert len(cfg.auth_token) >= 32
 
@@ -667,6 +668,21 @@ class TestFastAPIApp:
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
+
+    def test_cors_policy_is_restricted(self, app: object) -> None:
+        from starlette.middleware import Middleware
+
+        cors_middleware = next(
+            m for m in app.user_middleware  # type: ignore[attr-defined]
+            if isinstance(m, Middleware) and m.cls.__name__ == "CORSMiddleware"
+        )
+
+        assert cors_middleware.kwargs["allow_methods"] == ["GET", "POST", "OPTIONS"]
+        assert cors_middleware.kwargs["allow_headers"] == [
+            "Authorization",
+            "Content-Type",
+        ]
+        assert "*" not in cors_middleware.kwargs["allow_origins"]
 
     @pytest.mark.asyncio
     async def test_config_endpoint(self, app: object) -> None:

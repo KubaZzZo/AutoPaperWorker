@@ -15,6 +15,10 @@ DEFAULT_PYTHON_PATH = (
 )
 
 CONFIG_SEARCH_ORDER: tuple[str, ...] = ("config.arc.yaml", "config.yaml")
+DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+)
 
 
 def _safe_int(val: Any, default: int) -> int:
@@ -594,7 +598,7 @@ class ServerConfig:
     enabled: bool = False
     host: str = "0.0.0.0"
     port: int = 8080
-    cors_origins: tuple[str, ...] = ("*",)
+    cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     auth_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
     voice_enabled: bool = False
     whisper_model: str = "whisper-1"
@@ -1388,7 +1392,7 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
     if isinstance(cors, list):
         cors = tuple(cors)
     elif cors is None:
-        cors = ("*",)
+        cors = DEFAULT_CORS_ORIGINS
     else:
         cors = (str(cors),)
     auth_token = str(data.get("auth_token", "")).strip() or secrets.token_urlsafe(32)
