@@ -287,7 +287,7 @@ class IdeaWorkshop:
             if isinstance(data, list):
                 return [IdeaCandidate.from_dict(d) for d in data[:expected]]
         except json.JSONDecodeError:
-            pass
+            logger.debug("Could not parse ideas JSON response", exc_info=True)
 
         # Try extracting JSON from markdown code block
         import re
@@ -300,7 +300,7 @@ class IdeaWorkshop:
                         IdeaCandidate.from_dict(d) for d in data[:expected]
                     ]
             except json.JSONDecodeError:
-                pass
+                logger.debug("Could not parse ideas fenced JSON response", exc_info=True)
 
         # Fallback: create a single idea from the text
         return [
@@ -316,7 +316,7 @@ class IdeaWorkshop:
             if isinstance(data, dict):
                 return IdeaCandidate.from_dict(data)
         except json.JSONDecodeError:
-            pass
+            logger.debug("Could not parse single idea JSON response", exc_info=True)
         import re
         match = re.search(r"```(?:json)?\s*\n(.*?)\n```", response, re.DOTALL)
         if match:
@@ -325,7 +325,10 @@ class IdeaWorkshop:
                 if isinstance(data, dict):
                     return IdeaCandidate.from_dict(data)
             except json.JSONDecodeError:
-                pass
+                logger.debug(
+                    "Could not parse single idea fenced JSON response",
+                    exc_info=True,
+                )
         return None
 
     def _parse_evaluation(
@@ -346,5 +349,5 @@ class IdeaWorkshop:
                     suggestions=data.get("suggestions", []),
                 )
         except (json.JSONDecodeError, ValueError):
-            pass
+            logger.debug("Could not parse idea evaluation response", exc_info=True)
         return default

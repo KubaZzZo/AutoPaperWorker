@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -148,6 +149,32 @@ class TestClaimVerification:
 
         verifier = ClaimVerifier(tmp_path)
         assert len(verifier._knowledge_base) >= 2
+
+    def test_logs_bad_experiment_summary(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        stage_dir = tmp_path / "stage-14"
+        stage_dir.mkdir()
+        (stage_dir / "experiment_summary.json").write_text("{bad json")
+
+        verifier = ClaimVerifier(tmp_path)
+        claim = Claim(text="Accuracy improved by 95.3%.", claim_type="numerical")
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.claim_verifier"):
+            verifier._verify_numerical(claim)
+
+        assert "Could not read experiment summary for numerical verification" in caplog.text
+
+    def test_logs_bad_shortlist_entry(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        stage_dir = tmp_path / "stage-05"
+        stage_dir.mkdir()
+        (stage_dir / "shortlist.jsonl").write_text("{bad json\n", encoding="utf-8")
+
+        with caplog.at_level(logging.DEBUG, logger="researchclaw.hitl.claim_verifier"):
+            ClaimVerifier(tmp_path)
+
+        assert "Could not parse literature shortlist entry" in caplog.text
 
 
 class TestVerificationReport:

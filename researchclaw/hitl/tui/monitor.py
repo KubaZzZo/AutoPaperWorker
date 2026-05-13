@@ -70,6 +70,7 @@ class ExperimentMonitor:
                                     if k not in status["best_metrics"] or v > status["best_metrics"][k]:
                                         status["best_metrics"][k] = v
                     except (json.JSONDecodeError, OSError):
+                        logger.debug("Could not read experiment run file: %s", run_file, exc_info=True)
                         continue
 
         # Read experiment summary if available
@@ -89,7 +90,11 @@ class ExperimentMonitor:
                                 if "baseline" in name.lower() or cond.get("is_baseline"):
                                     status["baselines"][name] = metrics
                 except (json.JSONDecodeError, OSError):
-                    pass
+                    logger.warning(
+                        "Could not read experiment summary: %s",
+                        summary,
+                        exc_info=True,
+                    )
                 break
 
         # Calculate progress

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from pathlib import Path
 
@@ -169,6 +170,20 @@ class TestExperimentMonitor:
         assert len(status["runs"]) == 2
         assert status["current_metrics"]["accuracy"] == 0.82
         assert status["best_metrics"]["accuracy"] == 0.82
+
+    def test_logs_bad_experiment_summary(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        stage_dir = tmp_path / "stage-14"
+        stage_dir.mkdir()
+        (stage_dir / "experiment_summary.json").write_text("{bad json")
+
+        monitor = ExperimentMonitor(tmp_path)
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.tui.monitor"):
+            status = monitor.get_experiment_status()
+
+        assert status.get("summary") is None
+        assert "Could not read experiment summary" in caplog.text
 
     def test_format_metrics_table(self, tmp_path: Path) -> None:
         runs_dir = tmp_path / "stage-12" / "runs"

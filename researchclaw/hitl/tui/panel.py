@@ -131,7 +131,7 @@ def _show_rich_status(
                 data = json.loads(health_path.read_text(encoding="utf-8"))
                 stage_statuses[i] = data.get("status", "unknown")
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.debug("Could not read stage health status: %s", health_path, exc_info=True)
 
     # Build phase progress
     phase_rows = []
@@ -156,7 +156,7 @@ def _show_rich_status(
             cp = json.loads(checkpoint_path.read_text(encoding="utf-8"))
             run_id = cp.get("run_id", "unknown")
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("Could not read pipeline checkpoint: %s", checkpoint_path, exc_info=True)
 
     content = "\n".join(phase_rows)
     panel = Panel(
@@ -225,7 +225,7 @@ def _show_plain_status(
                     if data.get("status") == "done":
                         done += 1
                 except (json.JSONDecodeError, OSError):
-                    pass
+                    logger.debug("Could not read stage health status: %s", health_path, exc_info=True)
 
         total = len(stages)
         if done == total:

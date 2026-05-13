@@ -258,7 +258,11 @@ class ClaimVerifier:
                         claim.confidence = 0.9
                         return
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.warning(
+                    "Could not read experiment summary for numerical verification: %s",
+                    exp_summary,
+                    exc_info=True,
+                )
 
         # Can't verify — mark as unchecked
         claim.grounded = None
@@ -314,7 +318,11 @@ class ClaimVerifier:
                         card_file.read_text(encoding="utf-8")[:2000]
                     )
                 except (OSError, UnicodeDecodeError):
-                    pass
+                    logger.debug(
+                        "Could not read knowledge card for claim verification: %s",
+                        card_file,
+                        exc_info=True,
+                    )
 
         # Load shortlist from Stage 5
         shortlist = None
@@ -332,9 +340,17 @@ class ClaimVerifier:
                             if entry.strip():
                                 self._knowledge_base.append(entry[:1000])
                         except json.JSONDecodeError:
-                            pass
+                            logger.debug(
+                                "Could not parse literature shortlist entry: %s",
+                                shortlist,
+                                exc_info=True,
+                            )
             except OSError:
-                pass
+                logger.warning(
+                    "Could not read literature shortlist for claim verification: %s",
+                    shortlist,
+                    exc_info=True,
+                )
 
     def save_report(self, report: VerificationReport, path: Path | None = None) -> Path:
         """Save verification report to disk."""

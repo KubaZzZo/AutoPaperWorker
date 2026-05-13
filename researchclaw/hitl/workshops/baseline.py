@@ -256,7 +256,7 @@ class BaselineNavigator:
             if isinstance(data, list):
                 return [BaselineCandidate.from_dict(d) for d in data]
         except json.JSONDecodeError:
-            pass
+            logger.debug("Could not parse baselines JSON response", exc_info=True)
         import re
         match = re.search(r"```(?:json)?\s*\n(.*?)\n```", response, re.DOTALL)
         if match:
@@ -265,7 +265,10 @@ class BaselineNavigator:
                 if isinstance(data, list):
                     return [BaselineCandidate.from_dict(d) for d in data]
             except json.JSONDecodeError:
-                pass
+                logger.debug(
+                    "Could not parse baselines fenced JSON response",
+                    exc_info=True,
+                )
         return []
 
     def _parse_benchmarks(self, response: str) -> list[BenchmarkCandidate]:
@@ -274,7 +277,7 @@ class BaselineNavigator:
             if isinstance(data, list):
                 return [BenchmarkCandidate.from_dict(d) for d in data]
         except json.JSONDecodeError:
-            pass
+            logger.debug("Could not parse benchmarks JSON response", exc_info=True)
         return []
 
     def _parse_metrics(self, response: str) -> list[str]:
@@ -283,5 +286,5 @@ class BaselineNavigator:
             if isinstance(data, list):
                 return [str(m) for m in data]
         except json.JSONDecodeError:
-            pass
+            logger.debug("Could not parse metrics JSON response", exc_info=True)
         return []

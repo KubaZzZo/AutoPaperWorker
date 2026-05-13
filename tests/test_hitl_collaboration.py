@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -268,6 +269,20 @@ class TestStageEditor:
         assert diff is not None
         assert "+1" in diff
 
+    def test_logs_bad_snapshot_version(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        snapshots = tmp_path / "hitl" / "snapshots"
+        snapshots.mkdir(parents=True)
+        (snapshots / "stage_08_hypotheses.md.vbad").write_text("bad")
+
+        editor = StageEditor(tmp_path)
+        with caplog.at_level(logging.DEBUG, logger="researchclaw.hitl.editor"):
+            versions = editor.list_versions(8, "hypotheses.md")
+
+        assert versions == []
+        assert "Could not parse snapshot version" in caplog.text
+
 
 class TestStageReviewer:
     def test_summarize_stage(self, tmp_path: Path) -> None:
@@ -391,6 +406,17 @@ class TestIdeaWorkshop:
         assert len(ideas) == 2
         assert ideas[0].title == "Idea 1"
 
+    def test_parse_ideas_logs_bad_json(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        workshop = IdeaWorkshop(tmp_path)
+
+        with caplog.at_level(logging.DEBUG, logger="researchclaw.hitl.workshops.idea"):
+            ideas = workshop._parse_ideas("{bad json", expected=1)
+
+        assert ideas[0].description == "{bad json"
+        assert "Could not parse ideas JSON response" in caplog.text
+
     def test_evaluate_without_llm(self, tmp_path: Path) -> None:
         workshop = IdeaWorkshop(tmp_path)
         workshop.candidates = [
@@ -451,6 +477,19 @@ class TestBaselineNavigator:
         nav = BaselineNavigator(tmp_path, llm_client=llm)
         baselines = nav.suggest_baselines("Image classification idea")
         assert len(baselines) == 2
+
+    def test_parse_baselines_logs_bad_json(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        nav = BaselineNavigator(tmp_path)
+
+        with caplog.at_level(
+            logging.DEBUG, logger="researchclaw.hitl.workshops.baseline"
+        ):
+            baselines = nav._parse_baselines("{bad json")
+
+        assert baselines == []
+        assert "Could not parse baselines JSON response" in caplog.text
 
     def test_generate_checklist(self, tmp_path: Path) -> None:
         nav = BaselineNavigator(tmp_path)

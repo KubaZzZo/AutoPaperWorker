@@ -128,7 +128,7 @@ class StageEditor:
                 ver = int(p.suffix[2:])  # .v1 -> 1
                 versions.append(ver)
             except (ValueError, IndexError):
-                pass
+                logger.debug("Could not parse snapshot version: %s", p, exc_info=True)
         if self._snapshot_path(stage_num, filename).exists():
             return sorted(versions)
         return sorted(v for v in versions if v > 0)
