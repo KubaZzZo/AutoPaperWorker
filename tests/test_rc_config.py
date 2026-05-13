@@ -276,6 +276,7 @@ def test_experiment_config_defaults_mode_is_simulated():
     assert defaults.distributed.enabled is False
     assert defaults.parallel_hypotheses.enabled is False
     assert defaults.docker.forward_hf_token is False
+    assert defaults.ssh_remote.use_docker is True
 
 
 def test_rcconfig_from_dict_parses_distributed_training(tmp_path: Path):
@@ -320,6 +321,15 @@ def test_rcconfig_from_dict_parses_docker_forward_hf_token(tmp_path: Path):
     config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
 
     assert config.experiment.docker.forward_hf_token is True
+
+
+def test_rcconfig_from_dict_defaults_ssh_remote_to_docker(tmp_path: Path):
+    data = _valid_config_data()
+    data["experiment"]["ssh_remote"] = {"host": "server"}
+
+    config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+    assert config.experiment.ssh_remote.use_docker is True
 
 
 def test_sandbox_config_defaults_match_expected_values():

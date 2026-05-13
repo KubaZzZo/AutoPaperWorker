@@ -41,6 +41,8 @@
 - **建议:** 添加明确的配置标志 `renderer.allow_local_execution: false`。
 
 #### 5. SSH 远程沙箱的裸露 Python 执行
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] SSH remote execution now requires Docker by default and rejects non-Docker runs before SSH upload/execution; examples and config defaults were updated accordingly.</span>
+
 - **文件:** `researchclaw/experiment/ssh_sandbox.py:296-314`
 - **问题:** 当 `unshare` 不可用时网络隔离静默降级，远程代码具有完全文件系统访问权限。
 - **建议:** 要求远程执行始终使用 Docker (`use_docker: true`)。

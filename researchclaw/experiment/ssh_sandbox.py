@@ -182,11 +182,23 @@ class SshRemoteSandbox:
           1. Create a unique temporary directory on the remote host
           2. Upload experiment files via scp
           3. Run any user-defined setup commands (pip install, etc.)
-          4. Execute the experiment (bare Python or Docker container)
+          4. Execute the experiment inside a Docker container
           5. Parse metrics from stdout (same format as local sandbox)
           6. Clean up the remote directory regardless of outcome
         """
         cfg = self.config
+        if not cfg.use_docker:
+            return SandboxResult(
+                returncode=-1,
+                stdout="",
+                stderr=(
+                    "ssh_remote execution requires Docker; set "
+                    "experiment.ssh_remote.use_docker: true."
+                ),
+                elapsed_sec=0.0,
+                metrics={},
+            )
+
         run_id = f"rc-{uuid.uuid4().hex[:8]}"
         remote_dir = f"{cfg.remote_workdir}/{run_id}"
         remote_dir_q = shlex.quote(remote_dir)
@@ -271,7 +283,11 @@ class SshRemoteSandbox:
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
     ) -> str:
-        """Build command to run Python directly on remote host (with basic sandboxing)."""
+        """Build a legacy bare-Python command.
+
+        The public SSH execution path requires Docker. This helper remains for
+        compatibility with older callers/tests that inspect command construction.
+        """
         cfg = self.config
         rd = shlex.quote(remote_dir)
         ep = shlex.quote(entry_point)

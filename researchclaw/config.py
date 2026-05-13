@@ -257,7 +257,7 @@ class SshRemoteConfig:
     remote_workdir: str = "/tmp/researchclaw_experiments"
     remote_python: str = "python3"
     setup_commands: tuple[str, ...] = ()
-    use_docker: bool = False
+    use_docker: bool = True
     docker_image: str = "researchclaw/experiment:latest"
     docker_network_policy: str = "none"
     docker_memory_limit_mb: int = 8192
@@ -1104,7 +1104,7 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
             ),
             remote_python=ssh_data.get("remote_python", "python3"),
             setup_commands=tuple(ssh_data.get("setup_commands") or ()),
-            use_docker=bool(ssh_data.get("use_docker", False)),
+            use_docker=bool(ssh_data.get("use_docker", True)),
             docker_image=ssh_data.get("docker_image", "researchclaw/experiment:latest"),
             docker_network_policy=_validate_network_policy(
                 ssh_data.get("docker_network_policy", "none"),

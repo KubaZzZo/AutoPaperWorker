@@ -53,6 +53,11 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
             raise RuntimeError(
                 "ssh_remote mode requires experiment.ssh_remote.host in config."
             )
+        if not ssh_cfg.use_docker:
+            raise RuntimeError(
+                "ssh_remote mode requires Docker execution; set "
+                "experiment.ssh_remote.use_docker: true."
+            )
 
         ok, msg = SshRemoteSandbox.check_ssh_available(ssh_cfg)
         if not ok:

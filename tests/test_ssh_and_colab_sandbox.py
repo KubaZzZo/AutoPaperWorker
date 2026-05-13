@@ -260,8 +260,21 @@ class TestSshConnectivityCheck:
 class TestSshSandboxRun:
     """Test run() with mocked SSH commands."""
 
+    def test_run_requires_docker(self, tmp_path: Path):
+        cfg = SshRemoteConfig(host="fake", user="test", use_docker=False)
+        sb = SshRemoteSandbox(cfg, tmp_path)
+
+        with mock.patch.object(sb, '_ssh_run') as mock_ssh_run:
+            with mock.patch.object(sb, '_scp_upload') as mock_scp_upload:
+                result = sb.run("print('hello')", timeout_sec=60)
+
+        assert result.returncode == -1
+        assert "requires Docker" in result.stderr
+        mock_ssh_run.assert_not_called()
+        mock_scp_upload.assert_not_called()
+
     def test_run_success(self, tmp_path: Path):
-        cfg = SshRemoteConfig(host="fake", user="test")
+        cfg = SshRemoteConfig(host="fake", user="test", use_docker=True)
         sb = SshRemoteSandbox(cfg, tmp_path)
 
         fake_results = [
@@ -442,9 +455,18 @@ class TestFactoryIntegration:
     def test_ssh_remote_checks_connectivity(self, tmp_path: Path):
         cfg = _make_experiment_config(
             mode="ssh_remote",
-            ssh_remote=SshRemoteConfig(host="nonexistent.invalid"),
+            ssh_remote=SshRemoteConfig(host="nonexistent.invalid", use_docker=True),
         )
         with pytest.raises(RuntimeError, match="SSH connectivity"):
+            create_sandbox(cfg, tmp_path)
+
+    def test_ssh_remote_requires_docker(self, tmp_path: Path):
+        cfg = _make_experiment_config(
+            mode="ssh_remote",
+            ssh_remote=SshRemoteConfig(host="server", use_docker=False),
+        )
+
+        with pytest.raises(RuntimeError, match="requires Docker"):
             create_sandbox(cfg, tmp_path)
 
     @mock.patch(
@@ -461,7 +483,7 @@ class TestFactoryIntegration:
         )
         cfg = _make_experiment_config(
             mode="ssh_remote",
-            ssh_remote=SshRemoteConfig(host="server"),
+            ssh_remote=SshRemoteConfig(host="server", use_docker=True),
             distributed=distributed,
         )
 

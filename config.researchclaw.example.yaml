@@ -132,8 +132,8 @@ experiment:
     remote_workdir: "/tmp/researchclaw_experiments"
     remote_python: "python3"
     setup_commands: []      # e.g. ["source ~/venv/bin/activate", "pip install torch"]
-    # Docker-over-SSH (most secure remote execution)
-    use_docker: false       # Set true to run experiments inside Docker on remote host
+    # Docker-over-SSH is required for secure remote execution
+    use_docker: true
     docker_image: "researchclaw/experiment:latest"
     docker_network_policy: "none"   # none | full
     docker_memory_limit_mb: 8192
@@ -153,17 +153,7 @@ experiment:
 # SSH Remote Examples
 # ============================================================================
 #
-# 1. Lab server (bare Python, basic sandboxing):
-#   experiment:
-#     mode: "ssh_remote"
-#     ssh_remote:
-#       host: "gpu-server.lab.edu"
-#       user: "researcher"
-#       key_path: "~/.ssh/id_rsa"
-#       gpu_ids: [0]
-#       remote_python: "python3"
-#
-# 2. Lab server (Docker — most secure):
+# 1. Lab server (Docker-over-SSH, required):
 #   experiment:
 #     mode: "ssh_remote"
 #     ssh_remote:
@@ -173,7 +163,18 @@ experiment:
 #       gpu_ids: [0]
 #       use_docker: true
 #       docker_image: "researchclaw/experiment:latest"
-#       docker_network_policy: "none"
+#
+# 2. Lab server with full network access inside Docker:
+#   experiment:
+#     mode: "ssh_remote"
+#     ssh_remote:
+#       host: "gpu-server.lab.edu"
+#       user: "researcher"
+#       key_path: "~/.ssh/id_rsa"
+#       gpu_ids: [0]
+#       use_docker: true
+#       docker_image: "researchclaw/experiment:latest"
+#       docker_network_policy: "full"
 #
 # 3. Colab via SSH tunnel:
 #   experiment:
