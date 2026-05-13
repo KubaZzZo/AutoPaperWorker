@@ -47,7 +47,7 @@ class AnthropicAdapter:
             try:
                 self._client.close()
             except Exception:  # noqa: BLE001
-                pass
+                logger.warning("Anthropic HTTP client close failed", exc_info=True)
             self._client = None
 
     def chat_completion(
@@ -145,7 +145,7 @@ class AnthropicAdapter:
             try:
                 detail = exc.response.text[:500]
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Failed to read Anthropic error response body", exc_info=True)
             msg = f"{exc}: {detail}" if detail else str(exc)
             raise urllib.error.HTTPError(
                 url,

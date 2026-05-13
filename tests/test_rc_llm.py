@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
 import urllib.request
 from http.client import HTTPMessage
@@ -449,6 +450,29 @@ def test_acp_windows_cmd_wrapper_uses_lower_inline_limit(monkeypatch: pytest.Mon
     monkeypatch.setattr("researchclaw.llm.acp_client.sys.platform", "win32")
     limit = ACPClient._cli_prompt_limit(r"C:\Users\test\AppData\Roaming\npm\acpx.CMD")
     assert limit == ACPClient._MAX_CMD_WRAPPER_PROMPT_BYTES
+
+
+def test_acp_close_logs_cleanup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    from researchclaw.llm.acp_client import ACPClient, ACPConfig
+
+    client = ACPClient(ACPConfig(agent="codex", session_name="test-session"))
+    client._session_ready = True
+    client._acpx = "acpx"
+
+    def fail_run(*_args: object, **_kwargs: object) -> object:
+        raise OSError("session close failed")
+
+    monkeypatch.setattr("researchclaw.llm.acp_client.subprocess.run", fail_run)
+
+    with caplog.at_level(logging.WARNING, logger="researchclaw.llm.acp_client"):
+        client.close()
+
+    assert "ACP session close failed" in caplog.text
+    assert "session close failed" in caplog.text
+    assert client._session_ready is False
 
 
 def test_new_param_models_contains_expected_models():

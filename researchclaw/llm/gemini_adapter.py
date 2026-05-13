@@ -110,8 +110,8 @@ class GeminiAdapter:
             try:
                 body_err = exc.read().decode("utf-8")
                 logger.error("Gemini API Error: %s", body_err)
-            except Exception: # noqa: BLE001
-                pass
+            except Exception:  # noqa: BLE001
+                logger.debug("Failed to read Gemini error response body", exc_info=True)
             raise
 
         # Map response back

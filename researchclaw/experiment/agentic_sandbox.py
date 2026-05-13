@@ -352,9 +352,17 @@ class AgenticSandbox:
                         try:
                             metrics[k] = float(v)
                         except (TypeError, ValueError):
-                            pass
+                            logger.debug(
+                                "Skipping non-numeric AgenticSandbox metric %s=%r",
+                                k,
+                                v,
+                            )
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.warning(
+                    "Failed to read AgenticSandbox structured results: %s",
+                    results_json,
+                    exc_info=True,
+                )
 
         # Fall back to stdout metric parsing
         if not metrics and stdout:
@@ -376,7 +384,7 @@ class AgenticSandbox:
                 if isinstance(messages, list):
                     return len(messages)
         except (json.JSONDecodeError, TypeError):
-            pass
+            logger.debug("Agent step count JSON parsing fell back to text scan")
         # Fallback: count lines that look like agent actions
         count = 0
         for line in stdout.splitlines():

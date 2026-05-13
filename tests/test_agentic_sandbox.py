@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from researchclaw.config import AgenticConfig
@@ -84,3 +86,19 @@ def test_docker_exec_args_does_not_use_shell(tmp_path, monkeypatch) -> None:
     ]
     assert "bash" not in captured["cmd"]
     assert "-c" not in captured["cmd"]
+
+
+def test_parse_result_metrics_logs_bad_results_json(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    (tmp_path / "results.json").write_text("{bad json", encoding="utf-8")
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="researchclaw.experiment.agentic_sandbox",
+    ):
+        metrics = AgenticSandbox._parse_result_metrics(tmp_path, "")
+
+    assert metrics == {}
+    assert "Failed to read AgenticSandbox structured results" in caplog.text

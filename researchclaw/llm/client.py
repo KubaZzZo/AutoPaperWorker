@@ -309,7 +309,7 @@ class LLMClient:
                 try:
                     body = e.read().decode()[:500]
                 except Exception:  # noqa: BLE001
-                    pass
+                    logger.debug("Failed to read HTTP error response body", exc_info=True)
 
                 # Non-retryable errors
                 if status == 403 and "not allowed to use model" in body:

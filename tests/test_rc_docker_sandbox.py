@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import threading
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -608,6 +609,50 @@ def test_cleanup_on_exception(mock_run: MagicMock, mock_remove: MagicMock, tmp_p
     assert result.returncode == -1
     assert "Docker execution error" in result.stderr
     mock_remove.assert_called_once()
+
+
+@patch("subprocess.run")
+def test_run_logs_environment_metadata_write_failure(
+    mock_run: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["docker", "run"], returncode=0, stdout="", stderr="",
+    )
+    cfg = DockerSandboxConfig(network_policy="none")
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    def fail_write_text(self: Path, *_args: object, **_kwargs: object) -> int:
+        if self.name == "environment.json":
+            raise OSError("metadata disk full")
+        return original_write_text(self, *_args, **_kwargs)
+
+    original_write_text = Path.write_text
+    monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+    with caplog.at_level(logging.WARNING, logger="researchclaw.experiment.docker_sandbox"):
+        result = sandbox.run("print('ok')", timeout_sec=60)
+
+    assert result.returncode == 0
+    assert "Docker sandbox environment metadata write failed" in caplog.text
+    assert "metadata disk full" in caplog.text
+
+
+def test_remove_container_logs_cleanup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def fail_run(*_args: object, **_kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd="docker rm", timeout=10)
+
+    monkeypatch.setattr("researchclaw.experiment.docker_sandbox.subprocess.run", fail_run)
+
+    with caplog.at_level(logging.WARNING, logger="researchclaw.experiment.docker_sandbox"):
+        DockerSandbox._remove_container("rc-test-cleanup")
+
+    assert "Failed to remove Docker container rc-test-cleanup" in caplog.text
 
 
 @patch.object(DockerSandbox, "_remove_container")

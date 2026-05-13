@@ -330,7 +330,10 @@ class DockerSandbox:
                 _json_env.dumps(_env_meta, indent=2), encoding="utf-8",
             )
         except Exception:
-            pass
+            logger.warning(
+                "Docker sandbox environment metadata write failed",
+                exc_info=True,
+            )
 
         # Build the docker run command
         cmd = self._build_run_command(
@@ -402,9 +405,17 @@ class DockerSandbox:
                             try:
                                 metrics[k] = float(v)
                             except (TypeError, ValueError):
-                                pass
+                                logger.debug(
+                                    "Skipping non-numeric results.json metric %s=%r",
+                                    k,
+                                    v,
+                                )
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.warning(
+                    "Failed to read Docker sandbox structured results: %s",
+                    results_json_path,
+                    exc_info=True,
+                )
 
         return SandboxResult(
             returncode=returncode,
@@ -636,7 +647,11 @@ class DockerSandbox:
                 check=False,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+            logger.warning(
+                "Failed to kill Docker container %s",
+                name,
+                exc_info=True,
+            )
 
     @staticmethod
     def _remove_container(name: str) -> None:
@@ -648,4 +663,8 @@ class DockerSandbox:
                 check=False,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+            logger.warning(
+                "Failed to remove Docker container %s",
+                name,
+                exc_info=True,
+            )

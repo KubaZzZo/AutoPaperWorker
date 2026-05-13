@@ -161,7 +161,11 @@ class ACPClient:
                 errors="replace", timeout=15,
             )
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning(
+                "ACP session close failed: %s",
+                self.config.session_name,
+                exc_info=True,
+            )
         self._session_ready = False
 
     def __del__(self) -> None:
@@ -169,7 +173,7 @@ class ACPClient:
         try:
             self.close()
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("ACP __del__ cleanup failed", exc_info=True)
 
     @classmethod
     def _atexit_cleanup(cls) -> None:
@@ -180,7 +184,7 @@ class ACPClient:
                 try:
                     inst.close()
                 except Exception:  # noqa: BLE001
-                    pass
+                    logger.debug("ACP atexit cleanup failed", exc_info=True)
         cls._live_instances.clear()
 
     # ------------------------------------------------------------------
@@ -258,7 +262,7 @@ class ACPClient:
                 errors="replace", timeout=60,
             )
         except Exception:  # noqa: BLE001
-            logger.debug("ACP warm-up prompt failed (non-fatal)")
+            logger.debug("ACP warm-up prompt failed (non-fatal)", exc_info=True)
 
         self._session_ready = True
         logger.info("ACP session '%s' ready (%s)", self.config.session_name, self.config.agent)
@@ -386,7 +390,7 @@ class ACPClient:
         try:
             self.close()
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("ACP reconnect cleanup failed", exc_info=True)
         self._session_ready = False
 
     def _run_acp_with_heartbeat(
@@ -420,7 +424,7 @@ class ACPClient:
                 proc.stdin.write(input_data)
                 proc.stdin.close()
             except OSError:
-                pass
+                logger.debug("ACP stdin write failed", exc_info=True)
 
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
@@ -430,7 +434,7 @@ class ACPClient:
                 for line in stream:
                     buf.append(line)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("ACP stream reader failed", exc_info=True)
 
         t_out = threading.Thread(target=_reader, args=(proc.stdout, stdout_chunks), daemon=True)
         t_err = threading.Thread(target=_reader, args=(proc.stderr, stderr_chunks), daemon=True)
