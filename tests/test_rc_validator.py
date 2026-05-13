@@ -9,6 +9,7 @@ from researchclaw.experiment.validator import (
     DANGEROUS_CALLS,
     CodeValidation,
     ValidationIssue,
+    check_data_split_overlap,
     check_filename_collisions,
     extract_imports,
     format_issues_for_llm,
@@ -393,3 +394,53 @@ def test_filename_collision_multiple_shadows():
     files = {"config.py": "", "logging.py": "", "main.py": ""}
     warnings = check_filename_collisions(files)
     assert len(warnings) == 2
+
+
+# ---------------------------------------------------------------------------
+# check_data_split_overlap (Q22)
+# ---------------------------------------------------------------------------
+
+
+def test_data_split_overlap_detects_same_dataset_used_for_train_and_val():
+    code = """
+from torch.utils.data import DataLoader
+
+dataset = MyDataset()
+train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(dataset, batch_size=32, shuffle=False)
+"""
+
+    warnings = check_data_split_overlap(code, "main.py")
+
+    assert warnings
+    assert "train/validation overlap" in warnings[0].lower()
+    assert "dataset" in warnings[0]
+
+
+def test_data_split_overlap_detects_shared_subset_indices():
+    code = """
+from torch.utils.data import Subset
+
+dataset = MyDataset()
+indices = list(range(100))
+train_set = Subset(dataset, indices)
+val_set = Subset(dataset, indices)
+"""
+
+    warnings = check_data_split_overlap(code, "main.py")
+
+    assert warnings
+    assert "shared subset indices" in warnings[0].lower()
+
+
+def test_data_split_overlap_allows_random_split_outputs():
+    code = """
+from torch.utils.data import DataLoader, random_split
+
+dataset = MyDataset()
+train_set, val_set = random_split(dataset, [80, 20])
+train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
+"""
+
+    assert check_data_split_overlap(code, "main.py") == []

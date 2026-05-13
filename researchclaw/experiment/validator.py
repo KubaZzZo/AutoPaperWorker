@@ -1127,6 +1127,135 @@ def check_filename_collisions(files: dict[str, str]) -> list[str]:
     return warnings
 
 
+def check_data_split_overlap(code: str, fname: str = "main.py") -> list[str]:
+    """Detect likely train/validation data leakage in generated code.
+
+    This is a conservative static check for Q22. It flags simple, high-risk
+    patterns where train and validation/test loaders or subsets reuse the same
+    dataset object or the same Subset indices.
+    """
+    warnings: list[str] = []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return warnings
+
+    def _name_role(name: str) -> str:
+        lowered = name.lower()
+        if any(tok in lowered for tok in ("train", "trn")):
+            return "train"
+        if any(tok in lowered for tok in ("val", "valid", "validation", "test")):
+            return "eval"
+        return ""
+
+    def _expr_key(node: ast.AST) -> str:
+        try:
+            return ast.unparse(node)
+        except Exception:
+            return ast.dump(node)
+
+    loader_sources: dict[str, tuple[str, int]] = {}
+    subset_sources: dict[str, tuple[str, str, int]] = {}
+    direct_assignments: dict[str, tuple[str, int]] = {}
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        targets = [
+            target.id
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        ]
+        if not targets:
+            continue
+
+        value = node.value
+        if isinstance(value, ast.Name):
+            for target_name in targets:
+                direct_assignments[target_name] = (value.id, node.lineno)
+            continue
+
+        if not isinstance(value, ast.Call):
+            continue
+
+        call_name = _resolve_call_name(value.func)
+        if call_name.endswith("DataLoader") and value.args:
+            dataset_key = _expr_key(value.args[0])
+            for target_name in targets:
+                loader_sources[target_name] = (dataset_key, node.lineno)
+        elif call_name.endswith("Subset") and len(value.args) >= 2:
+            dataset_key = _expr_key(value.args[0])
+            indices_key = _expr_key(value.args[1])
+            for target_name in targets:
+                subset_sources[target_name] = (dataset_key, indices_key, node.lineno)
+
+    def _warn_pair(kind: str, name_a: str, line_a: int, name_b: str, line_b: int, detail: str) -> None:
+        warnings.append(
+            f"[{fname}:{line_b}] Potential train/validation overlap: "
+            f"{kind} '{name_a}' (line {line_a}) and '{name_b}' share {detail}. "
+            f"Use disjoint train/val/test splits or separate Subset indices."
+        )
+
+    seen_pairs: set[tuple[str, str, str]] = set()
+
+    # Direct aliases such as train_set = dataset; val_set = dataset.
+    direct_items = list(direct_assignments.items())
+    for i, (name_a, (src_a, line_a)) in enumerate(direct_items):
+        role_a = _name_role(name_a)
+        if not role_a:
+            continue
+        for name_b, (src_b, line_b) in direct_items[i + 1:]:
+            role_b = _name_role(name_b)
+            if not role_b or role_a == role_b or src_a != src_b:
+                continue
+            pair = tuple(sorted((name_a, name_b))) + ("direct",)
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                _warn_pair("dataset alias", name_a, line_a, name_b, line_b, f"dataset object '{src_a}'")
+
+    # DataLoader(train_dataset) and DataLoader(val_dataset) using same source.
+    loader_items = list(loader_sources.items())
+    for i, (name_a, (src_a, line_a)) in enumerate(loader_items):
+        role_a = _name_role(name_a)
+        if not role_a:
+            continue
+        for name_b, (src_b, line_b) in loader_items[i + 1:]:
+            role_b = _name_role(name_b)
+            if not role_b or role_a == role_b or src_a != src_b:
+                continue
+            pair = tuple(sorted((name_a, name_b))) + ("loader",)
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                _warn_pair("DataLoader", name_a, line_a, name_b, line_b, f"dataset object '{src_a}'")
+
+    # Subset(dataset, indices) reused for train and validation/test.
+    subset_items = list(subset_sources.items())
+    for i, (name_a, (dataset_a, indices_a, line_a)) in enumerate(subset_items):
+        role_a = _name_role(name_a)
+        if not role_a:
+            continue
+        for name_b, (dataset_b, indices_b, line_b) in subset_items[i + 1:]:
+            role_b = _name_role(name_b)
+            if (
+                not role_b
+                or role_a == role_b
+                or dataset_a != dataset_b
+                or indices_a != indices_b
+            ):
+                continue
+            pair = tuple(sorted((name_a, name_b))) + ("subset",)
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                warnings.append(
+                    f"[{fname}:{line_b}] Potential train/validation overlap: "
+                    f"Subset '{name_a}' (line {line_a}) and '{name_b}' use shared "
+                    f"Subset indices '{indices_a}' on dataset '{dataset_a}'. "
+                    f"Create disjoint train/val/test index lists."
+                )
+
+    return warnings
+
+
 def deep_validate_files(
     files: dict[str, str],
 ) -> list[str]:
@@ -1143,4 +1272,5 @@ def deep_validate_files(
         warnings.extend(check_variable_scoping(code, fname))
         warnings.extend(check_api_correctness(code, fname))
         warnings.extend(check_undefined_calls(code, fname))
+        warnings.extend(check_data_split_overlap(code, fname))
     return warnings
