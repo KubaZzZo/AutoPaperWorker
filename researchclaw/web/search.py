@@ -20,6 +20,8 @@ from typing import Any
 from urllib.request import Request, urlopen
 from urllib.parse import quote_plus
 
+from researchclaw.web._ssrf import check_url_ssrf
+
 logger = logging.getLogger(__name__)
 
 
@@ -194,6 +196,12 @@ class WebSearchClient:
         """Fallback: scrape DuckDuckGo HTML search results."""
         encoded = quote_plus(query)
         url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        ssrf_error = check_url_ssrf(url)
+        if ssrf_error:
+            elapsed = time.monotonic() - t0
+            logger.warning("Blocked DuckDuckGo search URL: %s", ssrf_error)
+            return WebSearchResponse(query=query, elapsed_seconds=elapsed, source="duckduckgo")
+
         req = Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                           "AppleWebKit/537.36 (KHTML, like Gecko) "

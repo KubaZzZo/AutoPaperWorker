@@ -111,6 +111,18 @@ class TestWebSearchClient:
         assert response.source == "duckduckgo"
         assert len(response.results) == 0
 
+    @patch("researchclaw.web.search.urlopen")
+    @patch("researchclaw.web.search.check_url_ssrf")
+    def test_search_ddg_rejects_unsafe_url(self, mock_check_ssrf, mock_urlopen):
+        mock_check_ssrf.return_value = "Blocked internal/private URL: duckduckgo"
+
+        client = WebSearchClient(api_key="")
+        response = client.search("test query")
+
+        assert response.source == "duckduckgo"
+        assert response.results == []
+        mock_urlopen.assert_not_called()
+
     def test_search_tavily_with_mock(self):
         """Test Tavily search with mocked SDK."""
         mock_client_instance = MagicMock()

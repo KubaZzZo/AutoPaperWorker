@@ -123,6 +123,8 @@
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
 
 #### 15. SSRF 检查缺失的 DuckDuckGo 降级路径
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] DuckDuckGo fallback requests now pass through the shared web-layer SSRF validator before Request/urlopen construction; unsafe URLs are logged and rejected without making a network call. Regression coverage verifies urlopen is not called when validation blocks the URL.</span>
+
 - **文件:** `researchclaw/web/search.py:204`
 - **问题:** `# noqa: S310` 标记，虽然 URL 硬编码无害，但代码模式在重构中易出错。
 - **建议:** 添加 URL 验证或路由所有外部请求通过 SSRF 检查。
