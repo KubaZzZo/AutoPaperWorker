@@ -64,6 +64,8 @@
 - **建议:** 弃用 `api_key` 字段，仅保留 `api_key_env`。
 
 #### 8. Web 服务器认证可选
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Web authentication is now enabled by default with a generated bearer token when none is configured; protected endpoints return 401 without the token and CLI startup prints the tokenized URL.</span>
+
 - **文件:** `researchclaw/server/middleware/auth.py:31-32`, `app.py:58`
 - **问题:** `auth_token` 未设置时完全跳过认证中间件，所有端点公开可访问。
 - **建议:** 默认要求认证，生成随机令牌。

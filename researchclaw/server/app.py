@@ -44,6 +44,7 @@ def create_app(
     # Store config in shared state
     _app_state["config"] = config
     _app_state["monitor_dir"] = monitor_dir
+    app.state.auth_token = config.server.auth_token
 
     # --- CORS ---
     app.add_middleware(
@@ -55,8 +56,7 @@ def create_app(
     )
 
     # --- Token auth ---
-    if config.server.auth_token:
-        app.add_middleware(TokenAuthMiddleware, token=config.server.auth_token)
+    app.add_middleware(TokenAuthMiddleware, token=config.server.auth_token)
 
     # --- WebSocket manager ---
     event_manager = ConnectionManager()

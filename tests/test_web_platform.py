@@ -33,7 +33,8 @@ class TestServerConfig:
         assert cfg.host == "0.0.0.0"
         assert cfg.port == 8080
         assert cfg.cors_origins == ("*",)
-        assert cfg.auth_token == ""
+        assert cfg.auth_token
+        assert len(cfg.auth_token) >= 32
         assert cfg.voice_enabled is False
 
     def test_dashboard_config_defaults(self) -> None:
@@ -64,6 +65,8 @@ class TestServerConfig:
         cfg = _parse_server_config({})
         assert cfg.enabled is False
         assert cfg.port == 8080
+        assert cfg.auth_token
+        assert len(cfg.auth_token) >= 32
 
     def test_parse_dashboard_config(self) -> None:
         from researchclaw.config import _parse_dashboard_config
@@ -624,6 +627,19 @@ class TestFastAPIApp:
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/config")
+            assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_config_endpoint_with_token(self, app: object) -> None:
+        from httpx import AsyncClient, ASGITransport
+
+        token = app.state.auth_token  # type: ignore[attr-defined]
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/api/config",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["project"] == "test"
@@ -635,8 +651,7 @@ class TestFastAPIApp:
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/pipeline/status")
-            assert resp.status_code == 200
-            assert resp.json()["status"] == "idle"
+            assert resp.status_code == 401
 
     @pytest.mark.asyncio
     async def test_pipeline_stages(self, app: object) -> None:
@@ -644,7 +659,11 @@ class TestFastAPIApp:
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/pipeline/stages")
+            token = app.state.auth_token  # type: ignore[attr-defined]
+            resp = await ac.get(
+                "/api/pipeline/stages",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             assert resp.status_code == 200
             stages = resp.json()["stages"]
             assert len(stages) == 23
@@ -655,7 +674,11 @@ class TestFastAPIApp:
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/runs")
+            token = app.state.auth_token  # type: ignore[attr-defined]
+            resp = await ac.get(
+                "/api/runs",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             assert resp.status_code == 200
             assert "runs" in resp.json()
 
@@ -665,7 +688,11 @@ class TestFastAPIApp:
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/projects")
+            token = app.state.auth_token  # type: ignore[attr-defined]
+            resp = await ac.get(
+                "/api/projects",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             assert resp.status_code == 200
             assert "projects" in resp.json()
 
@@ -675,5 +702,9 @@ class TestFastAPIApp:
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.post("/api/pipeline/stop")
+            token = app.state.auth_token  # type: ignore[attr-defined]
+            resp = await ac.post(
+                "/api/pipeline/stop",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             assert resp.status_code == 404

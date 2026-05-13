@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -594,7 +595,7 @@ class ServerConfig:
     host: str = "0.0.0.0"
     port: int = 8080
     cors_origins: tuple[str, ...] = ("*",)
-    auth_token: str = ""  # empty = no authentication
+    auth_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
     voice_enabled: bool = False
     whisper_model: str = "whisper-1"
     whisper_api_url: str = ""  # empty = use OpenAI default
@@ -1390,12 +1391,13 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
         cors = ("*",)
     else:
         cors = (str(cors),)
+    auth_token = str(data.get("auth_token", "")).strip() or secrets.token_urlsafe(32)
     return ServerConfig(
         enabled=bool(data.get("enabled", False)),
         host=data.get("host", "0.0.0.0"),
         port=int(data.get("port", 8080)),
         cors_origins=cors,
-        auth_token=data.get("auth_token", ""),
+        auth_token=auth_token,
         voice_enabled=bool(data.get("voice_enabled", False)),
         whisper_model=data.get("whisper_model", "whisper-1"),
         whisper_api_url=data.get("whisper_api_url", ""),

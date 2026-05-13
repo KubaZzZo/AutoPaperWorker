@@ -10,15 +10,14 @@ from starlette.responses import JSONResponse, Response
 
 
 class TokenAuthMiddleware(BaseHTTPMiddleware):
-    """Optional bearer-token authentication.
-
-    If *token* is empty, all requests are allowed (no-op).
-    """
+    """Bearer-token authentication for HTTP requests."""
 
     # Paths that never require auth
     EXEMPT_PATHS = frozenset({"/api/health", "/docs", "/openapi.json"})
 
     def __init__(self, app: object, token: str = "") -> None:
+        if not token:
+            raise ValueError("TokenAuthMiddleware requires a non-empty token")
         super().__init__(app)  # type: ignore[arg-type]
         self._token = token
 
@@ -27,10 +26,6 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        # No-op when token is unset
-        if not self._token:
-            return await call_next(request)
-
         # Skip auth for exempt paths and static files
         path = request.url.path
         if path in self.EXEMPT_PATHS or path.startswith("/static"):

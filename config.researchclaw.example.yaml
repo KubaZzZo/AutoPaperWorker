@@ -149,6 +149,14 @@ experiment:
     workspace_cleanup: true      # Remove temp workspace after collection
     forward_api_key_env: false   # Explicit opt-in to pass API keys to OpenCode
 
+server:
+  enabled: false
+  host: "127.0.0.1"
+  port: 8080
+  # Leave blank to generate a random token at startup; set a value only for
+  # controlled deployments where the config file is kept secret.
+  auth_token: ""
+
 # ============================================================================
 # SSH Remote Examples
 # ============================================================================
