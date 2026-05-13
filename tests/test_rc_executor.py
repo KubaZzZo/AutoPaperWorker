@@ -2002,6 +2002,64 @@ class TestComputeBudgetBlock:
         )
         assert "60" in all_user_msgs or "Compute Budget" in all_user_msgs
 
+    def test_distributed_training_guidance_injected_into_code_generation(
+        self, tmp_path: Path, run_dir: Path, adapters: AdapterBundle
+    ) -> None:
+        import sys
+
+        data = {
+            "project": {"name": "rc-test", "mode": "docs-first"},
+            "research": {
+                "topic": "large transformer training with FSDP",
+                "domains": ["ml"],
+                "daily_paper_count": 2,
+                "quality_threshold": 8.2,
+            },
+            "runtime": {"timezone": "UTC"},
+            "notifications": {"channel": "local"},
+            "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
+            "openclaw_bridge": {},
+            "llm": {
+                "provider": "openai-compatible",
+                "base_url": "http://localhost:1234/v1",
+                "api_key_env": "RC_TEST_KEY",
+                "api_key": "inline-test-key",
+                "primary_model": "fake-model",
+                "fallback_models": [],
+            },
+            "security": {"hitl_required_stages": [5, 9, 20]},
+            "experiment": {
+                "mode": "sandbox",
+                "time_budget_sec": 60,
+                "metric_direction": "minimize",
+                "sandbox": {"python_path": sys.executable, "gpu_required": False},
+                "distributed": {
+                    "enabled": True,
+                    "strategy": "fsdp",
+                    "num_nodes": 1,
+                    "gpus_per_node": 2,
+                    "launcher": "torchrun",
+                },
+                "opencode": {"enabled": False},
+                "code_agent": {"enabled": False},
+            },
+        }
+        cfg = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+        _write_prior_artifact(run_dir, 10, "exp_plan.yaml", "objectives: test")
+        llm = FakeLLMClient(
+            "```filename:main.py\nprint('primary_metric: 0.1')\n```"
+        )
+        stage_dir = run_dir / "stage-11"
+        stage_dir.mkdir(parents=True, exist_ok=True)
+
+        rc_executor._execute_code_generation(stage_dir, run_dir, cfg, adapters, llm=llm)
+
+        all_user_msgs = " ".join(call[-1]["content"] for call in llm.calls if call)
+        assert "Distributed Training" in all_user_msgs
+        assert "FSDP" in all_user_msgs
+        assert "torchrun" in all_user_msgs
+        assert "single-GPU fallback" in all_user_msgs
+
 
 class TestPartialTimeoutStatus:
     """Test partial status for timed-out experiments with data (R4-1c)."""

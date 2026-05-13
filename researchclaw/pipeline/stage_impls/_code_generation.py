@@ -307,6 +307,30 @@ def _execute_code_generation(
     except Exception:  # noqa: BLE001
         logger.debug("Domain guidance injection skipped", exc_info=True)
 
+    _dist_cfg = getattr(config.experiment, "distributed", None)
+    if _dist_cfg is not None and getattr(_dist_cfg, "enabled", False):
+        _strategy = str(getattr(_dist_cfg, "strategy", "ddp")).lower()
+        _strategy_name = {
+            "fsdp": "FSDP",
+            "deepspeed": "DeepSpeed",
+            "ddp": "DDP",
+        }.get(_strategy, _strategy.upper())
+        extra_guidance += (
+            "\n\n## Distributed Training Guidance\n"
+            f"- Target strategy: {_strategy_name}; launcher: "
+            f"{getattr(_dist_cfg, 'launcher', 'torchrun')}.\n"
+            f"- Target topology: {getattr(_dist_cfg, 'num_nodes', 1)} node(s) x "
+            f"{getattr(_dist_cfg, 'gpus_per_node', 1)} GPU(s) per node.\n"
+            f"- Use mixed precision: {getattr(_dist_cfg, 'mixed_precision', 'bf16')}; "
+            f"gradient checkpointing: {getattr(_dist_cfg, 'gradient_checkpointing', True)}.\n"
+            f"- If using DeepSpeed, include ZeRO stage {getattr(_dist_cfg, 'zero_stage', 2)} "
+            "configuration and document the launch command.\n"
+            "- If using FSDP, wrap only trainable modules and save/load checkpoints safely.\n"
+            "- Include an explicit single-GPU fallback path so the experiment can still run "
+            "in sandbox or CI environments without distributed launch.\n"
+            "- Record world size, rank, CUDA version, and GPU model in the output metadata.\n"
+        )
+
     # BUG-R6-01: Add explicit implementation constraints to prevent LLM
     # from substituting unrelated DL models for lightweight algorithms.
     extra_guidance += (

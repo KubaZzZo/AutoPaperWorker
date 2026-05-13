@@ -273,6 +273,27 @@ def test_experiment_config_defaults_mode_is_simulated():
 
     assert defaults.mode == "simulated"
     assert defaults.metric_direction == "minimize"
+    assert defaults.distributed.enabled is False
+
+
+def test_rcconfig_from_dict_parses_distributed_training(tmp_path: Path):
+    data = _valid_config_data()
+    data["experiment"]["distributed"] = {
+        "enabled": True,
+        "strategy": "fsdp",
+        "num_nodes": 2,
+        "gpus_per_node": 4,
+        "launcher": "torchrun",
+        "zero_stage": 2,
+    }
+
+    config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+    assert config.experiment.distributed.enabled is True
+    assert config.experiment.distributed.strategy == "fsdp"
+    assert config.experiment.distributed.num_nodes == 2
+    assert config.experiment.distributed.gpus_per_node == 4
+    assert config.experiment.distributed.launcher == "torchrun"
 
 
 def test_sandbox_config_defaults_match_expected_values():

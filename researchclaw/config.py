@@ -271,6 +271,20 @@ class DockerSandboxConfig:
 
 
 @dataclass(frozen=True)
+class DistributedTrainingConfig:
+    """Configuration hints for generated multi-GPU experiment code."""
+
+    enabled: bool = False
+    strategy: str = "ddp"  # ddp | fsdp | deepspeed
+    launcher: str = "torchrun"  # torchrun | accelerate | deepspeed
+    num_nodes: int = 1
+    gpus_per_node: int = 1
+    zero_stage: int = 2
+    mixed_precision: str = "bf16"
+    gradient_checkpointing: bool = True
+
+
+@dataclass(frozen=True)
 class AgenticConfig:
     """Configuration for the agentic experiment mode.
 
@@ -429,6 +443,7 @@ class ExperimentConfig:
     keep_threshold: float = 0.0
     sandbox: SandboxConfig = field(default_factory=SandboxConfig)
     docker: DockerSandboxConfig = field(default_factory=DockerSandboxConfig)
+    distributed: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig)
     agentic: AgenticConfig = field(default_factory=AgenticConfig)
     ssh_remote: SshRemoteConfig = field(default_factory=SshRemoteConfig)
     colab_drive: ColabDriveConfig = field(default_factory=ColabDriveConfig)
@@ -1008,6 +1023,7 @@ def _parse_agentic_config(data: dict[str, Any]) -> AgenticConfig:
 def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
     sandbox_data = data.get("sandbox") or {}
     docker_data = data.get("docker") or {}
+    distributed_data = data.get("distributed") or {}
     ssh_data = data.get("ssh_remote") or {}
     colab_data = data.get("colab_drive") or {}
     return ExperimentConfig(
@@ -1039,6 +1055,18 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
             shm_size_mb=_safe_int(docker_data.get("shm_size_mb"), 2048),
             container_python=docker_data.get("container_python", "/usr/bin/python3"),
             keep_containers=bool(docker_data.get("keep_containers", False)),
+        ),
+        distributed=DistributedTrainingConfig(
+            enabled=bool(distributed_data.get("enabled", False)),
+            strategy=distributed_data.get("strategy", "ddp"),
+            launcher=distributed_data.get("launcher", "torchrun"),
+            num_nodes=_safe_int(distributed_data.get("num_nodes"), 1),
+            gpus_per_node=_safe_int(distributed_data.get("gpus_per_node"), 1),
+            zero_stage=_safe_int(distributed_data.get("zero_stage"), 2),
+            mixed_precision=distributed_data.get("mixed_precision", "bf16"),
+            gradient_checkpointing=bool(
+                distributed_data.get("gradient_checkpointing", True)
+            ),
         ),
         ssh_remote=SshRemoteConfig(
             host=ssh_data.get("host", ""),

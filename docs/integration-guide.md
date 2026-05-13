@@ -539,6 +539,24 @@ language while preserving citation keys, code identifiers, equations, dataset
 names, and file paths. For example, use `paper_language: "Chinese"` for a
 Chinese paper draft or `paper_language: "Japanese"` for a Japanese draft.
 
+### Multi-GPU Training Guidance
+
+Use `experiment.distributed` to ask the Stage 10 code generator for a
+distributed-training implementation. This currently injects DeepSpeed/FSDP/DDP
+guidance and requires generated code to include a single-GPU fallback; execution
+backends still run the generated entry point normally unless you add a custom
+launcher.
+
+```yaml
+experiment:
+  distributed:
+    enabled: true
+    strategy: "fsdp"       # ddp | fsdp | deepspeed
+    launcher: "torchrun"   # torchrun | accelerate | deepspeed
+    num_nodes: 1
+    gpus_per_node: 2
+```
+
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)
 - Inline and display math (`$...$`, `$$...$$`)

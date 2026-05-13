@@ -109,6 +109,15 @@ experiment:
     auto_install_deps: true
     shm_size_mb: 2048
     keep_containers: false
+  distributed:
+    enabled: false
+    strategy: "fsdp"       # ddp | fsdp | deepspeed
+    launcher: "torchrun"   # torchrun | accelerate | deepspeed
+    num_nodes: 1
+    gpus_per_node: 1
+    zero_stage: 2
+    mixed_precision: "bf16"
+    gradient_checkpointing: true
   ssh_remote:
     host: ""                # SSH hostname or IP
     user: ""                # SSH username (default: current user)

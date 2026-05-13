@@ -24,6 +24,7 @@ reproducibility updates were integrated.
 | Recommendation systems domain | Integrated | Added `ml_recommendation` detector rules and domain profile |
 | Conference template expansion | Integrated | Added CVPR, ACL, AAAI, KDD, Nature-style, and Science-style export templates |
 | Multilingual paper generation | Integrated | Added `export.paper_language` and Stage 17 language instructions for manuscript prose |
+| Multi-GPU training guidance | Integrated | Added `experiment.distributed` config and Stage 10 DeepSpeed/FSDP/torchrun guidance with single-GPU fallback |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -32,8 +33,8 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Multi-GPU training | Medium | DeepSpeed/FSDP support is not wired into the main experiment path. |
+| Distributed launcher execution | Medium | Config and code-generation guidance exist; execution backends do not yet launch `torchrun`/DeepSpeed directly. |
 
 ## Suggested Next Order
 
-1. Design the Multi-GPU training integration path for DeepSpeed/FSDP.
+1. Add execution-backend launch support for `torchrun`, `accelerate`, and DeepSpeed when `experiment.distributed.enabled=true`.
