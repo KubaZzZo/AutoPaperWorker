@@ -1828,6 +1828,36 @@ class TestWritePaperSections:
         assert "sections written so far" in llm.user_prompts[1]
         assert "completing a paper" in llm.user_prompts[2]
 
+    def test_paper_language_instruction_reaches_all_calls(self) -> None:
+        class LanguageTrackingLLM:
+            def __init__(self):
+                self.user_prompts: list[str] = []
+
+            def chat(self, messages, **kwargs):
+                for m in messages:
+                    if m.get("role") == "user":
+                        self.user_prompts.append(m["content"])
+                from researchclaw.llm.client import LLMResponse
+                return LLMResponse(content="## Section\nContent here.", model="fake")
+
+        llm = LanguageTrackingLLM()
+        from researchclaw.prompts import PromptManager
+        pm = PromptManager()
+
+        rc_executor._write_paper_sections(
+            llm=llm,
+            pm=pm,
+            preamble="Preamble",
+            topic_constraint="",
+            exp_metrics_instruction="",
+            citation_instruction="",
+            outline="Outline",
+            paper_language="Chinese",
+        )
+
+        assert len(llm.user_prompts) == 3
+        assert all("Write the paper in Chinese" in prompt for prompt in llm.user_prompts)
+
 
 class TestLoadHardwareProfile:
     """Tests for _load_hardware_profile()."""

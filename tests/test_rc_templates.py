@@ -570,6 +570,7 @@ class TestExportConfig:
         ec = ExportConfig()
         assert ec.target_conference == "neurips_2025"
         assert ec.authors == "Anonymous"
+        assert ec.paper_language == "English"
         assert ec.bib_file == "references"
 
     def test_frozen(self) -> None:
@@ -595,11 +596,13 @@ class TestExportConfig:
         data["export"] = {
             "target_conference": "icml_2025",
             "authors": "Test Author",
+            "paper_language": "Chinese",
             "bib_file": "mybib",
         }
         cfg = RCConfig.from_dict(data, check_paths=False)
         assert cfg.export.target_conference == "icml_2025"
         assert cfg.export.authors == "Test Author"
+        assert cfg.export.paper_language == "Chinese"
         assert cfg.export.bib_file == "mybib"
 
 

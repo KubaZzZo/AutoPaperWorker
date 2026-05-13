@@ -336,6 +336,7 @@ def _write_paper_sections(
     citation_instruction: str,
     outline: str,
     model_name: str = "",
+    paper_language: str = "English",
 ) -> str:
     """Write a conference-grade paper in 3 sequential LLM calls.
 
@@ -393,6 +394,15 @@ def _write_paper_sections(
     except (KeyError, Exception):  # noqa: BLE001
         anti_repetition_rules = ""
 
+    language_instruction = ""
+    language = paper_language.strip()
+    if language and language.lower() != "english":
+        language_instruction = (
+            f"\nLANGUAGE REQUIREMENT: Write the paper in {language}. "
+            "Keep citation keys, code identifiers, dataset names, equations, and "
+            "file paths unchanged. Use natural academic terminology in the target language.\n\n"
+        )
+
     # --- Call 1: Title + Abstract + Introduction + Related Work ---
     call1_user = (
         f"{preamble}\n\n"
@@ -403,6 +413,7 @@ def _write_paper_sections(
         f"{narrative_writing_rules}\n"
         f"{anti_hedging_rules}\n"
         f"{anti_repetition_rules}\n\n"
+        f"{language_instruction}"
         "Write the following sections of a NeurIPS/ICML-quality paper in markdown. "
         "Follow the LENGTH REQUIREMENTS strictly:\n\n"
         "1. **Title** (HARD RULE: MUST be 14 words or fewer. Create a catchy method name "
@@ -449,6 +460,7 @@ def _write_paper_sections(
         f"{exp_metrics_instruction}\n\n"
         f"{narrative_writing_rules}\n"
         f"{anti_hedging_rules}\n\n"
+        f"{language_instruction}"
         # IMP-21: Citation instruction for Method + Experiments
         "CITATION REQUIREMENT: The Method section MUST cite at least 3-5 related "
         "technical papers (foundations your method builds on). The Experiments section "
@@ -490,6 +502,7 @@ def _write_paper_sections(
         f"{narrative_writing_rules}\n"
         f"{anti_hedging_rules}\n"
         f"{anti_repetition_rules}\n\n"
+        f"{language_instruction}"
         # IMP-21: Citation instruction for Results + Discussion + Conclusion
         "CITATION REQUIREMENT: The Discussion section MUST cite at least 3-5 papers "
         "when comparing findings with prior work. The Conclusion may cite 1-2 "
@@ -2013,6 +2026,7 @@ def _execute_paper_draft(
             citation_instruction=citation_instruction,
             outline=outline,
             model_name=config.llm.primary_model,
+            paper_language=config.export.paper_language,
         )
 
         # R7: Strip LLM-generated References section — it often fabricates arXiv IDs.

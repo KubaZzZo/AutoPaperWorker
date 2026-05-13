@@ -191,6 +191,7 @@ experiment:
 export:
   target_conference: "neurips_2025"   # See Section 8 for all available templates
   authors: "Anonymous"                 # Author line in the paper
+  paper_language: "English"            # English, Chinese, Japanese, Korean, French, etc.
   bib_file: "references"              # BibTeX file name (without .bib)
 ```
 
@@ -513,6 +514,7 @@ AutoResearchClaw generates LaTeX files formatted for specific conferences:
 ```yaml
 export:
   target_conference: "neurips_2025"
+  paper_language: "English"
 ```
 
 | Conference | Config Value | Layout |
@@ -531,6 +533,11 @@ export:
 | Science-style | `science` | Single-column manuscript style |
 
 Short aliases are also accepted: `neurips` (2025), `iclr` (2026), `icml` (2026), `cvpr`, `acl`, `aaai`, and `kdd`.
+
+Set `export.paper_language` to generate the manuscript prose in another
+language while preserving citation keys, code identifiers, equations, dataset
+names, and file paths. For example, use `paper_language: "Chinese"` for a
+Chinese paper draft or `paper_language: "Japanese"` for a Japanese draft.
 
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)

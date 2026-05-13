@@ -23,6 +23,7 @@ reproducibility updates were integrated.
 | WebSocket synchronous HITL input | Integrated | `WebSocketHITLAdapter.collect_input()` now uses waiting/response file IPC for blocking pipeline callbacks |
 | Recommendation systems domain | Integrated | Added `ml_recommendation` detector rules and domain profile |
 | Conference template expansion | Integrated | Added CVPR, ACL, AAAI, KDD, Nature-style, and Science-style export templates |
+| Multilingual paper generation | Integrated | Added `export.paper_language` and Stage 17 language instructions for manuscript prose |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -32,9 +33,7 @@ reproducibility updates were integrated.
 | Item | Priority | Notes |
 | --- | --- | --- |
 | Multi-GPU training | Medium | DeepSpeed/FSDP support is not wired into the main experiment path. |
-| Multilingual paper generation | Low | Docs are localized; paper generation remains English-first. |
 
 ## Suggested Next Order
 
-1. Add multilingual paper generation options for non-English manuscripts.
-2. Design the Multi-GPU training integration path for DeepSpeed/FSDP.
+1. Design the Multi-GPU training integration path for DeepSpeed/FSDP.

@@ -501,6 +501,7 @@ class ExportConfig:
 
     target_conference: str = "neurips_2025"
     authors: str = "Anonymous"
+    paper_language: str = "English"
     bib_file: str = "references"
 
 
@@ -825,6 +826,7 @@ class RCConfig:
             export=ExportConfig(
                 target_conference=export.get("target_conference", "neurips_2025"),
                 authors=export.get("authors", "Anonymous"),
+                paper_language=export.get("paper_language", "English"),
                 bib_file=export.get("bib_file", "references"),
             ),
             prompts=PromptsConfig(

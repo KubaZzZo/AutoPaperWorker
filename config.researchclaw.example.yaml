@@ -76,6 +76,12 @@ security:
   allow_publish_without_approval: false
   redact_sensitive_logs: true
 
+export:
+  target_conference: "neurips_2025"
+  authors: "Anonymous"
+  paper_language: "English"  # e.g. English, Chinese, Japanese, Korean, French
+  bib_file: "references"
+
 experiment:
   # ★ mode 决定实验结果的真实性
   #   "sandbox"   — 在本地沙盒中实际执行生成的 Python 代码，产出真实实验数据
