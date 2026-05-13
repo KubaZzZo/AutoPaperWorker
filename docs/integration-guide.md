@@ -581,9 +581,11 @@ experiment:
 ```
 
 The planner writes `hypothesis_branches.json` with one branch per selected
-hypothesis. Each branch has a stable id, rank, hypothesis text, and status. It
-does not duplicate or execute the full pipeline by itself; runner-level
-fan-out is tracked as the next roadmap slice.
+hypothesis. Each branch has a stable id, rank, hypothesis text, and status. The
+runner then prepares `branches/<branch_id>/stage-08/hypotheses.md` plus
+`branches/branch_manifest.json`, giving Stage 9-15 fan-out a stable input
+layout. Full per-branch execution and best-branch selection are tracked as the
+next roadmap slice.
 
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)

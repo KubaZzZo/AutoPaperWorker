@@ -75,6 +75,65 @@ def _write_pipeline_summary(run_dir: Path, summary: dict[str, object]) -> None:
     )
 
 
+def _prepare_parallel_hypothesis_branches(run_dir: Path) -> Path | None:
+    """Create branch input directories from Stage 8 hypothesis branch plan."""
+    plan_path = run_dir / "stage-08" / "hypothesis_branches.json"
+    if not plan_path.exists():
+        return None
+    try:
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(plan, dict) or not plan.get("enabled"):
+        return None
+
+    branches = plan.get("branches")
+    if not isinstance(branches, list) or not branches:
+        return None
+
+    branches_root = run_dir / "branches"
+    branches_root.mkdir(parents=True, exist_ok=True)
+    manifest: dict[str, object] = {
+        "selection_metric": plan.get("selection_metric", "primary_metric"),
+        "status": "prepared",
+        "branches": [],
+    }
+    manifest_branches: list[dict[str, object]] = []
+    for item in branches:
+        if not isinstance(item, dict):
+            continue
+        branch_id = str(item.get("branch_id", "")).strip()
+        hypothesis = str(item.get("hypothesis", "")).strip()
+        if not branch_id or not hypothesis:
+            continue
+        branch_dir = branches_root / branch_id
+        branch_stage_dir = branch_dir / "stage-08"
+        branch_stage_dir.mkdir(parents=True, exist_ok=True)
+        (branch_stage_dir / "hypotheses.md").write_text(
+            hypothesis + "\n",
+            encoding="utf-8",
+        )
+        branch_meta = {
+            "branch_id": branch_id,
+            "rank": item.get("rank"),
+            "hypothesis": hypothesis,
+            "status": "prepared",
+            "stage_range": [9, 15],
+        }
+        (branch_dir / "branch.json").write_text(
+            json.dumps(branch_meta, indent=2),
+            encoding="utf-8",
+        )
+        manifest_branches.append(branch_meta)
+
+    if not manifest_branches:
+        return None
+    manifest["branches"] = manifest_branches
+    manifest_path = branches_root / "branch_manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest_path
+
+
 def _write_checkpoint(
     run_dir: Path, stage: Stage, run_id: str,
     adapters: "AdapterBundle | None" = None,
@@ -540,6 +599,17 @@ def execute_pipeline(
                 pass
 
         # ── ExperimentSpec: generate after design, validate after analysis ──
+        if stage == Stage.HYPOTHESIS_GEN and result.status == StageStatus.DONE:
+            try:
+                manifest_path = _prepare_parallel_hypothesis_branches(run_dir)
+                if manifest_path is not None:
+                    logger.info(
+                        "Parallel hypothesis branches prepared: %s",
+                        manifest_path,
+                    )
+            except Exception:
+                logger.debug("Parallel hypothesis branch preparation skipped")
+
         if stage == Stage.EXPERIMENT_DESIGN and result.status == StageStatus.DONE:
             try:
                 from researchclaw.pipeline.experiment_spec import ExperimentSpec, MetricDef, generate_spec

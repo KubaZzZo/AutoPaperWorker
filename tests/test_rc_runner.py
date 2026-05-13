@@ -362,6 +362,88 @@ def test_execute_pipeline_passes_auto_approve_flag_to_execute_stage(
     assert all(received)
 
 
+def test_execute_pipeline_prepares_parallel_hypothesis_branch_contexts(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        if stage == Stage.HYPOTHESIS_GEN:
+            stage_dir = run_dir / "stage-08"
+            stage_dir.mkdir(parents=True, exist_ok=True)
+            (stage_dir / "hypotheses.md").write_text(
+                "1. First hypothesis\n2. Second hypothesis\n",
+                encoding="utf-8",
+            )
+            (stage_dir / "hypothesis_branches.json").write_text(
+                json.dumps(
+                    {
+                        "enabled": True,
+                        "selection_metric": "primary_metric",
+                        "branches": [
+                            {
+                                "branch_id": "hypothesis-01",
+                                "rank": 1,
+                                "hypothesis": "First hypothesis",
+                                "status": "planned",
+                            },
+                            {
+                                "branch_id": "hypothesis-02",
+                                "rank": 2,
+                                "hypothesis": "Second hypothesis",
+                                "status": "planned",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return _done(
+                stage,
+                artifacts=("hypotheses.md", "hypothesis_branches.json"),
+            )
+        return _done(stage)
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+
+    rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-branches",
+        config=rc_config,
+        adapters=adapters,
+        to_stage=Stage.HYPOTHESIS_GEN,
+    )
+
+    manifest_path = run_dir / "branches" / "branch_manifest.json"
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert [item["branch_id"] for item in manifest["branches"]] == [
+        "hypothesis-01",
+        "hypothesis-02",
+    ]
+    branch_hypothesis = (
+        run_dir
+        / "branches"
+        / "hypothesis-01"
+        / "stage-08"
+        / "hypotheses.md"
+    )
+    assert branch_hypothesis.read_text(encoding="utf-8") == "First hypothesis\n"
+
+
+def test_prepare_parallel_hypothesis_branches_ignores_bad_plan(run_dir: Path) -> None:
+    stage_dir = run_dir / "stage-08"
+    stage_dir.mkdir(parents=True)
+    (stage_dir / "hypothesis_branches.json").write_text("{bad json", encoding="utf-8")
+
+    result = rc_runner._prepare_parallel_hypothesis_branches(run_dir)
+
+    assert result is None
+    assert not (run_dir / "branches" / "branch_manifest.json").exists()
+
+
 @pytest.mark.parametrize(
     ("stage", "started", "expected"),
     [
