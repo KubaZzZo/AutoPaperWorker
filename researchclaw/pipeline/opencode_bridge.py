@@ -257,6 +257,25 @@ IMPORTANT CONSTRAINTS:
 """
 
 
+_SAFE_OPENCODE_ENV_NAMES: tuple[str, ...] = (
+    "PATH",
+    "PATHEXT",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "TEMP",
+    "TMP",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "LANG",
+    "LC_ALL",
+)
+
+
 class OpenCodeBridge:
     """Manages OpenCode CLI invocations for beast mode code generation."""
 
@@ -270,6 +289,7 @@ class OpenCodeBridge:
         timeout_sec: int = 600,
         max_retries: int = 1,
         workspace_cleanup: bool = True,
+        forward_api_key_env: bool = False,
     ) -> None:
         self._model = model
         self._llm_base_url = llm_base_url
@@ -278,6 +298,7 @@ class OpenCodeBridge:
         self._timeout_sec = timeout_sec
         self._max_retries = max_retries
         self._workspace_cleanup = workspace_cleanup
+        self._forward_api_key_env = forward_api_key_env
 
     # -- availability check ---------------------------------------------------
 
@@ -457,9 +478,13 @@ class OpenCodeBridge:
         prompt: str,
     ) -> tuple[bool, str, float]:
         """Run ``opencode run`` in the workspace. Returns (success, log, elapsed)."""
-        env = os.environ.copy()
-        # Pass API key via environment if configured
-        if self._api_key_env:
+        env = {
+            name: value
+            for name, value in os.environ.items()
+            if name.upper() in _SAFE_OPENCODE_ENV_NAMES
+        }
+        # API keys are not inherited by default; forwarding requires explicit opt-in.
+        if self._api_key_env and self._forward_api_key_env:
             api_key = os.environ.get(self._api_key_env, "")
             if api_key:
                 # We always use the "openai" provider for OpenCode now,

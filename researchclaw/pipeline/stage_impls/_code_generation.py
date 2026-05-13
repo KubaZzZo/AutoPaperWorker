@@ -415,6 +415,7 @@ def _execute_code_generation(
                     timeout_sec=_oc_cfg.timeout_sec,
                     max_retries=_oc_cfg.max_retries,
                     workspace_cleanup=_oc_cfg.workspace_cleanup,
+                    forward_api_key_env=_oc_cfg.forward_api_key_env,
                 )
 
                 logger.info(

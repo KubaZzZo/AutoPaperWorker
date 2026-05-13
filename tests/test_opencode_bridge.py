@@ -383,6 +383,58 @@ class TestOpenCodeBridge:
         assert success is True
         assert run_mock.call_args.args[0][0].endswith("opencode.cmd")
 
+    def test_invoke_opencode_does_not_inherit_api_key_env_by_default(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-parent")
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-parent")
+        bridge = OpenCodeBridge(
+            model="gpt-5.2",
+            api_key_env="AZURE_OPENAI_API_KEY",
+            timeout_sec=10,
+        )
+        mock_result = MagicMock(returncode=0, stdout="{}", stderr="")
+
+        with patch(
+            "researchclaw.pipeline.opencode_bridge.shutil.which",
+            return_value=r"C:\Users\tester\AppData\Roaming\npm\opencode.cmd",
+        ), patch(
+            "researchclaw.pipeline.opencode_bridge.subprocess.run",
+            return_value=mock_result,
+        ) as run_mock:
+            success, _log, _elapsed = bridge._invoke_opencode(tmp_path, "test prompt")
+
+        child_env = run_mock.call_args.kwargs["env"]
+        assert success is True
+        assert "OPENAI_API_KEY" not in child_env
+        assert "AZURE_OPENAI_API_KEY" not in child_env
+
+    def test_invoke_opencode_can_forward_api_key_when_explicitly_enabled(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-parent")
+        bridge = OpenCodeBridge(
+            model="gpt-5.2",
+            api_key_env="AZURE_OPENAI_API_KEY",
+            timeout_sec=10,
+            forward_api_key_env=True,
+        )
+        mock_result = MagicMock(returncode=0, stdout="{}", stderr="")
+
+        with patch(
+            "researchclaw.pipeline.opencode_bridge.shutil.which",
+            return_value=r"C:\Users\tester\AppData\Roaming\npm\opencode.cmd",
+        ), patch(
+            "researchclaw.pipeline.opencode_bridge.subprocess.run",
+            return_value=mock_result,
+        ) as run_mock:
+            success, _log, _elapsed = bridge._invoke_opencode(tmp_path, "test prompt")
+
+        child_env = run_mock.call_args.kwargs["env"]
+        assert success is True
+        assert child_env["OPENAI_API_KEY"] == "az-parent"
+        assert "AZURE_OPENAI_API_KEY" not in child_env
+
 
 # ============================================================
 # TestEnsureMainEntryPoint (BUG-R52-01)
@@ -513,6 +565,7 @@ class TestOpenCodeConfig:
         assert cfg.timeout_sec == 600
         assert cfg.max_retries == 1
         assert cfg.workspace_cleanup is True
+        assert cfg.forward_api_key_env is False
 
     def test_parse_from_dict(self):
         data = {
@@ -523,6 +576,7 @@ class TestOpenCodeConfig:
             "timeout_sec": 900,
             "max_retries": 2,
             "workspace_cleanup": False,
+            "forward_api_key_env": True,
         }
         cfg = _parse_opencode_config(data)
         assert cfg.enabled is True
@@ -532,6 +586,7 @@ class TestOpenCodeConfig:
         assert cfg.timeout_sec == 900
         assert cfg.max_retries == 2
         assert cfg.workspace_cleanup is False
+        assert cfg.forward_api_key_env is True
 
     def test_empty_dict_returns_default(self):
         cfg = _parse_opencode_config({})

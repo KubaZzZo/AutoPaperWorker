@@ -355,6 +355,7 @@ class OpenCodeConfig:
     timeout_sec: int = 600  # Max seconds for opencode run
     max_retries: int = 1
     workspace_cleanup: bool = True
+    forward_api_key_env: bool = False
 
 
 @dataclass(frozen=True)
@@ -1235,6 +1236,7 @@ def _parse_opencode_config(data: dict[str, Any]) -> OpenCodeConfig:
         timeout_sec=_safe_int(data.get("timeout_sec"), 600),
         max_retries=_safe_int(data.get("max_retries"), 1),
         workspace_cleanup=bool(data.get("workspace_cleanup", True)),
+        forward_api_key_env=bool(data.get("forward_api_key_env", False)),
     )
 
 

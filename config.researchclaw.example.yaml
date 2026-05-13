@@ -148,6 +148,7 @@ experiment:
     timeout_sec: 600             # Max seconds for OpenCode generation
     max_retries: 1               # Retry count on failure
     workspace_cleanup: true      # Remove temp workspace after collection
+    forward_api_key_env: false   # Explicit opt-in to pass API keys to OpenCode
 
 # ============================================================================
 # SSH Remote Examples

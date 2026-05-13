@@ -48,6 +48,8 @@
 - **建议:** 要求远程执行始终使用 Docker (`use_docker: true`)。
 
 #### 6. API 密钥通过环境变量传递给子进程
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] OpenCode subprocesses now receive a minimal sanitized environment by default; API key forwarding requires explicit forward_api_key_env opt-in and only maps the configured key to OPENAI_API_KEY.</span>
+
 - **文件:** `researchclaw/pipeline/opencode_bridge.py:462-468`
 - **问题:** API 密钥通过 env 字典传递给 OpenCode 子进程，子进程继承这些敏感环境变量。
 - **建议:** 使用临时凭证或作用域令牌，避免通过环境变量传递密钥。
