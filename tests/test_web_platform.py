@@ -573,6 +573,54 @@ class TestDialogRouter:
         assert isinstance(response, str)
 
 
+class TestChatWebSocketRoute:
+    """Test chat WebSocket error handling."""
+
+    @pytest.mark.asyncio
+    async def test_chat_errors_hide_internal_exception_details(self, monkeypatch) -> None:
+        from fastapi import WebSocketDisconnect
+        from researchclaw.server.routes import chat as chat_route
+        from researchclaw.server.websocket.events import EventType
+
+        class FakeWebSocket:
+            def __init__(self) -> None:
+                self.sent: list[str] = []
+                self._received = False
+
+            async def accept(self) -> None:
+                return None
+
+            async def receive_text(self) -> str:
+                if self._received:
+                    raise WebSocketDisconnect()
+                self._received = True
+                return "boom"
+
+            async def send_text(self, raw: str) -> None:
+                self.sent.append(raw)
+
+        async def boom(_raw: str, _client_id: str) -> str:
+            raise RuntimeError("secret path C:/Users/test/.env OPENAI_API_KEY=sk-test")
+
+        monkeypatch.setattr("researchclaw.server.dialog.router.route_message", boom)
+        manager = chat_route.ConnectionManager()
+        chat_route.set_chat_manager(manager)
+        websocket = FakeWebSocket()
+
+        await chat_route.chat_websocket(websocket)  # type: ignore[arg-type]
+
+        error_events = [
+            json.loads(raw)
+            for raw in websocket.sent
+            if json.loads(raw)["type"] == EventType.ERROR.value
+        ]
+        assert len(error_events) == 1
+        error_text = error_events[0]["data"]["error"]
+        assert error_text == "Chat request failed. Please try again."
+        assert "OPENAI_API_KEY" not in error_text
+        assert "C:/Users" not in error_text
+
+
 # ---------------------------------------------------------------------------
 # FastAPI app tests (requires fastapi + httpx)
 # ---------------------------------------------------------------------------

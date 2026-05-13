@@ -71,6 +71,8 @@
 - **建议:** 默认要求认证，生成随机令牌。
 
 #### 9. WebSocket 聊天端点暴露异常详情
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Chat WebSocket errors now return a generic client message while full exception details remain server-side only via logger.exception.</span>
+
 - **文件:** `researchclaw/server/routes/chat.py:57-62`
 - **问题:** 完整异常字符串 `str(exc)` 泄露内部路径和配置信息给客户端。
 - **建议:** 返回通用错误消息，完整异常仅记录在服务器端。

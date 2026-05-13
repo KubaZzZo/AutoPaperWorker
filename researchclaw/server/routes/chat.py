@@ -58,7 +58,10 @@ async def chat_websocket(websocket: WebSocket) -> None:
                     client_id,
                     Event(
                         type=EventType.ERROR,
-                        data={"error": str(exc), "client_id": client_id},
+                        data={
+                            "error": "Chat request failed. Please try again.",
+                            "client_id": client_id,
+                        },
                     ),
                 )
     except WebSocketDisconnect:
