@@ -292,6 +292,7 @@ class DockerSandboxConfig:
     shm_size_mb: int = 2048
     container_python: str = "/usr/bin/python3"
     keep_containers: bool = False
+    forward_hf_token: bool = False
     distributed: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig)
 
 
@@ -1068,6 +1069,7 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
             shm_size_mb=_safe_int(docker_data.get("shm_size_mb"), 2048),
             container_python=docker_data.get("container_python", "/usr/bin/python3"),
             keep_containers=bool(docker_data.get("keep_containers", False)),
+            forward_hf_token=bool(docker_data.get("forward_hf_token", False)),
         ),
         distributed=DistributedTrainingConfig(
             enabled=bool(distributed_data.get("enabled", False)),

@@ -275,6 +275,7 @@ def test_experiment_config_defaults_mode_is_simulated():
     assert defaults.metric_direction == "minimize"
     assert defaults.distributed.enabled is False
     assert defaults.parallel_hypotheses.enabled is False
+    assert defaults.docker.forward_hf_token is False
 
 
 def test_rcconfig_from_dict_parses_distributed_training(tmp_path: Path):
@@ -310,6 +311,15 @@ def test_rcconfig_from_dict_parses_parallel_hypotheses(tmp_path: Path):
     assert config.experiment.parallel_hypotheses.enabled is True
     assert config.experiment.parallel_hypotheses.max_branches == 3
     assert config.experiment.parallel_hypotheses.selection_metric == "accuracy"
+
+
+def test_rcconfig_from_dict_parses_docker_forward_hf_token(tmp_path: Path):
+    data = _valid_config_data()
+    data["experiment"]["docker"] = {"forward_hf_token": True}
+
+    config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+    assert config.experiment.docker.forward_hf_token is True
 
 
 def test_sandbox_config_defaults_match_expected_values():

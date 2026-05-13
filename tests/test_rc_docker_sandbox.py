@@ -142,6 +142,40 @@ def test_build_run_command_forwards_entry_args_and_env(tmp_path: Path):
     assert cmd[-3:] == ["main.py", "--foo", "bar"]
 
 
+def test_build_run_command_does_not_forward_hf_token_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("HF_TOKEN", "secret-token")
+    cfg = DockerSandboxConfig(network_policy="none")
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-hf-token",
+    )
+
+    env_values = [cmd[i + 1] for i, token in enumerate(cmd) if token == "-e"]
+    assert "HF_TOKEN=secret-token" not in env_values
+
+
+def test_build_run_command_forwards_hf_token_when_explicitly_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("HF_TOKEN", "secret-token")
+    cfg = DockerSandboxConfig(network_policy="none", forward_hf_token=True)
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-hf-token-enabled",
+    )
+
+    env_values = [cmd[i + 1] for i, token in enumerate(cmd) if token == "-e"]
+    assert "HF_TOKEN=secret-token" in env_values
+
+
 def test_build_run_command_uses_torchrun_when_distributed_enabled(tmp_path: Path):
     cfg = DockerSandboxConfig(
         network_policy="none",

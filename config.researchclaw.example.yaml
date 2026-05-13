@@ -109,6 +109,7 @@ experiment:
     auto_install_deps: true
     shm_size_mb: 2048
     keep_containers: false
+    forward_hf_token: false  # opt-in only; forwards host HF_TOKEN into experiment container
   distributed:
     enabled: false
     strategy: "fsdp"       # ddp | fsdp | deepspeed
