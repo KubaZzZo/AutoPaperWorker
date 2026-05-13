@@ -20,6 +20,7 @@ from researchclaw.pipeline._helpers import (
     _synthesize_perspectives,
     _utcnow_iso,
 )
+from researchclaw.pipeline.parallel_hypotheses import write_hypothesis_branch_plan
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
@@ -156,6 +157,14 @@ def _execute_hypothesis_gen(
         pass
 
     (stage_dir / "hypotheses.md").write_text(hypotheses_md, encoding="utf-8")
+    branch_artifacts: tuple[str, ...] = ()
+    if config.experiment.parallel_hypotheses.enabled:
+        write_hypothesis_branch_plan(
+            stage_dir,
+            hypotheses_md,
+            config.experiment.parallel_hypotheses,
+        )
+        branch_artifacts = ("hypothesis_branches.json",)
 
     # --- Novelty check (non-blocking) ---
     novelty_artifacts: tuple[str, ...] = ()
@@ -187,6 +196,6 @@ def _execute_hypothesis_gen(
     return StageResult(
         stage=Stage.HYPOTHESIS_GEN,
         status=StageStatus.DONE,
-        artifacts=("hypotheses.md",) + novelty_artifacts,
+        artifacts=("hypotheses.md",) + branch_artifacts + novelty_artifacts,
         evidence_refs=("stage-08/hypotheses.md",),
     )

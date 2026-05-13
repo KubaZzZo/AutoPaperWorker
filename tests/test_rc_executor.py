@@ -1368,6 +1368,47 @@ class TestSynthesizePerspectives:
 
 
 class TestHypothesisGenDebate:
+    def test_hypothesis_gen_writes_parallel_branch_plan_when_enabled(
+        self, tmp_path: Path, rc_config: RCConfig, adapters: AdapterBundle
+    ) -> None:
+        from dataclasses import replace
+        from unittest.mock import patch
+
+        from researchclaw.config import ParallelHypothesesConfig
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        stage_dir = run_dir / "stage-08"
+        stage_dir.mkdir(parents=True)
+        _write_prior_artifact(run_dir, 7, "synthesis.md", "# Synthesis\nGap found.")
+        cfg = replace(
+            rc_config,
+            experiment=replace(
+                rc_config.experiment,
+                parallel_hypotheses=ParallelHypothesesConfig(
+                    enabled=True,
+                    max_branches=2,
+                    selection_metric="accuracy",
+                ),
+            ),
+        )
+
+        with patch(
+            "researchclaw.pipeline.stage_impls._synthesis.check_novelty",
+            side_effect=RuntimeError("skip novelty"),
+            create=True,
+        ):
+            result = rc_executor._execute_hypothesis_gen(
+                stage_dir, run_dir, cfg, adapters, llm=None
+            )
+
+        plan_path = stage_dir / "hypothesis_branches.json"
+        assert "hypothesis_branches.json" in result.artifacts
+        assert plan_path.exists()
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        assert plan["enabled"] is True
+        assert len(plan["branches"]) == 2
+
     def test_hypothesis_gen_with_llm_creates_perspectives(
         self, tmp_path: Path, rc_config: RCConfig, adapters: AdapterBundle
     ) -> None:

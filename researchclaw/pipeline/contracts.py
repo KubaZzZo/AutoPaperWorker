@@ -85,7 +85,7 @@ CONTRACTS: dict[Stage, StageContract] = {
         stage=Stage.HYPOTHESIS_GEN,
         input_files=("synthesis.md",),
         output_files=("hypotheses.md",),
-        dod=">=2 falsifiable research hypotheses",
+        dod=">=2 falsifiable research hypotheses; optional branch plan when parallel_hypotheses is enabled",
         error_code="E08_HYP_INVALID",
     ),
     # Phase D: Experiment Design

@@ -566,6 +566,25 @@ optional setup script, network cutoff, then distributed launch. SSH bare mode
 uses the same launcher inside the existing remote isolation wrapper. SSH Docker
 mode launches inside the remote container directly.
 
+### Parallel Hypothesis Exploration
+
+Use `experiment.parallel_hypotheses` to prepare multiple experiment directions
+from the Stage 8 hypothesis artifact. The first implementation slice creates a
+stable branch plan that later runner code can use for Stage 9-15 fan-out.
+
+```yaml
+experiment:
+  parallel_hypotheses:
+    enabled: true
+    max_branches: 3
+    selection_metric: "primary_metric"
+```
+
+The planner writes `hypothesis_branches.json` with one branch per selected
+hypothesis. Each branch has a stable id, rank, hypothesis text, and status. It
+does not duplicate or execute the full pipeline by itself; runner-level
+fan-out is tracked as the next roadmap slice.
+
 The Markdown-to-LaTeX converter handles:
 - Section headings (`#`, `##`, `###`)
 - Inline and display math (`$...$`, `$$...$$`)

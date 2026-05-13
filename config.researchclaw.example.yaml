@@ -118,6 +118,10 @@ experiment:
     zero_stage: 2
     mixed_precision: "bf16"
     gradient_checkpointing: true
+  parallel_hypotheses:
+    enabled: false
+    max_branches: 3
+    selection_metric: "primary_metric"
   ssh_remote:
     host: ""                # SSH hostname or IP
     user: ""                # SSH username (default: current user)

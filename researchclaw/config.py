@@ -239,6 +239,15 @@ class DistributedTrainingConfig:
 
 
 @dataclass(frozen=True)
+class ParallelHypothesesConfig:
+    """Configuration for planning parallel hypothesis exploration branches."""
+
+    enabled: bool = False
+    max_branches: int = 3
+    selection_metric: str = "primary_metric"
+
+
+@dataclass(frozen=True)
 class SshRemoteConfig:
     host: str = ""
     user: str = ""
@@ -446,6 +455,7 @@ class ExperimentConfig:
     sandbox: SandboxConfig = field(default_factory=SandboxConfig)
     docker: DockerSandboxConfig = field(default_factory=DockerSandboxConfig)
     distributed: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig)
+    parallel_hypotheses: ParallelHypothesesConfig = field(default_factory=ParallelHypothesesConfig)
     agentic: AgenticConfig = field(default_factory=AgenticConfig)
     ssh_remote: SshRemoteConfig = field(default_factory=SshRemoteConfig)
     colab_drive: ColabDriveConfig = field(default_factory=ColabDriveConfig)
@@ -1026,6 +1036,7 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
     sandbox_data = data.get("sandbox") or {}
     docker_data = data.get("docker") or {}
     distributed_data = data.get("distributed") or {}
+    parallel_hypotheses_data = data.get("parallel_hypotheses") or {}
     ssh_data = data.get("ssh_remote") or {}
     colab_data = data.get("colab_drive") or {}
     return ExperimentConfig(
@@ -1068,6 +1079,15 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
             mixed_precision=distributed_data.get("mixed_precision", "bf16"),
             gradient_checkpointing=bool(
                 distributed_data.get("gradient_checkpointing", True)
+            ),
+        ),
+        parallel_hypotheses=ParallelHypothesesConfig(
+            enabled=bool(parallel_hypotheses_data.get("enabled", False)),
+            max_branches=max(
+                1, _safe_int(parallel_hypotheses_data.get("max_branches"), 3)
+            ),
+            selection_metric=parallel_hypotheses_data.get(
+                "selection_metric", "primary_metric"
             ),
         ),
         ssh_remote=SshRemoteConfig(

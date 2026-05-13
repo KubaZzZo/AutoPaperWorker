@@ -274,6 +274,7 @@ def test_experiment_config_defaults_mode_is_simulated():
     assert defaults.mode == "simulated"
     assert defaults.metric_direction == "minimize"
     assert defaults.distributed.enabled is False
+    assert defaults.parallel_hypotheses.enabled is False
 
 
 def test_rcconfig_from_dict_parses_distributed_training(tmp_path: Path):
@@ -294,6 +295,21 @@ def test_rcconfig_from_dict_parses_distributed_training(tmp_path: Path):
     assert config.experiment.distributed.num_nodes == 2
     assert config.experiment.distributed.gpus_per_node == 4
     assert config.experiment.distributed.launcher == "torchrun"
+
+
+def test_rcconfig_from_dict_parses_parallel_hypotheses(tmp_path: Path):
+    data = _valid_config_data()
+    data["experiment"]["parallel_hypotheses"] = {
+        "enabled": True,
+        "max_branches": 3,
+        "selection_metric": "accuracy",
+    }
+
+    config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+    assert config.experiment.parallel_hypotheses.enabled is True
+    assert config.experiment.parallel_hypotheses.max_branches == 3
+    assert config.experiment.parallel_hypotheses.selection_metric == "accuracy"
 
 
 def test_sandbox_config_defaults_match_expected_values():

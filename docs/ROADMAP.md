@@ -34,12 +34,13 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Pipeline parallel hypothesis exploration | Medium | Current flow still focuses on one selected experiment direction per run; a future mode could run 2-3 hypotheses and choose the best result. |
+| Pipeline parallel hypothesis exploration | Medium | Next slice: add `experiment.parallel_hypotheses` and a branch planner that turns Stage 8 hypotheses into 2-3 stable branch plans before runner-level execution fan-out. |
 | Observability depth | Medium | Dashboard and logs exist, but long-running multi-stage jobs could use richer structured progress and alerting. |
 | Fine-grained cost accounting | Low | `cost_guard` exists; token forecast vs actual spend could be tracked per stage and per model. |
 
 ## Suggested Next Order
 
-1. Add parallel hypothesis exploration for 2-3 candidate experiment directions.
-2. Extend structured observability for long-running pipeline stages.
-3. Refine cost accounting with forecast-vs-actual token and spend reports.
+1. Add the parallel hypothesis branch planner and config surface.
+2. Wire branch plans into runner-level Stage 9-15 fan-out and best-branch selection.
+3. Extend structured observability for long-running pipeline stages.
+4. Refine cost accounting with forecast-vs-actual token and spend reports.
