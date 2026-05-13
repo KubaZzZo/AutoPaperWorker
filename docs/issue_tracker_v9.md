@@ -17,9 +17,9 @@
 | Literature & Citations | 4 | 4 | 0 | 0 |
 | Infrastructure (Docker) | 5 | 5 | 0 | 0 |
 | Pipeline Logic | 3 | 3 | 0 | 0 |
-| New Feature Requests | 2 | 1 | 0 | 1 |
+| New Feature Requests | 2 | 2 | 0 | 0 |
 | Run 13 Findings | 3 | 3 | 0 | 0 |
-| **Total** | **37** | **36** | **0** | **1** |
+| **Total** | **37** | **37** | **0** | **0** |
 
 ---
 
@@ -244,8 +244,8 @@
   - **Option C: Git clone + extract** — Clone framework repos at pipeline startup, extract README/docs/examples, summarize via LLM, inject into prompts. Most complete, but slow and requires network.
   - **Option D: Hybrid** — Bundle static docs for top frameworks + fallback to web fetch for unknown ones.
 - **Reference Tools**: Cursor `@Docs`, Context7 MCP, Aider web context, OpenHands SDK
-- **Target**: Phase 4 or Phase 5
-- **Dependencies**: Network access during code generation stage
+- **Current integration**: static docs are always available; live fetch is opt-in via `experiment.framework_doc_fetch`; Context7 is used as an optional fallback when available.
+- **Dependencies**: Network access only when live fetch or Context7 fallback is enabled
 
 ### F-01 Detailed Design: Framework Doc-RAG
 
@@ -381,7 +381,7 @@ FRAMEWORK_KEYWORDS = {
 
 ## 10. Feature Requests — Advanced Code Generation
 
-### F-02: Advanced Coding Agent for Experiment Code Generation (OPEN)
+### F-02: Advanced Coding Agent for Experiment Code Generation (FIXED)
 - **Severity**: Critical (pipeline capability ceiling)
 - **Status**: OPEN — research complete, implementation pending
 - **Problem**: Current code generation stage produces relatively simple, single-file experiments. Cannot design large-scale multi-file projects (e.g., complex RL systems with custom environments, multi-component fine-tuning pipelines). This limits paper quality and experiment sophistication.
