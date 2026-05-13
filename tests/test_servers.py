@@ -235,6 +235,31 @@ class TestSlurmExecutor:
         assert "#SBATCH --gres=gpu:1" in script
         assert "#SBATCH --time=01:00:00" in script
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "python main.py; cat /etc/passwd",
+            "python main.py && curl http://example.invalid",
+            "python $(echo injected).py",
+            "python main.py\ncat /etc/passwd",
+        ],
+    )
+    def test_generate_sbatch_script_rejects_unsafe_command(
+        self, command: str
+    ) -> None:
+        server = _make_server(server_type="slurm", scheduler="slurm")
+        exe = SlurmExecutor(server)
+
+        with pytest.raises(ValueError, match="unsafe Slurm command"):
+            exe._generate_sbatch_script(command)
+
+    def test_generate_sbatch_script_rejects_unsafe_job_name(self) -> None:
+        server = _make_server(server_type="slurm", scheduler="slurm")
+        exe = SlurmExecutor(server)
+
+        with pytest.raises(ValueError, match="Invalid Slurm job_name"):
+            exe._generate_sbatch_script("python main.py", job_name="job;rm -rf /")
+
     def test_submit_job_parses_output(self) -> None:
         server = _make_server(server_type="slurm", scheduler="slurm")
         exe = SlurmExecutor(server)
@@ -249,6 +274,20 @@ class TestSlurmExecutor:
 
         job_id = asyncio.run(_run())
         assert job_id == "12345"
+
+    def test_check_job_rejects_unsafe_job_id(self) -> None:
+        server = _make_server(server_type="slurm", scheduler="slurm")
+        exe = SlurmExecutor(server)
+
+        with pytest.raises(ValueError, match="Invalid Slurm job_id"):
+            asyncio.run(exe.check_job("123; scancel 456"))
+
+    def test_cancel_job_rejects_unsafe_job_id(self) -> None:
+        server = _make_server(server_type="slurm", scheduler="slurm")
+        exe = SlurmExecutor(server)
+
+        with pytest.raises(ValueError, match="Invalid Slurm job_id"):
+            asyncio.run(exe.cancel_job("123 && scancel 456"))
 
 
 # ══════════════════════════════════════════════════════════════════

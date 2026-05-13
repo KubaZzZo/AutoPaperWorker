@@ -92,6 +92,8 @@
 - **建议:** 验证配置字符串中的 shell 元字符，或使用列表形式参数。
 
 #### 12. Slurm 执行器提交未验证命令
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-13] Slurm submissions now reject unsafe command shell syntax, validate job names/resources/partitions, and validate job IDs before squeue/sacct/scancel calls.</span>
+
 - **文件:** `researchclaw/servers/slurm_executor.py:52-85`
 - **问题:** 调用者提供的 command 直接写入 sbatch 脚本提交到集群。
 - **建议:** 验证 command 参数，或限制为预定义脚本。

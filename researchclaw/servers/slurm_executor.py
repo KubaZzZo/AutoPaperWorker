@@ -4,12 +4,49 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import textwrap
 from typing import Any
 
 from researchclaw.servers.registry import ServerEntry
 
 logger = logging.getLogger(__name__)
+
+_SAFE_SLURM_NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+_SAFE_SLURM_JOB_ID = re.compile(r"^\d+(?:[_.]\d+)?$")
+_SAFE_PARTITION = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+_SAFE_TIME_LIMIT = re.compile(r"^(?:\d{1,2}-)?\d{1,2}:\d{2}:\d{2}$")
+_UNSAFE_COMMAND_TOKENS = (
+    "\n",
+    "\r",
+    ";",
+    "&&",
+    "||",
+    "|",
+    "`",
+    "$(",
+    ">",
+    "<",
+)
+
+
+def _validate_slurm_command(command: str) -> str:
+    text = command.strip()
+    if not text:
+        raise ValueError("unsafe Slurm command: command is empty")
+    if any(token in text for token in _UNSAFE_COMMAND_TOKENS):
+        raise ValueError("unsafe Slurm command: shell control syntax is not allowed")
+    return text
+
+
+def _validate_positive_int(value: Any, name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid Slurm {name}") from exc
+    if parsed <= 0:
+        raise ValueError(f"Invalid Slurm {name}")
+    return parsed
 
 
 class SlurmExecutor:
@@ -28,11 +65,18 @@ class SlurmExecutor:
         resources: dict[str, Any] | None = None,
     ) -> str:
         """Generate an sbatch submission script."""
+        command = _validate_slurm_command(command)
+        if not _SAFE_SLURM_NAME.fullmatch(job_name):
+            raise ValueError("Invalid Slurm job_name")
         res = resources or {}
-        gpus = res.get("gpus", 1)
-        mem = res.get("mem_gb", 16)
-        time_limit = res.get("time", "01:00:00")
-        partition = res.get("partition", "")
+        gpus = _validate_positive_int(res.get("gpus", 1), "gpus")
+        mem = _validate_positive_int(res.get("mem_gb", 16), "mem_gb")
+        time_limit = str(res.get("time", "01:00:00"))
+        if not _SAFE_TIME_LIMIT.fullmatch(time_limit):
+            raise ValueError("Invalid Slurm time")
+        partition = str(res.get("partition", ""))
+        if partition and not _SAFE_PARTITION.fullmatch(partition):
+            raise ValueError("Invalid Slurm partition")
 
         lines = [
             "#!/bin/bash",
@@ -86,6 +130,8 @@ class SlurmExecutor:
 
     async def check_job(self, job_id: str) -> dict[str, Any]:
         """Check job status via squeue/sacct."""
+        if not _SAFE_SLURM_JOB_ID.fullmatch(job_id):
+            raise ValueError("Invalid Slurm job_id")
         proc = await asyncio.create_subprocess_exec(
             "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
             self.host,
@@ -99,6 +145,8 @@ class SlurmExecutor:
 
     async def cancel_job(self, job_id: str) -> None:
         """Cancel a running job."""
+        if not _SAFE_SLURM_JOB_ID.fullmatch(job_id):
+            raise ValueError("Invalid Slurm job_id")
         proc = await asyncio.create_subprocess_exec(
             "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
             self.host, f"scancel {job_id}",
