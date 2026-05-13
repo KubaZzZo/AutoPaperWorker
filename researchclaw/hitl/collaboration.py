@@ -74,7 +74,11 @@ class CollaborationSession:
                         encoding="utf-8"
                     )
                 except (OSError, UnicodeDecodeError):
-                    pass
+                    logger.debug(
+                        "Could not load collaboration artifact: %s",
+                        fpath,
+                        exc_info=True,
+                    )
 
     def human_says(self, message: str) -> None:
         """Record human message."""
@@ -164,7 +168,11 @@ class CollaborationSession:
                                 encoding="utf-8"
                             )
                         except (OSError, UnicodeDecodeError):
-                            pass
+                            logger.debug(
+                                "Could not refresh collaboration artifact: %s",
+                                fpath,
+                                exc_info=True,
+                            )
 
             # Only write artifacts that were modified in this session
             for fname in self._modified_artifacts:

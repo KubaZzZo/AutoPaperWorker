@@ -208,7 +208,7 @@ def search_semantic_scholar(
         try:
             papers.append(_parse_s2_paper(item))
         except Exception:  # noqa: BLE001
-            logger.debug("Failed to parse S2 paper entry: %s", item)
+            logger.debug("Failed to parse S2 paper entry: %s", item, exc_info=True)
     return papers
 
 
@@ -322,7 +322,7 @@ def batch_fetch_papers(
             try:
                 all_papers.append(_parse_s2_paper(item))
             except Exception:  # noqa: BLE001
-                logger.debug("Failed to parse batch S2 paper entry")
+                logger.debug("Failed to parse batch S2 paper entry", exc_info=True)
 
         # Delay between chunks (sleep outside lock to avoid contention)
         if i + _BATCH_MAX < len(paper_ids):

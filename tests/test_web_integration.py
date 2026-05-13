@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -134,6 +136,30 @@ class TestWebSearchAgent:
         urls = agent._select_urls_to_crawl(result)
         assert "https://ex.com/paper.pdf" not in urls
         assert "https://ex.com/blog" in urls
+
+    def test_run_crawling_logs_async_loop_fallback(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        agent = WebSearchAgent(max_crawl_urls=1)
+        result = WebSearchAgentResult(topic="test")
+        agent.crawler.crawl_sync = MagicMock(
+            return_value=CrawlResult(
+                url="https://example.com",
+                title="Example",
+                markdown="content " * 20,
+                success=True,
+            )
+        )
+
+        async def run_inside_loop() -> None:
+            with caplog.at_level(logging.DEBUG, logger="researchclaw.web.agent"):
+                agent._run_crawling(result, ["https://example.com"])
+
+        asyncio.run(run_inside_loop())
+
+        assert result.crawled_pages
+        assert "Using synchronous crawler fallback inside running event loop" in caplog.text
 
     def test_find_pdf_urls(self):
         result = WebSearchAgentResult(

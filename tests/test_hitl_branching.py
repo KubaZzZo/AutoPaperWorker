@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -122,6 +123,21 @@ class TestBranchManager:
         branches = mgr2.list_branches()
         assert len(branches) == 1
         assert branches[0].branch_id == "persistent"
+
+    def test_logs_bad_branch_state_file(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        branches_dir = tmp_path / "branches"
+        branches_dir.mkdir()
+        (branches_dir / "branches.json").write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.branching"):
+            mgr = BranchManager(tmp_path)
+
+        assert mgr.list_branches() == []
+        assert "Could not load HITL branch state" in caplog.text
 
     def test_get_branch_dir(self, tmp_path: Path) -> None:
         self._setup_pipeline(tmp_path, stages=8)

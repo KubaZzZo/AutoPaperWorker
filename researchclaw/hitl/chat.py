@@ -216,7 +216,7 @@ def build_stage_context(
             guidance = guidance_file.read_text(encoding="utf-8")
             lines.append(f"\n## Human Guidance\n{guidance}")
         except (OSError, UnicodeDecodeError):
-            pass
+            logger.debug("Could not read HITL guidance file: %s", guidance_file, exc_info=True)
 
     lines.extend([
         "",

@@ -248,7 +248,7 @@ class BranchManager:
                     preview = f.read_text(encoding="utf-8")[:200]
                     info["preview"] = preview
                 except (OSError, UnicodeDecodeError):
-                    pass
+                    logger.debug("Could not preview branch artifact: %s", f, exc_info=True)
             artifacts.append(info)
 
         # Read quality score if available
@@ -258,7 +258,11 @@ class BranchManager:
             try:
                 quality = json.loads(prm_file.read_text(encoding="utf-8")).get("prm_score")
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.debug(
+                    "Could not read branch quality score: %s",
+                    prm_file,
+                    exc_info=True,
+                )
 
         return {
             "artifacts": artifacts,
@@ -284,4 +288,4 @@ class BranchManager:
             for bid, bdata in data.items():
                 self._branches[bid] = Branch.from_dict(bdata)
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.warning("Could not load HITL branch state: %s", path, exc_info=True)

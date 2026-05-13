@@ -275,10 +275,13 @@ class WebSearchAgent:
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
-                pass
+                logger.debug("No running event loop; using asyncio.run for crawling")
 
             if loop and loop.is_running():
                 # We're inside an async context — use sync fallback
+                logger.debug(
+                    "Using synchronous crawler fallback inside running event loop"
+                )
                 for url in urls[: self.max_crawl_urls]:
                     cr = self.crawler.crawl_sync(url)
                     if cr.has_content:

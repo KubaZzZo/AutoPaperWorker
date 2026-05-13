@@ -114,7 +114,11 @@ def search_openalex(
         try:
             papers.append(_parse_openalex_work(item))
         except Exception:  # noqa: BLE001
-            logger.debug("Failed to parse OpenAlex work: %s", item.get("id", "?"))
+            logger.debug(
+                "Failed to parse OpenAlex work: %s",
+                item.get("id", "?") if isinstance(item, dict) else "?",
+                exc_info=True,
+            )
     return papers
 
 

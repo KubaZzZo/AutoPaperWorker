@@ -196,7 +196,11 @@ class ContextManager:
                             + self.summarize_artifact(content, per_stage)
                         )
                     except (OSError, UnicodeDecodeError):
-                        pass
+                        logger.debug(
+                            "Could not read cross-stage context artifact: %s",
+                            fname,
+                            exc_info=True,
+                        )
                     break  # One file per stage
 
         return "\n\n".join(parts)[:budget]
@@ -227,7 +231,11 @@ class ContextManager:
                         content = self.summarize_artifact(content, per_file)
                     parts.append(f"### {fname}\n{content}")
                 except (OSError, UnicodeDecodeError):
-                    pass
+                    logger.debug(
+                        "Could not read current-stage context artifact: %s",
+                        fpath,
+                        exc_info=True,
+                    )
 
         return "\n\n".join(parts)[:budget]
 
@@ -241,7 +249,7 @@ class ContextManager:
                 try:
                     return path.read_text(encoding="utf-8")
                 except (OSError, UnicodeDecodeError):
-                    pass
+                    logger.debug("Could not read HITL guidance: %s", path, exc_info=True)
         return ""
 
     def _trim_chat_history(

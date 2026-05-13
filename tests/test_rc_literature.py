@@ -7,6 +7,7 @@ All network-dependent tests mock HTTP responses via monkeypatch.
 from __future__ import annotations
 
 import json
+import logging
 import textwrap
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -227,6 +228,42 @@ class TestSemanticScholar:
         papers = search_semantic_scholar("transformers", limit=5)
         assert len(papers) == 1
         assert papers[0].title == "Test Paper on Transformers"
+
+    def test_search_semantic_scholar_logs_bad_entry(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.literature.semantic_scholar import _reset_circuit_breaker
+        _reset_circuit_breaker()
+
+        response_bytes = json.dumps(
+            {
+                "data": [
+                    SAMPLE_S2_RESPONSE["data"][0],
+                    {"paperId": "bad", "year": "not-a-year"},
+                ]
+            },
+        ).encode("utf-8")
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_bytes
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        monkeypatch.setattr(
+            "researchclaw.literature.semantic_scholar.urllib.request.urlopen",
+            lambda *a, **kw: mock_resp,
+        )
+
+        with caplog.at_level(
+            logging.DEBUG,
+            logger="researchclaw.literature.semantic_scholar",
+        ):
+            papers = search_semantic_scholar("transformers", limit=5)
+
+        assert len(papers) == 1
+        assert "Failed to parse S2 paper entry" in caplog.text
 
     def test_search_semantic_scholar_network_error(
         self, monkeypatch: pytest.MonkeyPatch

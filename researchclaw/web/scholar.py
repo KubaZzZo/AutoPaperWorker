@@ -198,7 +198,11 @@ class GoogleScholarClient:
         try:
             year = int(year_raw)
         except (ValueError, TypeError):
-            pass
+            logger.debug(
+                "Could not parse Google Scholar publication year: %r",
+                year_raw,
+                exc_info=True,
+            )
 
         cites_id = info.get("cites_id", [])
         scholar_id = info.get("author_pub_id", "") or (

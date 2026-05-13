@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from unittest.mock import MagicMock, patch
 
@@ -99,14 +100,22 @@ class TestGoogleScholarClient:
         assert paper.year == 0
         assert paper.authors == []
 
+    def test_parse_pub_logs_bad_year(self, caplog: pytest.LogCaptureFixture):
+        pub = {"bib": {"title": "Bad Year", "pub_year": "not-a-year"}}
+
+        with caplog.at_level(logging.DEBUG, logger="researchclaw.web.scholar"):
+            paper = GoogleScholarClient._parse_pub(pub)
+
+        assert paper.year == 0
+        assert "Could not parse Google Scholar publication year" in caplog.text
+
     @patch("researchclaw.web.scholar.HAS_SCHOLARLY", True)
-    def test_rate_limiting(self):
+    @patch("researchclaw.web.scholar.time.sleep")
+    def test_rate_limiting(self, mock_sleep):
         client = GoogleScholarClient(inter_request_delay=0.01)
-        t0 = time.monotonic()
         client._rate_limit()
         client._rate_limit()
-        elapsed = time.monotonic() - t0
-        assert elapsed >= 0.01
+        assert mock_sleep.called
 
     @patch("researchclaw.web.scholar.HAS_SCHOLARLY", True)
     @patch("researchclaw.web.scholar.scholarly")
