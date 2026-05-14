@@ -321,6 +321,8 @@
 ### 高 (HIGH)
 
 #### 35. Windows CP936 终端 Emoji 显示问题
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `print_doctor_report()` now checks stdout encoding before printing icons and forces ASCII `[OK]/[FAIL]/[WARN]` for cp936, cp932, GBK/GB2312, and Shift-JIS style terminals, with a UnicodeEncodeError fallback for other limited encodings. Regression coverage verifies cp936 output contains only ASCII status markers.</span>
+
 - **文件:** `researchclaw/health.py:626-632`
 - **问题:** `print_doctor_report` 使用 emoji (✅❌⚠️)，在 Windows CP936 终端上会导致 UnicodeEncodeError。
 - **当前缓解:** 代码检测编码并降级为 ASCII `[OK]/[FAIL]/[WARN]`，但仅在 `UnicodeEncodeError` 时触发。
