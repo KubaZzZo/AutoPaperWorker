@@ -164,6 +164,8 @@
 - **建议:** 为 `LLMClient` 添加 `close()` 方法，或使用 `with` 上下文管理器。
 
 #### 19. 重复的 `_STOP_WORDS` 定义
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Stop-word constants were extracted to shared `researchclaw.utils.text` definitions. Pipeline keyword extraction now uses `BASE_STOP_WORDS`, novelty detection uses `NOVELTY_STOP_WORDS` for its preserved extra filters, and regression tests lock both modules to the shared constants.</span>
+
 - **文件:** `researchclaw/pipeline/_helpers.py:127` vs `researchclaw/literature/novelty.py:35`
 - **问题:** 两个文件定义了几乎相同的 ~90+ 英语停用词集合。如果一处更新另一处遗漏，会产生不一致的行为。
 - **建议:** 提取为共享常量到 `utils/` 模块。

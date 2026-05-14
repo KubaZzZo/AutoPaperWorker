@@ -397,7 +397,6 @@ class TestHypothesisGenNoveltyIntegration:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline",
             },
         }
         config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
@@ -445,7 +444,6 @@ class TestHypothesisGenNoveltyIntegration:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline",
             },
         }
         config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
