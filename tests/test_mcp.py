@@ -334,6 +334,40 @@ class TestMCPServerRegistry:
         reg = MCPServerRegistry()
         assert reg.get("nonexistent") is None
 
+    def test_register_replaces_existing_server_and_disconnects_old_client(
+        self,
+        monkeypatch,
+    ) -> None:
+        disconnected: list[str] = []
+
+        class FakeClient:
+            def __init__(self, uri: str, transport: str = "stdio") -> None:
+                self.uri = uri
+                self.transport = transport
+                self.is_connected = False
+
+            async def connect(self) -> None:
+                self.is_connected = True
+
+            async def disconnect(self) -> None:
+                disconnected.append(self.uri)
+                self.is_connected = False
+
+        monkeypatch.setattr("researchclaw.mcp.registry.MCPClient", FakeClient)
+
+        async def _run() -> tuple[list[str], str]:
+            reg = MCPServerRegistry()
+            await reg.register("same", "local://old")
+            await reg.register("same", "local://new")
+            client = reg.get("same")
+            assert client is not None
+            return disconnected, client.uri
+
+        disconnected_uris, active_uri = asyncio.run(_run())
+
+        assert disconnected_uris == ["local://old"]
+        assert active_uri == "local://new"
+
     def test_close_all(self) -> None:
         async def _run() -> int:
             reg = MCPServerRegistry()

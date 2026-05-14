@@ -602,3 +602,44 @@ def test_chat_uses_fallback_after_first_model_error(monkeypatch: pytest.MonkeyPa
     response = client.chat([{"role": "user", "content": "x"}])
     assert calls == ["gpt-5.2", "gpt-5.1"]
     assert response.model == "gpt-5.1"
+
+
+def test_call_with_retry_retries_transient_400_provider_overload(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    attempts = 0
+
+    class ErrorBody:
+        def read(self) -> bytes:
+            return b'{"error":"provider temporarily overloaded; retry later"}'
+
+        def close(self) -> None:
+            return None
+
+    def fake_raw_call(*_args: object, **_kwargs: object) -> LLMResponse:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise urllib.error.HTTPError(
+                url="https://api.example.com/v1/chat/completions",
+                code=400,
+                msg="Bad Request",
+                hdrs=HTTPMessage(),
+                fp=ErrorBody(),
+            )
+        return LLMResponse(content="ok", model="gpt-5.2")
+
+    monkeypatch.setattr(LLMClient, "_raw_call", fake_raw_call)
+    monkeypatch.setattr("researchclaw.llm.client.time.sleep", lambda *_args: None)
+    client = _make_client(primary_model="gpt-5.2", fallback_models=[])
+
+    response = client._call_with_retry(
+        "gpt-5.2",
+        [{"role": "user", "content": "x"}],
+        100,
+        0.1,
+        False,
+    )
+
+    assert response.content == "ok"
+    assert attempts == 2

@@ -1,7 +1,7 @@
 # Phase 2 Architecture Deepening Plan
 
 > Created: 2026-05-15
-> Status: Active
+> Status: Implemented
 > Scope: second-round architecture optimization after the Phase 1 throughput,
 > logging, and runner extraction work.
 
@@ -34,7 +34,7 @@ the phase explicitly says otherwise.
    - Strategy: introduce a small backend interface with the existing JSON
      progress path as the first adapter, then add SQLite as a second adapter.
 
-4. **Coverage expansion**
+4. **Coverage expansion** - implemented 2026-05-15
    - Target: LLM adapter resilience, MCP transport/registry paths, and
      experiment artifact handling.
    - Strategy: add focused tests at the public interface of each module before
@@ -164,6 +164,8 @@ tests proving compatibility with dashboard collection.
 
 ## Phase 2.4: Coverage Expansion
 
+Status: Implemented 2026-05-15.
+
 ### Planned Direction
 
 Add tests for the highest-risk interfaces that still have thin coverage:
@@ -171,3 +173,23 @@ Add tests for the highest-risk interfaces that still have thin coverage:
 - LLM adapter retry/error behavior.
 - MCP transport and registry behavior.
 - Experiment artifact discovery and malformed artifact handling.
+
+### Completed Slices
+
+- 2026-05-15: added LLM retry coverage for transient HTTP 400 provider
+  overload responses, proving `_call_with_retry()` retries overload-like 400
+  bodies instead of treating them as permanent bad requests.
+- 2026-05-15: added MCP registry replacement coverage and fixed duplicate
+  server registration so replacing an existing name disconnects the old client
+  before storing the new one.
+- 2026-05-15: added AgenticSandbox artifact coverage proving malformed
+  `results.json` still falls back to stdout metric parsing.
+
+### Acceptance Criteria
+
+- [x] LLM transient retry behavior has a focused regression test.
+- [x] MCP registry replacement does not leak the old connected client.
+- [x] Experiment artifact parsing falls back to stdout when structured output is
+  malformed.
+- [x] The Phase 2 plan and current optimization plan are updated with the final
+  state.

@@ -102,6 +102,9 @@ and this active optimization plan.
    - Add tests for every optimization slice.
    - Prioritize dashboard/run-state behavior, LLM adapter resilience, MCP
      transport/registry paths, and experiment artifact handling.
+   - 2026-05-15 slice: added focused coverage for transient LLM HTTP 400
+     retry behavior, MCP registry replacement cleanup, and AgenticSandbox
+     malformed `results.json` fallback to stdout metrics.
 
 ## First Implementation Slice
 

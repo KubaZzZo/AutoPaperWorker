@@ -18,6 +18,9 @@ class MCPServerRegistry:
 
     async def register(self, name: str, uri: str, transport: str = "stdio") -> MCPClient:
         """Register and connect to an external MCP server."""
+        existing = self._servers.pop(name, None)
+        if existing is not None:
+            await existing.disconnect()
         client = MCPClient(uri, transport=transport)
         await client.connect()
         self._servers[name] = client

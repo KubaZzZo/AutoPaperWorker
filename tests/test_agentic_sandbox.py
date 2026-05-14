@@ -102,3 +102,16 @@ def test_parse_result_metrics_logs_bad_results_json(
 
     assert metrics == {}
     assert "Failed to read AgenticSandbox structured results" in caplog.text
+
+
+def test_parse_result_metrics_falls_back_to_stdout_when_results_json_is_bad(
+    tmp_path,
+) -> None:
+    (tmp_path / "results.json").write_text("{bad json", encoding="utf-8")
+
+    metrics = AgenticSandbox._parse_result_metrics(
+        tmp_path,
+        "accuracy: 0.87\nloss: 0.12",
+    )
+
+    assert metrics == {"accuracy": 0.87, "loss": 0.12}
