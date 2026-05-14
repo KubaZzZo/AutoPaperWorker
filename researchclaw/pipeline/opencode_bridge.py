@@ -636,8 +636,12 @@ class OpenCodeBridge:
             ]
             if candidates:
                 entry_func = candidates[0]
-        except SyntaxError:
-            pass
+        except SyntaxError as exc:
+            logger.debug(
+                "Failed to parse generated main.py while detecting entry point: %s",
+                exc,
+                exc_info=True,
+            )
 
         if entry_func:
             logger.info(
@@ -793,8 +797,13 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                 data = json.loads(bm_log.read_text(encoding="utf-8"))
                 if not data.get("success", True):
                     failed = True
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(
+                    "Failed to read beast mode failure history from %s: %s",
+                    bm_log,
+                    exc,
+                    exc_info=True,
+                )
         # Check for stage health failures
         if not failed:
             health = d / "stage_health.json"
@@ -803,8 +812,13 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                     data = json.loads(health.read_text(encoding="utf-8"))
                     if data.get("status") == "FAILED":
                         failed = True
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug(
+                        "Failed to read stage health failure history from %s: %s",
+                        health,
+                        exc,
+                        exc_info=True,
+                    )
         # Check for validation report with FAILED status
         if not failed:
             vr = d / "validation_report.md"
@@ -813,8 +827,13 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                     content = vr.read_text(encoding="utf-8")
                     if "BLOCKED" in content or "FAILED" in content:
                         failed = True
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug(
+                        "Failed to read validation failure history from %s: %s",
+                        vr,
+                        exc,
+                        exc_info=True,
+                    )
         if failed:
             failures += 1
     return failures

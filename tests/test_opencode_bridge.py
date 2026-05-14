@@ -526,6 +526,15 @@ class TestEnsureMainEntryPoint:
         with pytest.raises(ValueError, match="no executable entry point"):
             OpenCodeBridge._ensure_main_entry_point(files)
 
+    def test_logs_syntax_error_before_entry_point_failure(self, caplog):
+        files = {"main.py": "def broken("}
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.opencode_bridge"):
+            with pytest.raises(ValueError, match="no executable entry point"):
+                OpenCodeBridge._ensure_main_entry_point(files)
+
+        assert "Failed to parse generated main.py while detecting entry point" in caplog.text
+
     def test_non_py_files_not_checked(self):
         """Non-Python files are ignored but main.py still needs an entry point."""
         lib_code = "class Model:\n    pass\n"
@@ -625,3 +634,35 @@ class TestCountHistoricalFailures:
         (d / "stage_health.json").write_text(json.dumps({"status": "FAILED"}))
         (d / "validation_report.md").write_text("FAILED after 3 repairs")
         assert count_historical_failures(tmp_path) == 1
+
+    def test_logs_malformed_history_artifacts_and_continues(self, tmp_path, caplog):
+        d = tmp_path / "stage-10_004"
+        d.mkdir()
+        (d / "beast_mode_log.json").write_text("{bad json")
+        (d / "stage_health.json").write_text("{bad json")
+        (d / "validation_report.md").write_text("FAILED")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.opencode_bridge"):
+            assert count_historical_failures(tmp_path) == 1
+
+        assert "Failed to read beast mode failure history" in caplog.text
+        assert "Failed to read stage health failure history" in caplog.text
+
+    def test_logs_unreadable_validation_report_and_continues(self, tmp_path, caplog, monkeypatch):
+        d = tmp_path / "stage-10_005"
+        d.mkdir()
+        report_path = d / "validation_report.md"
+        report_path.write_text("FAILED")
+        original_read_text = Path.read_text
+
+        def fail_for_report(self: Path, *args, **kwargs):
+            if self == report_path:
+                raise OSError("unavailable")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", fail_for_report)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.opencode_bridge"):
+            assert count_historical_failures(tmp_path) == 0
+
+        assert "Failed to read validation failure history" in caplog.text
