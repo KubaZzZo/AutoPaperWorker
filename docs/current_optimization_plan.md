@@ -44,6 +44,9 @@ and this active optimization plan.
      terminal-visible on purpose.
    - 2026-05-14 slice: collaboration-loop artifact update notices now route
      through injected output hooks instead of direct `print()`.
+   - 2026-05-14 slice: experiment harness metric/warning output can now be
+     injected for quieter library tests while preserving default stdout/stderr
+     sandbox behavior.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and

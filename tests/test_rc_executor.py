@@ -3338,6 +3338,24 @@ class TestExperimentHarness:
         assert h.progress < 0.01  # Just started
         assert 0.0 <= h.progress <= 1.0
 
+    def test_harness_supports_injected_output_handlers(self) -> None:
+        from researchclaw.experiment.harness_template import ExperimentHarness
+
+        stdout: list[str] = []
+        stderr: list[str] = []
+
+        h = ExperimentHarness(
+            time_budget=60,
+            output=stdout.append,
+            error_output=stderr.append,
+        )
+        h.report_metric("best_loss", 0.123)
+        h.report_metric("bad", float("nan"))
+
+        assert stdout == ["best_loss: 0.123"]
+        assert stderr
+        assert "non-finite" in stderr[0].lower() or "warning" in stderr[0].lower()
+
     def test_harness_injected_into_sandbox(self, tmp_path: Path) -> None:
         import sys
         from researchclaw.config import SandboxConfig

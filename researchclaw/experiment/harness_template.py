@@ -15,18 +15,32 @@ import json
 import math
 import sys
 import time
+from collections.abc import Callable
+
+
+TextOutput = Callable[[str], None]
 
 
 class ExperimentHarness:
     """Immutable experiment infrastructure for time and metric management."""
 
-    def __init__(self, time_budget: int = 120):
+    def __init__(
+        self,
+        time_budget: int = 120,
+        *,
+        output: TextOutput | None = None,
+        error_output: TextOutput | None = None,
+    ):
         self._start = time.time()
         self._time_budget = max(1, int(time_budget))
         self._metrics: dict[str, float] = {}
         self._partial_results: list[dict[str, object]] = []
         self._step_count = 0
         self._nan_count = 0
+        self._output = output or print
+        self._error_output = error_output or (
+            lambda message: print(message, file=sys.stderr)
+        )
 
     @property
     def elapsed(self) -> float:
@@ -46,15 +60,11 @@ class ExperimentHarness:
         """Return True if value is finite. Log warning and count NaN/Inf."""
         if math.isnan(value) or math.isinf(value):
             self._nan_count += 1
-            print(
-                f"WARNING: {name} = {value} (non-finite, skipped)",
-                file=sys.stderr,
-            )
+            self._error_output(f"WARNING: {name} = {value} (non-finite, skipped)")
             if self._nan_count >= 5:
-                print(
+                self._error_output(
                     "FAIL: Too many NaN/Inf values detected. "
-                    "Stopping experiment early.",
-                    file=sys.stderr,
+                    "Stopping experiment early."
                 )
                 self.finalize()
                 sys.exit(1)
@@ -70,7 +80,7 @@ class ExperimentHarness:
             try:
                 value = float(value)
             except (TypeError, ValueError):
-                print(f"WARNING: Cannot convert {name}={value!r} to float", file=sys.stderr)
+                self._error_output(f"WARNING: Cannot convert {name}={value!r} to float")
                 return
 
         if not self.check_value(value, name):
@@ -78,7 +88,7 @@ class ExperimentHarness:
 
         self._metrics[name] = value
         # Standard format recognized by sandbox metric parser
-        print(f"{name}: {value}")
+        self._output(f"{name}: {value}")
 
     def log_result(self, result_dict: dict[str, object]) -> None:
         """Log a structured result row (e.g., per-condition results)."""
@@ -100,7 +110,7 @@ class ExperimentHarness:
             with open("results.json", "w", encoding="utf-8") as f:
                 json.dump(output, f, indent=2, default=str)
         except OSError as e:
-            print(f"WARNING: Could not write results.json: {e}", file=sys.stderr)
+            self._error_output(f"WARNING: Could not write results.json: {e}")
 
     def step(self) -> None:
         """Increment step counter. Call this once per experiment step."""
