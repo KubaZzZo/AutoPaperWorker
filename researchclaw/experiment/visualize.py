@@ -696,8 +696,13 @@ def generate_all_charts(
                     )
                     if path:
                         generated.append(path)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug(
+                "Failed to load experiment summary for chart generation from %s: %s",
+                summary_path,
+                exc,
+                exc_info=True,
+            )
 
     # 3. Iteration scores
     iter_path = run_dir / "iteration_summary.json"
@@ -711,8 +716,13 @@ def generate_all_charts(
             )
             if path:
                 generated.append(path)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug(
+                "Failed to load iteration summary for chart generation from %s: %s",
+                iter_path,
+                exc,
+                exc_info=True,
+            )
 
     logger.info("Generated %d chart(s) in %s", len(generated), output_dir)
     return generated

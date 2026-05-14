@@ -1038,6 +1038,21 @@ class TestBackwardCompatibility:
         assert callable(plot_experiment_comparison)
         assert callable(plot_metric_trajectory)
 
+    def test_generate_all_charts_logs_malformed_summary_files(self, tmp_path, caplog):
+        from researchclaw.experiment.visualize import generate_all_charts
+
+        stage_dir = tmp_path / "stage-14"
+        stage_dir.mkdir()
+        (stage_dir / "experiment_summary.json").write_text("{bad json", encoding="utf-8")
+        (tmp_path / "iteration_summary.json").write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.experiment.visualize"):
+            generated = generate_all_charts(tmp_path)
+
+        assert generated == []
+        assert "Failed to load experiment summary for chart generation" in caplog.text
+        assert "Failed to load iteration summary for chart generation" in caplog.text
+
     def test_figure_agent_importable(self):
         from researchclaw.agents.figure_agent import FigureOrchestrator, FigurePlan
         assert FigureOrchestrator is not None
