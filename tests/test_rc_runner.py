@@ -1054,6 +1054,41 @@ def test_read_quality_score_logs_malformed_report(run_dir: Path, caplog) -> None
     assert "Failed to read quality score from" in caplog.text
 
 
+def test_run_experiment_diagnosis_logs_optional_artifact_parse_failures(
+    run_dir: Path, rc_config: RCConfig, monkeypatch: pytest.MonkeyPatch, caplog
+) -> None:
+    (run_dir / "stage-14").mkdir()
+    (run_dir / "stage-14" / "experiment_summary.json").write_text(
+        json.dumps({"condition_summaries": {}, "best_run": {"metrics": {}}}),
+        encoding="utf-8",
+    )
+    (run_dir / "stage-09").mkdir()
+    (run_dir / "stage-09" / "experiment_design.json").write_text("{bad json", encoding="utf-8")
+    (run_dir / "stage-13").mkdir()
+    (run_dir / "stage-13" / "refinement_log.json").write_text("{bad json", encoding="utf-8")
+
+    class _QA:
+        mode = type("Mode", (), {"value": "ok"})()
+        sufficient = True
+        repair_possible = False
+        deficiencies: list[Any] = []
+
+    class _Diag:
+        deficiencies: list[Any] = []
+
+        def to_dict(self) -> dict[str, object]:
+            return {"deficiencies": []}
+
+    monkeypatch.setattr(rc_runner, "diagnose_experiment", lambda **_: _Diag(), raising=False)
+    monkeypatch.setattr(rc_runner, "assess_experiment_quality", lambda *_: _QA(), raising=False)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+        rc_runner._run_experiment_diagnosis(run_dir, rc_config, "run-test")
+
+    assert "Failed to read experiment design JSON for diagnosis from" in caplog.text
+    assert "Failed to read refinement log for diagnosis from" in caplog.text
+
+
 # ── Deliverables packaging tests ──
 
 
@@ -1369,6 +1404,26 @@ class TestPromoteBestStage14BestJson:
         data = json.loads(best_path.read_text(encoding="utf-8"))
         pm = data["metrics_summary"]["primary_metric"]
         assert pm["mean"] == 64.46
+
+    def test_logs_malformed_summary_and_non_numeric_metric(
+        self, run_dir: Path, max_config: RCConfig, caplog
+    ) -> None:
+        bad_dir = run_dir / "stage-14_bad"
+        bad_dir.mkdir()
+        (bad_dir / "experiment_summary.json").write_text("{bad json", encoding="utf-8")
+        _make_stage14_summary(run_dir, "_good", 42.0)
+        non_numeric = run_dir / "stage-14_non_numeric"
+        non_numeric.mkdir()
+        (non_numeric / "experiment_summary.json").write_text(
+            json.dumps({"metrics_summary": {"primary_metric": {"mean": "n/a"}}}),
+            encoding="utf-8",
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+            rc_runner._promote_best_stage14(run_dir, max_config)  # type: ignore[attr-defined]
+
+        assert "Failed to read stage-14 summary candidate from" in caplog.text
+        assert "Failed to parse primary metric primary_metric from" in caplog.text
 
 
 class TestPromoteBestStage14AnalysisBest:

@@ -622,16 +622,26 @@ def _run_experiment_diagnosis(run_dir: Path, config: RCConfig, run_id: str) -> N
             for candidate in sorted(run_dir.glob("stage-09*/experiment_design.json")):
                 try:
                     plan = json.loads(candidate.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.debug(
+                        "Failed to read experiment design JSON for diagnosis from %s: %s",
+                        candidate,
+                        exc,
+                        exc_info=True,
+                    )
 
         # Load refinement log if available
         ref_log = None
         for candidate in sorted(run_dir.glob("stage-13*/refinement_log.json")):
             try:
                 ref_log = json.loads(candidate.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug(
+                    "Failed to read refinement log for diagnosis from %s: %s",
+                    candidate,
+                    exc,
+                    exc_info=True,
+                )
 
         # Run diagnosis
         diag = diagnose_experiment(
@@ -675,8 +685,13 @@ def _run_experiment_diagnosis(run_dir: Path, config: RCConfig, run_id: str) -> N
                 for candidate in sorted(run_dir.glob(_glob_pat)):
                     try:
                         code[candidate.name] = candidate.read_text(encoding="utf-8")
-                    except (OSError, UnicodeDecodeError):
-                        pass
+                    except (OSError, UnicodeDecodeError) as exc:
+                        logger.debug(
+                            "Failed to read experiment code for repair prompt from %s: %s",
+                            candidate,
+                            exc,
+                            exc_info=True,
+                        )
                 if code:
                     break
 
@@ -748,8 +763,13 @@ def _run_experiment_repair(run_dir: Path, config: RCConfig, run_id: str) -> None
                         best_path.read_text(encoding="utf-8")
                     )
                     existing_score = _summary_quality_score(existing)
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as exc:
+                    logger.debug(
+                        "Failed to read existing stage-14 summary before repair promotion from %s: %s",
+                        best_path,
+                        exc,
+                        exc_info=True,
+                    )
 
             repair_score = _summary_quality_score(
                 repair_result.best_experiment_summary
@@ -1669,7 +1689,13 @@ def _promote_best_stage14(run_dir: Path, config: RCConfig) -> None:
             continue
         try:
             data = json.loads(summary_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug(
+                "Failed to read stage-14 summary candidate from %s: %s",
+                summary_path,
+                exc,
+                exc_info=True,
+            )
             continue
         ms = data.get("metrics_summary", {})
         pm_val: float | None = None
@@ -1679,15 +1705,27 @@ def _promote_best_stage14(run_dir: Path, config: RCConfig) -> None:
             _v = ms[metric_key]
             try:
                 pm_val = float(_v["mean"] if isinstance(_v, dict) else _v)
-            except (TypeError, ValueError, KeyError):
-                pass
+            except (TypeError, ValueError, KeyError) as exc:
+                logger.debug(
+                    "Failed to parse primary metric %s from %s: %s",
+                    metric_key,
+                    summary_path,
+                    exc,
+                    exc_info=True,
+                )
         if pm_val is None:
             for k, v in ms.items():
                 if metric_key in k:
                     try:
                         pm_val = float(v["mean"] if isinstance(v, dict) else v)
-                    except (TypeError, ValueError, KeyError):
-                        pass
+                    except (TypeError, ValueError, KeyError) as exc:
+                        logger.debug(
+                            "Failed to parse fallback primary metric %s from %s: %s",
+                            k,
+                            summary_path,
+                            exc,
+                            exc_info=True,
+                        )
                     break
         if pm_val is not None:
             if math.isnan(pm_val):

@@ -196,6 +196,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Pipeline runner content metrics, pivot-history reads, decision-history appends, and quality-score reads now log malformed or unreadable optional artifacts with debug exception context while preserving fallback behavior.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Pipeline runner experiment diagnosis, repair-summary promotion, and best stage-14 selection now log malformed optional plans, refinement logs, experiment code, summaries, and non-numeric primary metrics. `researchclaw/pipeline/runner.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
