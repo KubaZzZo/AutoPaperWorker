@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import ast
+import importlib
+from pathlib import Path
+
 import pytest
 
 from researchclaw.domains.detector import DomainProfile, get_profile, get_generic_profile
@@ -13,6 +17,50 @@ from researchclaw.domains.prompt_adapter import (
     get_adapter,
     register_adapter,
 )
+
+
+def test_adapter_registry_logs_missing_optional_adapter(
+    monkeypatch,
+    caplog,
+) -> None:
+    from researchclaw.domains import prompt_adapter
+
+    original_import = importlib.import_module
+
+    def fake_import_module(name, package=None):
+        if name == "researchclaw.domains.adapters.physics":
+            raise ImportError("physics adapter missing")
+        return original_import(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", fake_import_module)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.domains.prompt_adapter"):
+        registry = prompt_adapter._build_adapter_registry()
+
+    assert "generic" in registry
+    assert "physics_" not in registry
+    assert "Optional domain adapter unavailable" in caplog.text
+
+
+def test_prompt_adapter_registry_has_no_pure_except_pass() -> None:
+    source = Path("researchclaw/domains/prompt_adapter.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(source)
+    offenders = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler):
+            body = [
+                stmt for stmt in node.body
+                if not (
+                    isinstance(stmt, ast.Expr)
+                    and isinstance(getattr(stmt, "value", None), ast.Constant)
+                    and isinstance(stmt.value.value, str)
+                )
+            ]
+            if len(body) == 1 and isinstance(body[0], ast.Pass):
+                offenders.append(node.lineno)
+    assert offenders == []
 
 
 # ---------------------------------------------------------------------------

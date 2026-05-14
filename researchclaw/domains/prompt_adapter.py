@@ -14,6 +14,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import importlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -253,52 +254,81 @@ class GenericPromptAdapter(PromptAdapter):
 
 # Maps domain_id prefixes to adapter classes.
 # If a domain_id starts with "ml_", the ML adapter is used.
+def _register_optional_adapter(
+    registry: dict[str, type[PromptAdapter]],
+    prefix: str,
+    module_name: str,
+    class_name: str,
+) -> None:
+    try:
+        module = importlib.import_module(module_name)
+        adapter_cls = getattr(module, class_name)
+    except (ImportError, AttributeError) as exc:
+        logger.debug(
+            "Optional domain adapter unavailable for %s (%s.%s): %s",
+            prefix,
+            module_name,
+            class_name,
+            exc,
+        )
+        return
+    registry[prefix] = adapter_cls
+
+
 def _build_adapter_registry() -> dict[str, type[PromptAdapter]]:
     """Build the adapter registry with lazy imports for domain adapters."""
     registry: dict[str, type[PromptAdapter]] = {
         "ml_": MLPromptAdapter,
         "generic": GenericPromptAdapter,
     }
-    try:
-        from researchclaw.domains.adapters.physics import PhysicsPromptAdapter
-        registry["physics_"] = PhysicsPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.economics import EconomicsPromptAdapter
-        registry["economics_"] = EconomicsPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.biology import BiologyPromptAdapter
-        registry["biology_"] = BiologyPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.chemistry import ChemistryPromptAdapter
-        registry["chemistry_"] = ChemistryPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.security import SecurityPromptAdapter
-        registry["security_"] = SecurityPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.math import MathPromptAdapter
-        registry["mathematics_"] = MathPromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.neuroscience import NeurosciencePromptAdapter
-        registry["neuroscience_"] = NeurosciencePromptAdapter
-    except ImportError:
-        pass
-    try:
-        from researchclaw.domains.adapters.robotics import RoboticsPromptAdapter
-        registry["robotics_"] = RoboticsPromptAdapter
-    except ImportError:
-        pass
+    _register_optional_adapter(
+        registry,
+        "physics_",
+        "researchclaw.domains.adapters.physics",
+        "PhysicsPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "economics_",
+        "researchclaw.domains.adapters.economics",
+        "EconomicsPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "biology_",
+        "researchclaw.domains.adapters.biology",
+        "BiologyPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "chemistry_",
+        "researchclaw.domains.adapters.chemistry",
+        "ChemistryPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "security_",
+        "researchclaw.domains.adapters.security",
+        "SecurityPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "mathematics_",
+        "researchclaw.domains.adapters.math",
+        "MathPromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "neuroscience_",
+        "researchclaw.domains.adapters.neuroscience",
+        "NeurosciencePromptAdapter",
+    )
+    _register_optional_adapter(
+        registry,
+        "robotics_",
+        "researchclaw.domains.adapters.robotics",
+        "RoboticsPromptAdapter",
+    )
     return registry
 
 
