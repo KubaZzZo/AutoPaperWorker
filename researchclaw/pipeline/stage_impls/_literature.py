@@ -512,36 +512,48 @@ def _execute_literature_collect(
                 exc_info=True,
             )
 
-    # --- Ultimate fallback: placeholder data ---
-    # BUG-L2: Do NOT overwrite real_search_succeeded here — it was already
-    # set correctly in the search block above. Overwriting would mislabel
-    # LLM-hallucinated or seminal papers as "real search" results.
     if not candidates:
-        logger.warning("Stage 4: All literature searches failed — using placeholder papers")
-        candidates = [
-            {
-                "id": f"candidate-{idx + 1}",
-                "title": f"[Placeholder] Study {idx + 1} on {topic}",
-                "source": "arxiv" if idx % 2 == 0 else "semantic_scholar",
-                "url": f"https://example.org/{_safe_filename(topic.lower())}/{idx + 1}",
-                "year": 2024,
-                "abstract": f"This candidate investigates {topic} and reports preliminary findings.",
-                "collected_at": _utcnow_iso(),
-                "is_placeholder": True,
-            }
-            for idx in range(max(20, config.research.daily_paper_count or 20))
-        ]
+        logger.warning(
+            "Stage 4: All literature searches returned no candidates; "
+            "writing empty candidates.jsonl and failing stage"
+        )
+        out = stage_dir / "candidates.jsonl"
+        _write_jsonl(out, [])
+        (stage_dir / "search_meta.json").write_text(
+            json.dumps(
+                {
+                    "real_search": real_search_succeeded,
+                    "queries_used": queries,
+                    "year_min": year_min,
+                    "total_candidates": 0,
+                    "bibtex_entries": 0,
+                    "search_failed": True,
+                    "error": "No literature candidates found; no placeholder papers generated.",
+                    "ts": _utcnow_iso(),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return StageResult(
+            stage=Stage.LITERATURE_COLLECT,
+            status=StageStatus.FAILED,
+            artifacts=("candidates.jsonl", "search_meta.json"),
+            error="No literature candidates found",
+            evidence_refs=(
+                "stage-04/candidates.jsonl",
+                "stage-04/search_meta.json",
+            ),
+        )
 
     # Write candidates
     out = stage_dir / "candidates.jsonl"
     _write_jsonl(out, candidates)
 
-    # BUG-50 fix: Generate BibTeX from candidates when real search failed
-    # (LLM/placeholder fallback paths don't populate bibtex_entries)
+    # BUG-50 fix: Generate BibTeX from candidates when API search failed
+    # but LLM/seminal/web fallback provided concrete candidate metadata.
     if not bibtex_entries and candidates:
         for c in candidates:
-            if c.get("is_placeholder"):
-                continue
             _ck = c.get("cite_key", "")
             if not _ck:
                 # Derive cite_key from first author surname + year

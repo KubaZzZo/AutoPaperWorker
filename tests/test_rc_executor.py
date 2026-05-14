@@ -61,12 +61,12 @@ def rc_config(tmp_path: Path) -> RCConfig:
             "provider": "openai-compatible",
             "base_url": "http://localhost:1234/v1",
             "api_key_env": "RC_TEST_KEY",
-            "api_key": "inline-test-key",
             "primary_model": "fake-model",
             "fallback_models": [],
         },
         "security": {"hitl_required_stages": [5, 9, 20]},
         "experiment": {"mode": "sandbox"},
+        "web_search": {"enabled": False},
     }
     return RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
 
@@ -99,6 +99,50 @@ def test_executor_map_has_23_entries() -> None:
 def test_every_stage_member_has_matching_executor() -> None:
     executor_map = getattr(rc_executor, "EXECUTOR_MAP", rc_executor._STAGE_EXECUTORS)
     assert set(executor_map.keys()) == set(Stage)
+
+
+def test_literature_collect_does_not_fabricate_placeholder_candidates(
+    tmp_path: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from researchclaw.pipeline.stage_impls import _literature
+
+    run_dir = tmp_path / "run"
+    stage_dir = run_dir / "stage-04"
+    stage_dir.mkdir(parents=True)
+    _write_prior_artifact(
+        run_dir,
+        3,
+        "queries.json",
+        json.dumps({"queries": ["no results topic"], "year_min": 2024}),
+    )
+    monkeypatch.setattr(
+        "researchclaw.literature.search.search_papers_multi_query",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "researchclaw.data.load_seminal_papers",
+        lambda topic: [],
+    )
+
+    result = _literature._execute_literature_collect(
+        stage_dir,
+        run_dir,
+        rc_config,
+        adapters,
+        llm=None,
+    )
+
+    assert result.status is StageStatus.FAILED
+    assert (stage_dir / "candidates.jsonl").read_text(encoding="utf-8") == ""
+    meta = json.loads((stage_dir / "search_meta.json").read_text(encoding="utf-8"))
+    assert meta["total_candidates"] == 0
+    assert meta["search_failed"] is True
+    assert "placeholder" not in (stage_dir / "candidates.jsonl").read_text(
+        encoding="utf-8"
+    ).lower()
 
 
 def test_stage_result_dataclass_fields() -> None:

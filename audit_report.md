@@ -174,6 +174,8 @@
 
 <span style="color: green; font-weight: 700;">[FIXED 2026-05-14] OpenCode Beast Mode entry-point normalization now fails fast when generated `main.py` has neither a `__main__` guard nor a known entry function, instead of silently passing a non-executable project to the sandbox.</span>
 
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Stage 4 literature collection no longer fabricates `[Placeholder]` papers when all searches fail. It now writes empty candidates plus `search_meta.json` failure metadata and returns `StageStatus.FAILED` so retry/diagnosis paths can handle the outage honestly.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:513, 560, 615, 645`
 - **问题:** 以下模块在 try/except 中被动态导入，但对应的 .py 文件 **不存在**:
   - `researchclaw.pipeline.event_log` → 管道事件日志功能静默禁用
