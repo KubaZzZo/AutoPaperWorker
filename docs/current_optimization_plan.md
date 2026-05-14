@@ -53,6 +53,9 @@ and this active optimization plan.
      `researchclaw/templates/converter.py` remain large enough to slow review
      and targeted agent edits.
    - Extract narrow helpers only where tests already define behavior.
+   - 2026-05-14 slice: progress snapshot writing moved out of
+     `researchclaw/pipeline/runner.py` into `researchclaw/pipeline/progress.py`
+     so pipeline orchestration no longer owns dashboard snapshot details.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

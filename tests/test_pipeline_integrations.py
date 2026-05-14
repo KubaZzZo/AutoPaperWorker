@@ -171,7 +171,7 @@ def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
 
 
 def test_progress_snapshot_includes_stage12_experiment_runs(tmp_path: Path) -> None:
-    from researchclaw.pipeline.runner import _write_progress_snapshot
+    from researchclaw.pipeline.progress import write_progress_snapshot
     from researchclaw.pipeline.stages import Stage
 
     run_dir = tmp_path / "rc-telemetry"
@@ -192,7 +192,7 @@ def test_progress_snapshot_includes_stage12_experiment_runs(tmp_path: Path) -> N
         encoding="utf-8",
     )
 
-    _write_progress_snapshot(
+    write_progress_snapshot(
         run_dir=run_dir,
         run_id="rc-telemetry",
         results=[],
@@ -220,7 +220,7 @@ def test_progress_snapshot_skips_malformed_experiment_run(
     tmp_path: Path,
     caplog,
 ) -> None:
-    from researchclaw.pipeline.runner import _write_progress_snapshot
+    from researchclaw.pipeline.progress import write_progress_snapshot
     from researchclaw.pipeline.stages import Stage
 
     run_dir = tmp_path / "rc-bad-telemetry"
@@ -228,8 +228,8 @@ def test_progress_snapshot_skips_malformed_experiment_run(
     runs_dir.mkdir(parents=True)
     (runs_dir / "run-1.json").write_text("{not-json", encoding="utf-8")
 
-    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
-        _write_progress_snapshot(
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.progress"):
+        write_progress_snapshot(
             run_dir=run_dir,
             run_id="rc-bad-telemetry",
             results=[],
