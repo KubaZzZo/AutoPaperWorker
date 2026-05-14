@@ -334,6 +334,14 @@ class TestDailyDigest:
         _, relevance = DailyDigest._parse_summary(response)
         assert relevance == 5
 
+    def test_parse_summary_logs_invalid_relevance(self, caplog):
+        response = "SUMMARY: x | RELEVANCE: not-a-number"
+        with caplog.at_level("DEBUG", logger="researchclaw.trends.daily_digest"):
+            summary, relevance = DailyDigest._parse_summary(response)
+        assert summary == "x"
+        assert relevance == 3
+        assert "Failed to parse digest relevance score" in caplog.text
+
     def test_generate_and_save(self, tmp_path: Path):
         fm = FeedManager(sources=("arxiv",))
         papers = _make_papers(2)

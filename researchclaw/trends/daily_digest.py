@@ -162,8 +162,12 @@ class DailyDigest:
                     rel_str = parts[1].split("RELEVANCE:", 1)[-1].strip()
                     relevance = int(rel_str.strip("* "))
                     relevance = max(1, min(5, relevance))
-                except (ValueError, IndexError):
-                    pass
+                except (ValueError, IndexError) as exc:
+                    logger.debug(
+                        "Failed to parse digest relevance score from %r: %s",
+                        parts[1],
+                        exc,
+                    )
 
         return summary, relevance
 
