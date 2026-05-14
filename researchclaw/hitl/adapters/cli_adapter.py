@@ -7,6 +7,7 @@ approving/rejecting gates, editing files, and collaborating with AI.
 from __future__ import annotations
 
 import json
+import locale
 import logging
 import os
 import shutil
@@ -94,6 +95,24 @@ _KEY_MAP: dict[str, HumanAction] = {
     "abort": HumanAction.ABORT,
     "resume": HumanAction.RESUME,
 }
+
+
+def _read_editor_output(path: Path) -> str:
+    """Read editor output even when the editor saved with a local encoding."""
+    raw = path.read_bytes()
+    preferred = locale.getpreferredencoding(False) or "utf-8"
+    encodings = ["utf-8", preferred, "cp1252", "latin-1"]
+    tried: set[str] = set()
+    for encoding in encodings:
+        key = encoding.lower()
+        if key in tried:
+            continue
+        tried.add(key)
+        try:
+            return raw.decode(encoding, errors="strict")
+        except (LookupError, UnicodeDecodeError):
+            logger.debug("Could not decode editor output as %s", encoding)
+    return raw.decode("utf-8", errors="surrogateescape")
 
 
 class CLIAdapter:
@@ -339,7 +358,7 @@ class CLIAdapter:
 
         try:
             subprocess.run([editor, tmp_path], check=True)
-            edited = Path(tmp_path).read_text(encoding="utf-8")
+            edited = _read_editor_output(Path(tmp_path))
         except (subprocess.CalledProcessError, OSError) as exc:
             print(_c(_RED, f"  Editor failed: {exc}"))
             Path(tmp_path).unlink(missing_ok=True)

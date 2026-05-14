@@ -39,6 +39,7 @@ from researchclaw.hitl.checksums import (
     verify_manifest,
 )
 from researchclaw.hitl.hooks import HookRegistry, HookResult
+from researchclaw.hitl.adapters.cli_adapter import CLIAdapter
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -162,6 +163,43 @@ class TestFileWait:
 # ══════════════════════════════════════════════════════════════════
 # Cost guard tests
 # ══════════════════════════════════════════════════════════════════
+
+
+class TestCLIAdapterEncoding:
+    def test_handle_edit_reads_non_utf8_editor_output(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        run_dir = tmp_path / "run"
+        stage_dir = run_dir / "stage-08"
+        stage_dir.mkdir(parents=True)
+        target = stage_dir / "notes.md"
+        target.write_text("original\n", encoding="utf-8")
+
+        def fake_editor(_cmd: list[str], check: bool) -> None:
+            assert check is True
+            tmp_file = Path(_cmd[1])
+            tmp_file.write_bytes("Café résumé\n".encode("cp1252"))
+
+        monkeypatch.setenv("EDITOR", "fake-editor")
+        monkeypatch.setattr(
+            "researchclaw.hitl.adapters.cli_adapter.subprocess.run",
+            fake_editor,
+        )
+
+        waiting = WaitingState(
+            stage=8,
+            stage_name="HYPOTHESIS_GEN",
+            reason=PauseReason.POST_STAGE,
+            output_files=("notes.md",),
+        )
+
+        result = CLIAdapter(run_dir=run_dir)._handle_edit(waiting)
+
+        assert result.action == HumanAction.EDIT
+        assert result.edited_files["notes.md"] == "Café résumé\n"
+        assert target.read_text(encoding="utf-8") == "Café résumé\n"
 
 
 class TestCostGuard:

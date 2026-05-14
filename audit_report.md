@@ -348,6 +348,8 @@
 ### 低 (LOW)
 
 #### 39. 缺少 encoding 声明的文件写入
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] CLI HITL edit handling now reads editor output from bytes through `_read_editor_output()`: UTF-8 strict first, then the platform preferred encoding, CP1252, Latin-1, and finally UTF-8 `surrogateescape`. Edited content is still saved back to stage files as UTF-8. Regression coverage simulates a CP1252 editor write and verifies the edit is preserved.</span>
+
 - **文件:** `researchclaw/hitl/adapters/cli_adapter.py:341`
 - **问题:** `subprocess.run([editor, tmp_path])` 依赖于编辑器正确处理文件编码。如果编辑器写入非 UTF-8，后续读取会失败。
 - **建议:** 在编辑器返回后检测并转换编码。
