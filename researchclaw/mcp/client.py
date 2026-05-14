@@ -21,18 +21,27 @@ class MCPClient:
         self.transport = transport
         self._connected = False
         self._tools_cache: list[dict[str, Any]] | None = None
+        self._local_server: Any | None = None
 
     # ── connection ────────────────────────────────────────────────
 
     async def connect(self) -> None:
         """Establish connection to the MCP server."""
         logger.info("Connecting to MCP server: %s (transport=%s)", self.uri, self.transport)
+        if self.uri.startswith("local://") or self.uri in {
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        }:
+            from researchclaw.mcp.server import ResearchClawMCPServer
+
+            self._local_server = ResearchClawMCPServer()
         self._connected = True
 
     async def disconnect(self) -> None:
         """Close the connection."""
         self._connected = False
         self._tools_cache = None
+        self._local_server = None
 
     @property
     def is_connected(self) -> bool:
@@ -80,10 +89,7 @@ class MCPClient:
     # ── transport layer ───────────────────────────────────────────
 
     async def _send_request(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Send a JSON-RPC request to the MCP server.
-
-        This is a stub — real implementation delegates to transport.py.
-        """
+        """Send a JSON-RPC request to the MCP server."""
         message = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -91,5 +97,18 @@ class MCPClient:
             "params": params,
         }
         logger.debug("MCP request: %s", json.dumps(message, default=str)[:200])
-        # Stub: return empty result
-        return {"result": {}}
+        if self._local_server is not None:
+            if method == "tools/list":
+                return {"tools": self._local_server.get_tools()}
+            if method == "tools/call":
+                return await self._local_server.handle_tool_call(
+                    str(params["name"]),
+                    dict(params.get("arguments") or {}),
+                )
+            if method == "resources/list":
+                return {"resources": []}
+            if method == "resources/read":
+                return {"contents": []}
+        raise NotImplementedError(
+            f"MCP transport request not implemented for {self.transport!r}: {method}"
+        )

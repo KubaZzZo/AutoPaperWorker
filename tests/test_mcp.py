@@ -264,6 +264,21 @@ class TestMCPClient:
 
         tools = asyncio.run(_run())
         assert isinstance(tools, list)
+        assert any(tool["name"] == "run_pipeline" for tool in tools)
+
+    def test_call_tool_connected_uses_local_researchclaw_server(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        client = MCPClient("local://researchclaw")
+
+        async def _run() -> dict:
+            await client.connect()
+            return await client.call_tool("run_pipeline", {"topic": "MCP local client"})
+
+        result = asyncio.run(_run())
+
+        assert result["success"] is True
+        assert result["status"] == "queued"
+        assert (tmp_path / "artifacts" / result["run_id"] / "checkpoint.json").exists()
 
     def test_tools_cached(self) -> None:
         client = MCPClient("http://localhost:3000")

@@ -73,7 +73,9 @@ class StdioTransport:
 class SSETransport:
     """MCP transport over Server-Sent Events (for web integration).
 
-    This is a stub — a full implementation would use aiohttp or similar.
+    The in-process implementation stores outbound SSE frames and accepts
+    inbound JSON-RPC messages via ``inject_message()``. A web server can wrap
+    these queues with HTTP/SSE endpoints without changing MCP semantics.
     """
 
     def __init__(self, host: str = "0.0.0.0", port: int = 3000) -> None:
@@ -89,7 +91,7 @@ class SSETransport:
         logger.info("SSE transport started on %s:%d", self.host, self.port)
 
     async def send(self, message: dict[str, Any]) -> None:
-        """Send an SSE event (stub)."""
+        """Send a JSON-RPC message as an SSE data frame."""
         if not self._running:
             raise RuntimeError("Transport not started")
         payload = json.dumps(message, ensure_ascii=False, default=str)
@@ -98,7 +100,7 @@ class SSETransport:
         logger.debug("SSE send: %s", payload[:200])
 
     async def receive(self) -> dict[str, Any]:
-        """Receive from SSE (stub)."""
+        """Receive the next injected JSON-RPC message."""
         if not self._running:
             raise RuntimeError("Transport not started")
         return await self._incoming.get()

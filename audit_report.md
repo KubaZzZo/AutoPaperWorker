@@ -166,6 +166,8 @@
 
 <span style="color: green; font-weight: 700;">[FIXED 2026-05-14] MCP `run_pipeline` now creates a real trackable `artifacts/rc-*` request directory with checkpoint and progress snapshots instead of returning an untracked `mcp-stub-*` id.</span>
 
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `MCPClient` now dispatches local ResearchClaw tool discovery and tool calls through `ResearchClawMCPServer`; stale MCP transport/client stub wording was removed after regression coverage verified local calls and SSE queue semantics.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:513, 560, 615, 645`
 - **问题:** 以下模块在 try/except 中被动态导入，但对应的 .py 文件 **不存在**:
   - `researchclaw.pipeline.event_log` → 管道事件日志功能静默禁用

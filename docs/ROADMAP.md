@@ -15,6 +15,7 @@ reproducibility updates were integrated.
 | MCP literature search tool | Integrated | `search_literature` now calls `researchclaw.literature.search_papers()` and returns serialized paper metadata instead of a fixed stub response |
 | MCP paper review tool | Integrated | `review_paper` now reads the target manuscript and returns offline structural checks for word count, sections, citations, missing sections, and issues |
 | MCP trackable pipeline requests | Integrated | `run_pipeline` now creates a real `artifacts/rc-*` run directory with `checkpoint.json` and `progress.json` so MCP clients can follow the request via `get_pipeline_status` |
+| MCP local client dispatch | Integrated | `MCPClient` now supports a local ResearchClaw server backend for tool discovery and tool calls; MCP transport docstrings reflect the implemented queue-backed SSE semantics |
 | P4.1 Benchmark discovery | Integrated | `researchclaw/agents/benchmark_agent/`; Stage 9 benchmark plan |
 | P4.1 non-ML benchmark support | Integrated | `researchclaw/data/benchmark_knowledge.yaml`; domain-aware survey/acquire paths |
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |
