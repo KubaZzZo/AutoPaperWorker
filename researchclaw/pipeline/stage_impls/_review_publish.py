@@ -2756,8 +2756,11 @@ def _execute_citation_verify(
                     _cited_in_paper.update(
                         k.strip() for k in _cm.group(1).split(",")
                     )
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.warning(
+                    "Could not read stage-22 paper.tex while collecting citations: %s",
+                    exc,
+                )
         _uncited_vbib = _vbib_keys - _cited_in_paper
         if _uncited_vbib:
             verified_bib = _remove_bibtex_entries(verified_bib, _uncited_vbib)

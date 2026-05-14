@@ -1970,6 +1970,7 @@ def test_citation_verify_fails_when_all_bibtex_entries_are_pruned(
     rc_config: RCConfig,
     adapters: AdapterBundle,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     from researchclaw.literature.verify import (
         CitationResult,
@@ -1994,6 +1995,8 @@ def test_citation_verify_fails_when_all_bibtex_entries_are_pruned(
         "# Paper\n\nThis final paper has no citation markers.",
         encoding="utf-8",
     )
+    (source_dir / "paper.tex").mkdir()
+    caplog.set_level("WARNING")
 
     report = VerificationReport(
         total=1,
@@ -2035,6 +2038,7 @@ def test_citation_verify_fails_when_all_bibtex_entries_are_pruned(
     )
     assert failure["error"] == "all_bibtex_entries_filtered"
     assert failure["original_count"] == 1
+    assert "Could not read stage-22 paper.tex while collecting citations" in caplog.text
 
 
 class TestLoadHardwareProfile:
