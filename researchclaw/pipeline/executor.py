@@ -333,8 +333,13 @@ def _run_hitl_post_stage(
                     score = prm.get("prm_score", 1.0)
                     if score < policy.min_quality_score:
                         reason = PauseReason.QUALITY_BELOW_THRESHOLD
-        except (OSError, ValueError):
-            pass
+        except (OSError, ValueError) as exc:
+            logger.debug(
+                "Failed to read HITL quality score files for stage %d: %s",
+                stage_num,
+                exc,
+                exc_info=True,
+            )
 
     # Build context summary from stage artifacts
     contract = CONTRACTS.get(stage)
@@ -355,8 +360,13 @@ def _run_hitl_post_stage(
             try:
                 text = fpath.read_text(encoding="utf-8")[:500]
                 context_lines.append(f"\n--- {fname} ---\n{text}")
-            except (OSError, UnicodeDecodeError):
-                pass
+            except (OSError, UnicodeDecodeError) as exc:
+                logger.debug(
+                    "Failed to read HITL context artifact %s: %s",
+                    fpath,
+                    exc,
+                    exc_info=True,
+                )
 
     session.pause(
         stage_num,
@@ -707,8 +717,13 @@ def execute_stage(
                             if art_path.exists() and art_path.is_file():
                                 try:
                                     output_text += art_path.read_text(encoding="utf-8")[:4000]
-                                except (UnicodeDecodeError, OSError):
-                                    pass
+                                except (UnicodeDecodeError, OSError) as exc:
+                                    logger.debug(
+                                        "Failed to read MetaClaw PRM artifact %s: %s",
+                                        art_path,
+                                        exc,
+                                        exc_info=True,
+                                    )
                         if output_text:
                             prm_score = prm_gate.evaluate_stage(int(stage), output_text)
                             logger.info(
@@ -785,8 +800,13 @@ def execute_stage(
         (stage_dir / "stage_health.json").write_text(
             json.dumps(stage_health, indent=2), encoding="utf-8"
         )
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.warning(
+            "Failed to write stage health report for stage %d: %s",
+            int(stage),
+            exc,
+            exc_info=True,
+        )
 
     # --- HITL post-stage hook ---
     result = _run_hitl_post_stage(stage, result, run_dir, adapters, config=config)

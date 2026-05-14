@@ -635,6 +635,65 @@ def test_stage_executor_mapping_values_are_callable(stage: Stage) -> None:
     assert callable(rc_executor._STAGE_EXECUTORS[stage])
 
 
+class _FakeHITLSession:
+    def __init__(self) -> None:
+        from researchclaw.hitl.intervention import HumanAction, HumanInput
+
+        self.pauses: list[dict[str, Any]] = []
+        self._human_input = HumanInput(action=HumanAction.APPROVE)
+
+    def should_pause_after(self, _stage_num: int) -> bool:
+        return True
+
+    def get_policy(self, _stage_num: int):
+        return SimpleNamespace(require_approval=False, min_quality_score=0.5)
+
+    def pause(self, stage: int, stage_name: str, reason, **kwargs: Any) -> None:
+        self.pauses.append(
+            {"stage": stage, "stage_name": stage_name, "reason": reason, **kwargs}
+        )
+
+    def wait_for_human(self):
+        return self._human_input
+
+
+def test_hitl_post_stage_logs_quality_and_artifact_read_failures(
+    rc_config: RCConfig, run_dir: Path, caplog, monkeypatch
+) -> None:
+    stage_dir = run_dir / "stage-05"
+    stage_dir.mkdir(parents=True)
+    (stage_dir / "stage_health.json").write_text("{bad json", encoding="utf-8")
+    (stage_dir / "shortlist.jsonl").write_text("screening output", encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def fail_artifact_read(self: Path, *args, **kwargs):
+        if self.name == "shortlist.jsonl":
+            raise OSError("artifact unavailable")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_artifact_read)
+    adapters = AdapterBundle(hitl=_FakeHITLSession())
+    result = rc_executor.StageResult(
+        stage=Stage.LITERATURE_SCREEN,
+        status=StageStatus.DONE,
+        artifacts=("shortlist.jsonl",),
+    )
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.executor"):
+        returned = rc_executor._run_hitl_post_stage(
+            Stage.LITERATURE_SCREEN,
+            result,
+            run_dir,
+            adapters,
+            config=rc_config,
+        )
+
+    assert returned is result
+    assert "Failed to read HITL quality score files" in caplog.text
+    assert "Failed to read HITL context artifact" in caplog.text
+
+
 class TestStageHealth:
     def test_stage_health_json_written(self, tmp_path: Path) -> None:
         from researchclaw.pipeline.executor import execute_stage
@@ -725,6 +784,45 @@ class TestStageHealth:
         if health_path.exists():
             data = json.loads(health_path.read_text(encoding="utf-8"))
             assert data["duration_sec"] >= 0
+
+    def test_stage_health_write_failure_is_logged(self, tmp_path: Path, caplog, monkeypatch) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from researchclaw.pipeline.executor import execute_stage
+        from researchclaw.pipeline.stages import Stage
+
+        config = RCConfig.load(
+            Path(__file__).parent.parent / "config.researchclaw.example.yaml",
+            check_paths=False,
+        )
+        original_write_text = Path.write_text
+
+        def fail_health_write(self: Path, *args, **kwargs):
+            if self.name == "stage_health.json":
+                raise OSError("health unavailable")
+            return original_write_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", fail_health_write)
+
+        with patch("researchclaw.pipeline.executor.LLMClient") as mock_llm_cls:
+            mock_client = MagicMock()
+            mock_client.chat.return_value = MagicMock(
+                content='{"topic": "test", "sub_problems": []}'
+            )
+            mock_llm_cls.from_rc_config.return_value = mock_client
+
+            with caplog.at_level("WARNING", logger="researchclaw.pipeline.executor"):
+                result = execute_stage(
+                    Stage.TOPIC_INIT,
+                    run_dir=tmp_path,
+                    run_id="test-health-write-failure",
+                    config=config,
+                    adapters=AdapterBundle(),
+                    auto_approve_gates=True,
+                )
+
+        assert result is not None
+        assert "Failed to write stage health report" in caplog.text
 
 # Contracts import for Stage 13/22 preservation features.
 from researchclaw.pipeline.contracts import CONTRACTS
