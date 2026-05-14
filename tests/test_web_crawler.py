@@ -113,6 +113,28 @@ class TestCrawlUrllibFallback:
         result = crawler._crawl_with_urllib("https://example.com", t0)
         assert len(result.markdown) <= 1100  # 1000 + truncation notice
 
+    @patch("researchclaw.web.crawler.urlopen")
+    def test_crawl_urllib_retries_declared_charset_decode_failure(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = (
+            "<html><title>Encoding</title><body><p>Café résumé content "
+            "with enough words to crawl.</p></body></html>"
+        ).encode("utf-8")
+        mock_resp.headers = {"Content-Type": "text/html; charset=ascii"}
+        mock_urlopen.return_value = mock_resp
+
+        crawler = WebCrawler()
+        import time
+        t0 = time.monotonic()
+        result = crawler._crawl_with_urllib("https://example.com", t0)
+
+        assert result.success
+        assert "Café résumé" in result.markdown
+        assert "\ufffd" not in result.markdown
+        assert result.metadata["encoding"] == "utf-8"
+        assert result.metadata["declared_encoding"] == "ascii"
+        assert result.metadata["encoding_fallback"] is True
+
 
 # ---------------------------------------------------------------------------
 # Sync crawl (goes through crawl4ai → urllib fallback chain)

@@ -325,6 +325,8 @@
 - **建议:** 在启动时预检终端编码，全局关闭 emoji。
 
 #### 36. urllib 的 `errors="replace"` 可能丢失数据
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] The urllib crawler fallback no longer decodes with `errors="replace"`. It now strictly tries the declared charset first, then common fallback encodings, and only falls back to UTF-8 `surrogateescape` if all candidates fail. Crawl metadata records the declared encoding, actual encoding, and whether fallback was used. Regression coverage verifies a bad ASCII charset declaration preserves UTF-8 content without replacement characters.</span>
+
 - **文件:** `researchclaw/web/crawler.py:218`
 - **问题:** `html = raw.decode(encoding, errors="replace")` — 如果 Content-Type 声明的编码错误，使用 `replace` 会静默丢弃无法解码的字节。
 - **建议:** 先尝试 `errors="strict"` 失败后回退到 `chardet` 自动检测编码。

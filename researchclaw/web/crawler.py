@@ -25,6 +25,8 @@ from researchclaw.web._ssrf import check_url_ssrf
 
 logger = logging.getLogger(__name__)
 
+_FALLBACK_ENCODINGS = ("utf-8", "utf-8-sig", "cp1252", "iso-8859-1")
+
 
 @dataclass
 class CrawlResult:
@@ -215,7 +217,7 @@ class WebCrawler:
         encoding = "utf-8"
         if "charset=" in content_type:
             encoding = content_type.split("charset=")[-1].split(";")[0].strip()
-        html = raw.decode(encoding, errors="replace")
+        html, actual_encoding, used_fallback = self._decode_html(raw, encoding)
 
         title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
         title = title_match.group(1).strip() if title_match else ""
@@ -228,7 +230,26 @@ class WebCrawler:
         return CrawlResult(
             url=url, markdown=markdown, title=title,
             success=bool(markdown.strip()), elapsed_seconds=elapsed,
+            metadata={
+                "encoding": actual_encoding,
+                "declared_encoding": encoding,
+                "encoding_fallback": used_fallback,
+            },
         )
+
+    @staticmethod
+    def _decode_html(raw: bytes, declared_encoding: str) -> tuple[str, str, bool]:
+        """Decode HTML without silently replacing undecodable bytes."""
+        candidates = [declared_encoding.strip() or "utf-8"]
+        candidates.extend(
+            enc for enc in _FALLBACK_ENCODINGS if enc.lower() != candidates[0].lower()
+        )
+        for index, encoding in enumerate(candidates):
+            try:
+                return raw.decode(encoding, errors="strict"), encoding, index > 0
+            except (LookupError, UnicodeDecodeError):
+                logger.debug("HTML decode failed with %s; trying fallback", encoding)
+        return raw.decode("utf-8", errors="surrogateescape"), "utf-8", True
 
     @staticmethod
     def _html_to_markdown(html: str) -> str:
