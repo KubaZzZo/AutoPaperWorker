@@ -153,8 +153,8 @@ def _execute_hypothesis_gen(
                             "score": 0.0})()
         ]
         workshop.save()
-    except Exception:
-        pass
+    except Exception:  # noqa: BLE001
+        logger.debug("Idea workshop persistence failed (non-blocking)", exc_info=True)
 
     (stage_dir / "hypotheses.md").write_text(hypotheses_md, encoding="utf-8")
     branch_artifacts: tuple[str, ...] = ()

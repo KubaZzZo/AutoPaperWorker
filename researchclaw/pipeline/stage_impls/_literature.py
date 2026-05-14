@@ -229,7 +229,11 @@ def _execute_search_strategy(
             try:
                 year_min = int(filters["min_year"])
             except (ValueError, TypeError):
-                pass
+                logger.debug(
+                    "Invalid search min_year filter; using default year_min",
+                    extra={"min_year": filters.get("min_year"), "default": year_min},
+                    exc_info=True,
+                )
 
     # --- Sanitize queries: shorten overly long queries ---
     # LLMs often produce the full topic title as a query, which is too long for

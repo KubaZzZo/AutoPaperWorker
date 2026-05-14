@@ -178,6 +178,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Experiment chart generation now logs malformed or unreadable `stage-14*/experiment_summary.json` and `iteration_summary.json` files with debug exception context instead of silently skipping chart inputs. `researchclaw/experiment/visualize.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Stage 3 search strategy now logs invalid `filters.min_year` values before falling back to the default year, and Stage 8 hypothesis generation logs Idea Workshop persistence failures while preserving non-blocking pipeline behavior. AST scanning now reports no pure `except: pass` handlers in `_literature.py` or `_synthesis.py`.</span>
+
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Shared pipeline helpers now log failed direct/fenced/bracketed JSON parse attempts and non-numeric stdout metric skips at debug level while preserving fallback parsing behavior.</span>
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Shared pipeline helper overlays, experiment result aggregation, HITL guidance injection, and runtime issue detection now log overlay failures, malformed structured results, non-numeric metrics, unreadable guidance, and runtime parsing skips with debug exception context. `researchclaw/pipeline/_helpers.py` no longer contains pure `except: pass` handlers.</span>

@@ -145,6 +145,55 @@ def test_literature_collect_does_not_fabricate_placeholder_candidates(
     ).lower()
 
 
+def test_search_strategy_logs_invalid_min_year_filter(
+    tmp_path: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from researchclaw.pipeline.stage_impls import _literature
+
+    class InvalidMinYearPrompts:
+        def for_stage(self, *_args: object, **_kwargs: object) -> SimpleNamespace:
+            return SimpleNamespace(
+                system="system",
+                user="user",
+                json_mode=True,
+                max_tokens=100,
+            )
+
+    payload = json.dumps(
+        {
+            "search_plan_yaml": (
+                "search_strategies:\n"
+                "  - name: bad-filter\n"
+                "    queries: [test science]\n"
+                "filters:\n"
+                "  min_year: not-a-year\n"
+            )
+        }
+    )
+    run_dir = tmp_path / "run"
+    stage_dir = run_dir / "stage-03"
+    stage_dir.mkdir(parents=True)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._literature"):
+        result = _literature._execute_search_strategy(
+            stage_dir,
+            run_dir,
+            rc_config,
+            adapters,
+            llm=FakeLLMClient(payload),
+            prompts=InvalidMinYearPrompts(),  # type: ignore[arg-type]
+        )
+
+    assert result.status is StageStatus.DONE
+    queries = json.loads((stage_dir / "queries.json").read_text(encoding="utf-8"))
+    assert queries["year_min"] == 2020
+    assert "Invalid search min_year filter" in caplog.text
+    assert "not-a-year" in caplog.text
+
+
 def test_stage_result_dataclass_fields() -> None:
     result = rc_executor.StageResult(
         stage=Stage.TOPIC_INIT, status=StageStatus.DONE, artifacts=("goal.md",)
@@ -1587,6 +1636,52 @@ class TestHypothesisGenDebate:
         assert "hypotheses.md" in result.artifacts
         # No perspectives directory when no LLM
         assert not (stage_dir / "perspectives").exists()
+
+    def test_hypothesis_gen_logs_idea_workshop_save_failure(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _synthesis
+
+        class BrokenIdeaWorkshop:
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                self.candidates: list[object] = []
+
+            def save(self) -> None:
+                raise RuntimeError("workshop disk full")
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        stage_dir = run_dir / "stage-08"
+        stage_dir.mkdir(parents=True)
+        _write_prior_artifact(run_dir, 7, "synthesis.md", "# Synthesis\nGap found.")
+        monkeypatch.setattr(
+            "researchclaw.hitl.workshops.idea.IdeaWorkshop",
+            BrokenIdeaWorkshop,
+        )
+        monkeypatch.setattr(
+            "researchclaw.pipeline.stage_impls._synthesis.check_novelty",
+            lambda **_kwargs: {
+                "novelty_score": 1.0,
+                "assessment": "high",
+                "recommendation": "proceed",
+            },
+            raising=False,
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._synthesis"):
+            result = _synthesis._execute_hypothesis_gen(
+                stage_dir, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert (stage_dir / "hypotheses.md").exists()
+        assert "Idea workshop persistence failed" in caplog.text
+        assert "workshop disk full" in caplog.text
 
 
 class TestResultAnalysisDebate:
