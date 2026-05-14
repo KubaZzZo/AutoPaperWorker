@@ -1110,6 +1110,8 @@ def test_read_quality_score_logs_malformed_report(run_dir: Path, caplog) -> None
 def test_run_experiment_diagnosis_logs_optional_artifact_parse_failures(
     run_dir: Path, rc_config: RCConfig, monkeypatch: pytest.MonkeyPatch, caplog
 ) -> None:
+    from researchclaw.pipeline.experiment_workflow import run_experiment_diagnosis
+
     (run_dir / "stage-14").mkdir()
     (run_dir / "stage-14" / "experiment_summary.json").write_text(
         json.dumps({"condition_summaries": {}, "best_run": {"metrics": {}}}),
@@ -1132,11 +1134,8 @@ def test_run_experiment_diagnosis_logs_optional_artifact_parse_failures(
         def to_dict(self) -> dict[str, object]:
             return {"deficiencies": []}
 
-    monkeypatch.setattr(rc_runner, "diagnose_experiment", lambda **_: _Diag(), raising=False)
-    monkeypatch.setattr(rc_runner, "assess_experiment_quality", lambda *_: _QA(), raising=False)
-
-    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
-        rc_runner._run_experiment_diagnosis(run_dir, rc_config, "run-test")
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.experiment_workflow"):
+        run_experiment_diagnosis(run_dir, rc_config, "run-test")
 
     assert "Failed to read experiment design JSON for diagnosis from" in caplog.text
     assert "Failed to read refinement log for diagnosis from" in caplog.text

@@ -59,6 +59,9 @@ and this active optimization plan.
    - 2026-05-14 slice: checkpoint and heartbeat persistence moved into
      `researchclaw/pipeline/checkpoint.py`, leaving runner-level compatibility
      wrappers for existing callers.
+   - 2026-05-14 slice: experiment diagnosis/repair orchestration moved into
+     `researchclaw/pipeline/experiment_workflow.py`, further narrowing
+     `researchclaw/pipeline/runner.py` to pipeline control flow.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
