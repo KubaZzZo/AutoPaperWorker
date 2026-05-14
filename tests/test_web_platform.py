@@ -437,6 +437,22 @@ class TestMetrics:
         assert len(curve) == 2
         assert curve[1]["loss"] == 0.3
 
+    def test_extract_training_curve_logs_invalid_numeric_values(self, caplog) -> None:
+        from researchclaw.dashboard.metrics import extract_training_curve
+
+        metrics = {
+            "training_log": [
+                {"epoch": "one", "loss": 0.5},
+                {"epoch": 2, "loss": "not-a-number"},
+            ]
+        }
+
+        with caplog.at_level("DEBUG", logger="researchclaw.dashboard.metrics"):
+            curve = extract_training_curve(metrics)
+
+        assert curve == [{"loss": 0.5}, {"epoch": 2.0}]
+        assert "Skipping non-numeric training metric" in caplog.text
+
 
 # ---------------------------------------------------------------------------
 # Voice command tests

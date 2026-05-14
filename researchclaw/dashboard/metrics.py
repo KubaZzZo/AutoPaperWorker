@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def aggregate_metrics(runs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -38,8 +41,13 @@ def extract_training_curve(metrics: dict[str, Any]) -> list[dict[str, float]]:
                     if key in entry:
                         try:
                             point[key] = float(entry[key])
-                        except (ValueError, TypeError):
-                            pass
+                        except (ValueError, TypeError) as exc:
+                            logger.debug(
+                                "Skipping non-numeric training metric %s=%r: %s",
+                                key,
+                                entry[key],
+                                exc,
+                            )
                 if point:
                     curve.append(point)
 
