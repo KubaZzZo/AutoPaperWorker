@@ -266,8 +266,13 @@ def _extract_decision_rationale(run_dir: Path) -> str:
                 raw = data.get("raw_text_excerpt", "")
                 if raw:
                     return _parse_justification_from_excerpt(str(raw))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug(
+                    "Failed to read decision rationale from %s: %s",
+                    decision_file,
+                    exc,
+                    exc_info=True,
+                )
     return ""
 
 
@@ -346,8 +351,14 @@ def _extract_runtime_lessons(
                                 timestamp=timestamp,
                                 run_id=run_id,
                             ))
-                    except (TypeError, ValueError):
-                        pass
+                    except (TypeError, ValueError) as exc:
+                        logger.debug(
+                            "Skipping non-numeric runtime metric %s=%r in %s: %s",
+                            key,
+                            val,
+                            run_file,
+                            exc,
+                        )
 
     return lessons
 

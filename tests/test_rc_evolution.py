@@ -173,6 +173,24 @@ class TestExtractLessons:
         lessons = extract_lessons(results, run_id="test", run_dir=run_dir)
         assert any("statistical rigor" in l.description for l in lessons)
 
+    def test_logs_malformed_decision_rationale_file(
+        self,
+        tmp_path: Path,
+        caplog,
+    ) -> None:
+        run_dir = tmp_path / "run"
+        stage_dir = run_dir / "stage-15"
+        stage_dir.mkdir(parents=True)
+        (stage_dir / "decision_structured.json").write_text(
+            "{not-json",
+            encoding="utf-8",
+        )
+        results = [self._make_result(15, "done", decision="pivot")]
+        with caplog.at_level("DEBUG", logger="researchclaw.evolution"):
+            lessons = extract_lessons(results, run_id="test", run_dir=run_dir)
+        assert len(lessons) == 1
+        assert "Failed to read decision rationale" in caplog.text
+
     def test_extracts_stderr_runtime_lesson(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
         runs_dir = run_dir / "stage-12" / "runs"
@@ -200,6 +218,24 @@ class TestExtractLessons:
         lessons = extract_lessons(results, run_dir=run_dir)
         assert any("accuracy" in l.description and "nan" in l.description.lower()
                     for l in lessons)
+
+    def test_logs_non_numeric_runtime_metric(
+        self,
+        tmp_path: Path,
+        caplog,
+    ) -> None:
+        run_dir = tmp_path / "run"
+        runs_dir = run_dir / "stage-12" / "runs"
+        runs_dir.mkdir(parents=True)
+        (runs_dir / "run-1.json").write_text(
+            json.dumps({"metrics": {"accuracy": "unknown"}}),
+            encoding="utf-8",
+        )
+        results = [self._make_result(12, "done")]
+        with caplog.at_level("DEBUG", logger="researchclaw.evolution"):
+            lessons = extract_lessons(results, run_dir=run_dir)
+        assert lessons == []
+        assert "Skipping non-numeric runtime metric" in caplog.text
 
     def test_no_runtime_lessons_without_run_dir(self) -> None:
         results = [self._make_result(12, "done")]
