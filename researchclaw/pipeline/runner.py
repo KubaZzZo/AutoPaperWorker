@@ -378,6 +378,7 @@ def _execute_parallel_hypothesis_branches(
                 config=config,
                 adapters=adapters,
                 auto_approve_gates=auto_approve_gates,
+                cancel_event=cancel_event,
             )
             branch_results.append({
                 "stage": int(stage),
@@ -910,6 +911,7 @@ def execute_pipeline(
             config=config,
             adapters=adapters,
             auto_approve_gates=auto_approve_gates,
+            cancel_event=cancel_event,
         )
         elapsed = _time.monotonic() - t0
 

@@ -10,7 +10,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Protocol
+from typing import Any, Protocol
 
 from researchclaw.config import SandboxConfig
 from researchclaw.hardware import is_metric_name
@@ -298,7 +298,13 @@ class SandboxResult:
 class SandboxProtocol(Protocol):
     """Structural type for sandbox backends (ExperimentSandbox, DockerSandbox)."""
 
-    def run(self, code: str, *, timeout_sec: int = 300) -> SandboxResult: ...
+    def run(
+        self,
+        code: str,
+        *,
+        timeout_sec: int = 300,
+        cancel_event: Any | None = None,
+    ) -> SandboxResult: ...
 
     def run_project(
         self,
@@ -308,6 +314,7 @@ class SandboxProtocol(Protocol):
         timeout_sec: int = 300,
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult: ...
 
 
@@ -318,7 +325,13 @@ class ExperimentSandbox:
         self.workdir.mkdir(parents=True, exist_ok=True)
         self._run_counter: int = 0
 
-    def run(self, code: str, *, timeout_sec: int = 300) -> SandboxResult:
+    def run(
+        self,
+        code: str,
+        *,
+        timeout_sec: int = 300,
+        cancel_event: Any | None = None,
+    ) -> SandboxResult:
         script_path = self._next_script_path()
         self._write_script(script_path, code)
 
@@ -329,20 +342,30 @@ class ExperimentSandbox:
         result: SandboxResult
         try:
             env = {**os.environ, "PYTHONUNBUFFERED": "1"}
-            completed = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout_sec,
-                cwd=self.workdir,
-                env=env,
-                check=False,
-            )
-            result = self._result_from_completed(
-                completed, elapsed_sec=time.monotonic() - start
-            )
+            if cancel_event is None:
+                completed = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=timeout_sec,
+                    cwd=self.workdir,
+                    env=env,
+                    check=False,
+                )
+                result = self._result_from_completed(
+                    completed, elapsed_sec=time.monotonic() - start
+                )
+            else:
+                result = self._run_cancellable(
+                    command,
+                    cwd=self.workdir,
+                    env=env,
+                    timeout_sec=timeout_sec,
+                    cancel_event=cancel_event,
+                    start=start,
+                )
         except subprocess.TimeoutExpired as exc:
             result = self._result_from_timeout(
                 exc, timeout_sec=timeout_sec, elapsed_sec=time.monotonic() - start
@@ -365,6 +388,7 @@ class ExperimentSandbox:
         timeout_sec: int = 300,
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult:
         """Run a multi-file experiment project in the sandbox.
 
@@ -432,20 +456,30 @@ class ExperimentSandbox:
             env = {**os.environ, "PYTHONUNBUFFERED": "1"}
             if env_overrides:
                 env.update(env_overrides)
-            completed = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout_sec,
-                cwd=sandbox_project,
-                env=env,
-                check=False,
-            )
-            result = self._result_from_completed(
-                completed, elapsed_sec=time.monotonic() - start
-            )
+            if cancel_event is None:
+                completed = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=timeout_sec,
+                    cwd=sandbox_project,
+                    env=env,
+                    check=False,
+                )
+                result = self._result_from_completed(
+                    completed, elapsed_sec=time.monotonic() - start
+                )
+            else:
+                result = self._run_cancellable(
+                    command,
+                    cwd=sandbox_project,
+                    env=env,
+                    timeout_sec=timeout_sec,
+                    cancel_event=cancel_event,
+                    start=start,
+                )
         except subprocess.TimeoutExpired as exc:
             result = self._result_from_timeout(
                 exc, timeout_sec=timeout_sec, elapsed_sec=time.monotonic() - start
@@ -542,6 +576,67 @@ class ExperimentSandbox:
             elapsed_sec=elapsed_sec,
             metrics={},
             has_divergence=False,
+        )
+
+    @staticmethod
+    def _run_cancellable(
+        command: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        timeout_sec: int,
+        cancel_event: Any,
+        start: float,
+    ) -> SandboxResult:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=cwd,
+            env=env,
+        )
+        deadline = start + timeout_sec
+        timed_out = False
+        cancelled = False
+        try:
+            while proc.poll() is None:
+                if cancel_event.is_set():
+                    cancelled = True
+                    logger.warning("Sandbox execution cancelled by user")
+                    proc.terminate()
+                    break
+                if time.monotonic() >= deadline:
+                    timed_out = True
+                    logger.warning("Sandbox execution timed out after %ss", timeout_sec)
+                    proc.terminate()
+                    break
+                time.sleep(0.1)
+            try:
+                stdout, stderr = proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                stdout, stderr = proc.communicate(timeout=5)
+                timed_out = True
+        except Exception:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+            raise
+
+        elapsed = time.monotonic() - start
+        if cancelled:
+            stderr = (stderr or "") + "\nSandbox execution cancelled by user"
+        metrics = parse_metrics(stdout or "")
+        return SandboxResult(
+            returncode=proc.returncode if proc.returncode is not None else -1,
+            stdout=stdout or "",
+            stderr=stderr or "",
+            elapsed_sec=elapsed,
+            metrics={key: value for key, value in metrics.items()},
+            timed_out=timed_out or cancelled,
+            has_divergence=detect_nan_divergence(stdout or "", stderr or "") is not None,
         )
 
     @staticmethod

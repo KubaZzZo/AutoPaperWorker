@@ -16,6 +16,7 @@ import subprocess
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from researchclaw.config import SshRemoteConfig
 from researchclaw.experiment.sandbox import (
@@ -54,7 +55,13 @@ class SshRemoteSandbox:
     # Public API (matches SandboxProtocol)
     # ------------------------------------------------------------------
 
-    def run(self, code: str, *, timeout_sec: int = 300) -> SandboxResult:
+    def run(
+        self,
+        code: str,
+        *,
+        timeout_sec: int = 300,
+        cancel_event: Any | None = None,
+    ) -> SandboxResult:
         """Run a single Python code string on the remote host."""
         self._run_counter += 1
         staging = self.workdir / f"_ssh_run_{self._run_counter}"
@@ -75,6 +82,7 @@ class SshRemoteSandbox:
         timeout_sec: int = 300,
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult:
         """Run a multi-file experiment project on the remote host."""
         self._run_counter += 1

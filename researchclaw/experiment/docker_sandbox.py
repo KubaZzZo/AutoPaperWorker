@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from researchclaw.config import DistributedTrainingConfig, DockerSandboxConfig
 from researchclaw.experiment.sandbox import (
@@ -181,7 +182,13 @@ class DockerSandbox:
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self, code: str, *, timeout_sec: int = 300) -> SandboxResult:
+    def run(
+        self,
+        code: str,
+        *,
+        timeout_sec: int = 300,
+        cancel_event: Any | None = None,
+    ) -> SandboxResult:
         """Run a single Python code string inside a container."""
         self._run_counter += 1
         staging = self.workdir / f"_docker_run_{self._run_counter}"
@@ -193,7 +200,12 @@ class DockerSandbox:
         # Inject experiment harness
         self._inject_harness(staging)
 
-        return self._execute(staging, entry_point="main.py", timeout_sec=timeout_sec)
+        return self._execute(
+            staging,
+            entry_point="main.py",
+            timeout_sec=timeout_sec,
+            cancel_event=cancel_event,
+        )
 
     def run_project(
         self,
@@ -203,6 +215,7 @@ class DockerSandbox:
         timeout_sec: int = 300,
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult:
         """Run a multi-file experiment project inside a container."""
         self._run_counter += 1
@@ -260,6 +273,7 @@ class DockerSandbox:
             timeout_sec=timeout_sec,
             entry_args=args,
             env_overrides=env_overrides,
+            cancel_event=cancel_event,
         )
 
     # ------------------------------------------------------------------
@@ -332,6 +346,7 @@ class DockerSandbox:
         timeout_sec: int,
         entry_args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult:
         """Core execution: single container, three-phase via entrypoint.sh."""
         cfg = self.config
@@ -375,12 +390,20 @@ class DockerSandbox:
         timed_out = False
         try:
             logger.debug("Docker run command: %s", cmd)
-            completed = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=timeout_sec,
-                check=False,
-            )
+            if cancel_event is None:
+                completed = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=timeout_sec,
+                    check=False,
+                )
+            else:
+                completed = self._run_cancellable(
+                    cmd,
+                    timeout_sec=timeout_sec,
+                    cancel_event=cancel_event,
+                    container_name=container_name,
+                )
             stdout = _decode_subprocess_output(completed.stdout)
             stderr = _decode_subprocess_output(completed.stderr)
             returncode = completed.returncode
@@ -580,6 +603,42 @@ class DockerSandbox:
             cmd.extend(entry_args)
 
         return cmd
+
+    def _run_cancellable(
+        self,
+        cmd: list[str],
+        *,
+        timeout_sec: int,
+        cancel_event: Any,
+        container_name: str,
+    ) -> subprocess.CompletedProcess[bytes]:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        deadline = time.monotonic() + timeout_sec
+        timed_out = False
+        cancelled = False
+        while proc.poll() is None:
+            if cancel_event.is_set():
+                cancelled = True
+                logger.warning("Docker sandbox execution cancelled by user")
+                self._kill_container(container_name)
+                break
+            if time.monotonic() >= deadline:
+                timed_out = True
+                logger.warning("Docker sandbox execution timed out after %ss", timeout_sec)
+                self._kill_container(container_name)
+                break
+            time.sleep(0.2)
+        try:
+            stdout, stderr = proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate(timeout=10)
+            timed_out = True
+        if cancelled:
+            stderr = (stderr or b"") + b"\nDocker sandbox execution cancelled by user"
+        if timed_out or cancelled:
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout_sec, output=stdout, stderr=stderr)
+        return subprocess.CompletedProcess(cmd, proc.returncode or -1, stdout, stderr)
 
     def _write_requirements_txt(self, staging_dir: Path) -> None:
         """Generate requirements.txt in staging dir from auto-detected imports

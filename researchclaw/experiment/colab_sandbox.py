@@ -24,6 +24,7 @@ import shutil
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from researchclaw.config import ColabDriveConfig
 from researchclaw.experiment.sandbox import SandboxResult, parse_metrics
@@ -138,7 +139,13 @@ class ColabDriveSandbox:
     # Public API (matches SandboxProtocol)
     # ------------------------------------------------------------------
 
-    def run(self, code: str, *, timeout_sec: int = 300) -> SandboxResult:
+    def run(
+        self,
+        code: str,
+        *,
+        timeout_sec: int = 300,
+        cancel_event: Any | None = None,
+    ) -> SandboxResult:
         self._run_counter += 1
         task_id = f"rc-{uuid.uuid4().hex[:8]}"
 
@@ -160,6 +167,7 @@ class ColabDriveSandbox:
         timeout_sec: int = 300,
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        cancel_event: Any | None = None,
     ) -> SandboxResult:
         # BUG-DA8-07: Validate entry_point (path traversal, etc.) like other backends
         from researchclaw.experiment.sandbox import validate_entry_point

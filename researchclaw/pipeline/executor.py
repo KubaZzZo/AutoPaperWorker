@@ -596,6 +596,7 @@ def execute_stage(
     config: RCConfig,
     adapters: AdapterBundle,
     auto_approve_gates: bool = False,
+    cancel_event: Any | None = None,
 ) -> StageResult:
     """Execute one pipeline stage, validate outputs, and apply gate logic."""
 
@@ -650,11 +651,20 @@ def execute_stage(
         executor = _STAGE_EXECUTORS[stage]
         prompts = PromptManager(config.prompts.custom_file or None)  # type: ignore[attr-defined]
         try:
+            executor_kwargs: dict[str, Any] = {"llm": llm, "prompts": prompts}
+            if stage == Stage.EXPERIMENT_RUN:
+                executor_kwargs["cancel_event"] = cancel_event
             result = executor(
-                stage_dir, run_dir, config, adapters, llm=llm, prompts=prompts
+                stage_dir,
+                run_dir,
+                config,
+                adapters,
+                **executor_kwargs,
             )
         except TypeError as exc:
-            if "unexpected keyword argument 'prompts'" not in str(exc):
+            if (
+                "unexpected keyword argument 'prompts'" not in str(exc)
+            ):
                 raise
             result = executor(stage_dir, run_dir, config, adapters, llm=llm)
     except Exception as exc:  # noqa: BLE001

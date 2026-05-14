@@ -3312,6 +3312,40 @@ class TestExperimentHarness:
         assert "ExperimentHarness" in content
         assert "FAKE HARNESS" not in content
 
+    def test_sandbox_run_can_be_cancelled(self, tmp_path: Path) -> None:
+        import sys
+        import threading
+        import time
+        from researchclaw.config import SandboxConfig
+        from researchclaw.experiment.sandbox import ExperimentSandbox
+
+        config = SandboxConfig(python_path=sys.executable)
+        sandbox = ExperimentSandbox(config, tmp_path / "sandbox")
+        cancel_event = threading.Event()
+
+        def _cancel_soon() -> None:
+            time.sleep(0.3)
+            cancel_event.set()
+
+        thread = threading.Thread(target=_cancel_soon)
+        thread.start()
+        try:
+            result = sandbox.run(
+                "import time\n"
+                "print('best_loss: 0.5', flush=True)\n"
+                "time.sleep(10)\n",
+                timeout_sec=20,
+                cancel_event=cancel_event,
+            )
+        finally:
+            thread.join(timeout=2)
+
+        assert result.timed_out is True
+        assert result.returncode != 0
+        assert "best_loss: 0.5" in result.stdout
+        assert result.metrics["best_loss"] == 0.5
+        assert result.elapsed_sec < 5.0
+
     def test_prompt_mentions_harness(self) -> None:
         from researchclaw.prompts import PromptManager
 
@@ -3574,6 +3608,56 @@ class TestStdoutFailureDetection:
 
 
 class TestExperimentRunFallbackLogging:
+    def test_experiment_run_passes_cancel_event_to_sandbox(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import threading
+        from researchclaw.experiment.sandbox import SandboxResult
+        from researchclaw.pipeline.stage_impls import _execution
+
+        cancel_event = threading.Event()
+        seen: dict[str, object] = {}
+
+        class FakeSandbox:
+            def run_project(self, *_args: object, **kwargs: object) -> SandboxResult:
+                seen["cancel_event"] = kwargs.get("cancel_event")
+                return SandboxResult(
+                    returncode=-1,
+                    stdout="primary_metric: 0.5\n",
+                    stderr="cancelled",
+                    metrics={"primary_metric": 0.5},
+                    elapsed_sec=0.1,
+                    timed_out=True,
+                )
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        exp_dir = run_dir / "stage-10" / "experiment"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "main.py").write_text("print('primary_metric: 0.5')\n", encoding="utf-8")
+        stage_dir = run_dir / "stage-12"
+        stage_dir.mkdir()
+
+        monkeypatch.setattr(
+            "researchclaw.experiment.factory.create_sandbox",
+            lambda *_args, **_kwargs: FakeSandbox(),
+        )
+        monkeypatch.setattr(_execution, "_ensure_sandbox_deps", lambda *_args, **_kwargs: None)
+
+        result = _execution._execute_experiment_run(
+            stage_dir, run_dir, rc_config, adapters, cancel_event=cancel_event
+        )
+
+        assert result.status is StageStatus.DONE
+        assert seen["cancel_event"] is cancel_event
+        payload = json.loads((stage_dir / "runs" / "run-1.json").read_text())
+        assert payload["status"] == "partial"
+        assert payload["timed_out"] is True
+
     def test_logs_unreadable_multifile_main_and_dependency_scan_file(
         self,
         tmp_path: Path,

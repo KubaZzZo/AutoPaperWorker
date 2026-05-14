@@ -109,6 +109,7 @@ def _execute_experiment_run(
     *,
     llm: LLMClient | None = None,
     prompts: PromptManager | None = None,
+    cancel_event: Any | None = None,
 ) -> StageResult:
     from researchclaw.experiment.factory import create_sandbox
     from researchclaw.experiment.runner import ExperimentRunner
@@ -155,11 +156,15 @@ def _execute_experiment_run(
         # Use run_project for multi-file, run for single-file
         if exp_dir_path and Path(exp_dir_path).is_dir():
             result = sandbox.run_project(
-                Path(exp_dir_path), timeout_sec=config.experiment.time_budget_sec
+                Path(exp_dir_path),
+                timeout_sec=config.experiment.time_budget_sec,
+                cancel_event=cancel_event,
             )
         else:
             result = sandbox.run(
-                code_text, timeout_sec=config.experiment.time_budget_sec
+                code_text,
+                timeout_sec=config.experiment.time_budget_sec,
+                cancel_event=cancel_event,
             )
         # Try to read structured results.json from sandbox working dir
         structured_results: dict[str, Any] | None = None
