@@ -350,6 +350,25 @@ class TestEmbeddings:
         backend = provider.backend
         assert backend in ("api", "sentence_transformers", "tfidf")
 
+    def test_sentence_transformers_import_failure_is_logged(
+        self,
+        caplog,
+        monkeypatch,
+    ) -> None:
+        original_import = __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "sentence_transformers":
+                raise ImportError("missing sentence-transformers")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.memory.embeddings"):
+            provider = EmbeddingProvider()
+            assert provider.backend == "tfidf"
+
+        assert "sentence-transformers backend unavailable" in caplog.text
 
 # ── Retriever ────────────────────────────────────────────────────────
 

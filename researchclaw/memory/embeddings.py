@@ -83,8 +83,8 @@ class EmbeddingProvider:
             self._dim = 384
             logger.info("Embedding backend: sentence-transformers (all-MiniLM-L6-v2)")
             return
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug("sentence-transformers backend unavailable: %s", exc)
 
         # 3. Fallback to TF-IDF
         self._backend = "tfidf"
