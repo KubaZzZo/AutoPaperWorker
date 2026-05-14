@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,8 +58,8 @@ def detect_environment() -> EnvironmentReport:
                 capture_output=True, text=True, timeout=5
             )
             report.docker_version = result.stdout.strip()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Failed to probe Docker version: %s", exc, exc_info=True)
 
     # GPU
     try:
@@ -65,8 +68,8 @@ def detect_environment() -> EnvironmentReport:
             report.has_gpu = True
             report.gpu_name = torch.cuda.get_device_name(0)
             report.gpu_vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.debug("Failed to probe torch GPU support: %s", exc)
 
     # LaTeX
     report.has_latex = shutil.which("pdflatex") is not None
@@ -75,8 +78,8 @@ def detect_environment() -> EnvironmentReport:
     try:
         import psutil
         report.available_memory_gb = psutil.virtual_memory().available / (1024**3)
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.debug("Failed to probe available memory: %s", exc)
 
     # Recommendations
     if not report.has_docker:

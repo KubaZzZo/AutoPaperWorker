@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -549,6 +550,42 @@ class TestWizard:
         d = report.to_dict()
         assert "has_gpu" in d
         assert "recommendations" in d
+
+    def test_environment_detection_logs_optional_probe_failures(
+        self,
+        caplog,
+        monkeypatch,
+    ) -> None:
+        from researchclaw.wizard.validator import detect_environment
+
+        original_import = __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name in {"torch", "psutil"}:
+                raise ImportError(f"{name} missing")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "shutil.which",
+            lambda name: "docker" if name == "docker" else None,
+        )
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                RuntimeError("docker broken")
+            ),
+        )
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.wizard.validator"):
+            report = detect_environment()
+
+        assert report.has_python is True
+        assert report.has_docker is True
+        assert "Failed to probe Docker version" in caplog.text
+        assert "Failed to probe torch GPU support" in caplog.text
+        assert "Failed to probe available memory" in caplog.text
 
 
 # ---------------------------------------------------------------------------
