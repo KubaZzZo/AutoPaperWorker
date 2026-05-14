@@ -630,7 +630,7 @@ openclaw_bridge:
 | **WebFetch** | `WebFetchAdapter.fetch(url)` | Fetch web pages during literature search |
 | **Browser** | `BrowserAdapter.open(url)` | Open and interact with web pages |
 
-When OpenClaw provides a capability (e.g., message sending), the adapter consumes it automatically. When running standalone, recording stubs capture all calls for debugging without side effects.
+When OpenClaw provides a capability (e.g., message sending), the adapter consumes it automatically. When running standalone, recording adapters capture calls for debugging without making external network or browser side effects.
 
 This is an **extension point** — you don't need to configure it for basic usage.
 

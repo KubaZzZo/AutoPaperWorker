@@ -51,13 +51,14 @@ def test_recording_sessions_adapter_spawn_records_calls():
     assert adapter.calls == [("worker", ("python", "train.py"))]
 
 
-def test_recording_webfetch_fetch_returns_success_response():
+def test_recording_webfetch_fetch_returns_recording_only_response():
     adapter = RecordingWebFetchAdapter()
     response = adapter.fetch("https://example.com")
     assert isinstance(response, FetchResponse)
     assert response.url == "https://example.com"
-    assert response.status_code == 200
-    assert "stub fetch" in response.text
+    assert response.status_code == 599
+    assert "RecordingWebFetchAdapter" in response.text
+    assert "network request was not made" in response.text
 
 
 def test_recording_browser_open_returns_browser_page():
@@ -65,7 +66,7 @@ def test_recording_browser_open_returns_browser_page():
     page = adapter.open("https://example.com")
     assert isinstance(page, BrowserPage)
     assert page.url == "https://example.com"
-    assert "Stub browser page" in page.title
+    assert "Recording browser page" in page.title
 
 
 def test_fetch_response_dataclass_fields():

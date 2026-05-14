@@ -170,6 +170,8 @@
 
 <span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `CloudExecutor` no longer returns fake `stub_launched`/`stub_unknown` cloud states. It now fails explicitly when no provider backend is configured and supports `host="dry-run"` for deterministic launch/status planning.</span>
 
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Recording web/browser adapters now return explicit recording-only metadata instead of success-looking `stub fetch`/`Stub browser page` content, preventing standalone runs from mistaking captured calls for real external fetches.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:513, 560, 615, 645`
 - **问题:** 以下模块在 try/except 中被动态导入，但对应的 .py 文件 **不存在**:
   - `researchclaw.pipeline.event_log` → 管道事件日志功能静默禁用

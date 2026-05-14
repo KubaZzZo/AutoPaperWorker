@@ -1,4 +1,4 @@
-"""Typed adapter interfaces and deterministic recording stubs."""
+"""Typed adapter interfaces and deterministic recording adapters."""
 
 from __future__ import annotations
 
@@ -85,7 +85,14 @@ class RecordingWebFetchAdapter:
 
     def fetch(self, url: str) -> FetchResponse:
         self.calls.append(url)
-        return FetchResponse(url=url, status_code=200, text=f"stub fetch for {url}")
+        return FetchResponse(
+            url=url,
+            status_code=599,
+            text=(
+                "RecordingWebFetchAdapter captured the fetch request; "
+                "network request was not made."
+            ),
+        )
 
 
 @dataclass
@@ -94,7 +101,7 @@ class RecordingBrowserAdapter:
 
     def open(self, url: str) -> BrowserPage:
         self.calls.append(url)
-        return BrowserPage(url=url, title=f"Stub browser page for {url}")
+        return BrowserPage(url=url, title=f"Recording browser page for {url}")
 
 
 @dataclass
