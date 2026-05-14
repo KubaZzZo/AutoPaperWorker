@@ -322,6 +322,8 @@
 - **建议:** 使用配置的 output dir 或定义为常量。
 
 #### 34. 缺少 `data/__init__.py` 目录的实际用途
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `researchclaw.data` is an active static-data API package, not an empty placeholder: it exposes framework detection/docs loading and seminal-paper lookup backed by YAML/Markdown assets. Added `tests/test_data_assets.py` to lock the public API and asset-backed behavior.</span>
+
 - **文件:** `researchclaw/data/__init__.py`
 - **问题:** data 目录存在但似乎没有实际使用的模块文件。
 - **建议:** 移除空目录或添加实际功能。
