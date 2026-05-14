@@ -279,3 +279,28 @@ class TestSSETransport:
         assert frame.startswith("data: ")
         assert '"jsonrpc": "2.0"' in frame
         assert frame.endswith("\n\n")
+
+
+class TestContext7MCPClient:
+    def test_stop_logs_failed_kill(self, caplog) -> None:
+        from researchclaw.mcp.context7_client import Context7MCPClient
+
+        class BrokenProcess:
+            def terminate(self) -> None:
+                raise OSError("terminate failed")
+
+            def wait(self, timeout: int) -> None:
+                raise AssertionError("wait should not be called")
+
+            def kill(self) -> None:
+                raise OSError("kill failed")
+
+        client = Context7MCPClient()
+        client._proc = BrokenProcess()  # type: ignore[assignment]
+
+        with caplog.at_level("DEBUG", logger="researchclaw.mcp.context7_client"):
+            client.close()
+
+        assert client._proc is None
+        assert "Context7 MCP terminate failed" in caplog.text
+        assert "Context7 MCP kill failed" in caplog.text

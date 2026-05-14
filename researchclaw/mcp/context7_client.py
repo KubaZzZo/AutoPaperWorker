@@ -257,11 +257,16 @@ class Context7MCPClient:
             try:
                 self._proc.terminate()
                 self._proc.wait(timeout=5)
-            except Exception:
+            except Exception as exc:
+                logger.debug("Context7 MCP terminate failed: %s", exc, exc_info=True)
                 try:
                     self._proc.kill()
-                except Exception:
-                    pass
+                except Exception as kill_exc:
+                    logger.debug(
+                        "Context7 MCP kill failed: %s",
+                        kill_exc,
+                        exc_info=True,
+                    )
             self._proc = None
 
     def close(self) -> None:
