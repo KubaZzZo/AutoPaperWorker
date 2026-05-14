@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -90,6 +91,39 @@ class TestMCPServer:
         server = ResearchClawMCPServer()
         result = asyncio.run(server.handle_tool_call("search_literature", {"query": "transformers"}))
         assert result["success"] is True
+
+    def test_handle_search_literature_uses_literature_module(self, monkeypatch) -> None:
+        from researchclaw.literature.models import Author, Paper
+
+        def fake_search(query: str, limit: int = 10) -> list[Paper]:
+            assert query == "transformers"
+            assert limit == 2
+            return [
+                Paper(
+                    paper_id="paper-1",
+                    title="Attention Is All You Need",
+                    authors=(Author("Vaswani"),),
+                    year=2017,
+                    url="https://example.test/attention",
+                    source="test",
+                )
+            ]
+
+        monkeypatch.setattr("researchclaw.literature.search.search_papers", fake_search)
+
+        server = ResearchClawMCPServer()
+        result = asyncio.run(
+            server.handle_tool_call(
+                "search_literature",
+                {"query": "transformers", "limit": 2},
+            )
+        )
+
+        assert result["success"] is True
+        assert result["query"] == "transformers"
+        assert result["count"] == 1
+        assert result["results"][0]["title"] == "Attention Is All You Need"
+        assert "stub" not in json.dumps(result).lower()
 
     def test_handle_review_paper(self) -> None:
         server = ResearchClawMCPServer()

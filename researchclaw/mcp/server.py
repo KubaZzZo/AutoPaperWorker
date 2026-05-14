@@ -102,12 +102,21 @@ class ResearchClawMCPServer:
         return {"success": False, "error": "No results found"}
 
     async def _handle_search_literature(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Search literature (stub — real implementation would use literature/ module)."""
+        """Search literature through the shared literature module."""
+        from researchclaw.literature.search import search_papers
+
+        query = str(args["query"])
+        limit = max(1, min(int(args.get("limit") or 10), 50))
+        papers = search_papers(query, limit=limit)
+        results = [
+            paper.to_dict() if hasattr(paper, "to_dict") else dict(paper)
+            for paper in papers
+        ]
         return {
             "success": True,
-            "query": args["query"],
-            "results": [],
-            "message": "Literature search stub",
+            "query": query,
+            "count": len(results),
+            "results": results,
         }
 
     async def _handle_review_paper(self, args: dict[str, Any]) -> dict[str, Any]:

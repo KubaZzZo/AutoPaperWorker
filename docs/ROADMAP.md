@@ -12,6 +12,7 @@ reproducibility updates were integrated.
 | F-01 Static framework docs | Integrated | `researchclaw/data/framework_docs/`; `load_framework_docs()` |
 | F-01 live framework docs | Integrated, opt-in | `researchclaw/literature/framework_docs.py`; `experiment.framework_doc_fetch` |
 | F-01 Context7 MCP fallback | Integrated, optional | `researchclaw/mcp/context7_client.py` |
+| MCP literature search tool | Integrated | `search_literature` now calls `researchclaw.literature.search_papers()` and returns serialized paper metadata instead of a fixed stub response |
 | P4.1 Benchmark discovery | Integrated | `researchclaw/agents/benchmark_agent/`; Stage 9 benchmark plan |
 | P4.1 non-ML benchmark support | Integrated | `researchclaw/data/benchmark_knowledge.yaml`; domain-aware survey/acquire paths |
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |
