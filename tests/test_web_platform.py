@@ -60,6 +60,8 @@ class TestServerConfig:
         assert cfg.auth_token
         assert len(cfg.auth_token) >= 32
         assert cfg.voice_enabled is False
+        assert cfg.rate_limit_requests == 30
+        assert cfg.rate_limit_window_sec == 60
 
     def test_dashboard_config_defaults(self) -> None:
         from researchclaw.config import DashboardConfig
@@ -77,11 +79,15 @@ class TestServerConfig:
             "host": "127.0.0.1",
             "port": 9090,
             "auth_token": "secret123",
+            "rate_limit_requests": 2,
+            "rate_limit_window_sec": 10,
         })
         assert cfg.enabled is True
         assert cfg.host == "127.0.0.1"
         assert cfg.port == 9090
         assert cfg.auth_token == "secret123"
+        assert cfg.rate_limit_requests == 2
+        assert cfg.rate_limit_window_sec == 10
 
     def test_parse_server_config_empty(self) -> None:
         from researchclaw.config import _parse_server_config
@@ -803,3 +809,37 @@ class TestFastAPIApp:
                 headers={"Authorization": f"Bearer {token}"},
             )
             assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_pipeline_start_is_rate_limited(self, _skip_if_no_fastapi: None) -> None:
+        from httpx import AsyncClient, ASGITransport
+        from fastapi import FastAPI
+        from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
+
+        app = FastAPI()
+        app.add_middleware(
+            RateLimitMiddleware,
+            max_requests=1,
+            window_seconds=60,
+        )
+
+        @app.post("/api/pipeline/start")
+        async def _start() -> dict[str, str]:
+            return {"status": "ok"}
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.post(
+                "/api/pipeline/start",
+                json={"topic": "first"},
+            )
+            second = await ac.post(
+                "/api/pipeline/start",
+                json={"topic": "second"},
+            )
+
+        assert first.status_code == 200
+        assert second.status_code == 429
+        assert second.json()["detail"] == "Rate limit exceeded"
+        assert 1 <= int(second.headers["retry-after"]) <= 60

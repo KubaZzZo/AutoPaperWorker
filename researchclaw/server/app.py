@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from researchclaw import __version__
 from researchclaw.config import RCConfig
 from researchclaw.server.middleware.auth import TokenAuthMiddleware
+from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 from researchclaw.server.websocket.manager import ConnectionManager
 from researchclaw.server.websocket.events import Event, EventType
 
@@ -58,6 +59,13 @@ def create_app(
 
     # --- Token auth ---
     app.add_middleware(TokenAuthMiddleware, token=config.server.auth_token)
+
+    # --- Rate limiting for state-changing control endpoints ---
+    app.add_middleware(
+        RateLimitMiddleware,
+        max_requests=config.server.rate_limit_requests,
+        window_seconds=config.server.rate_limit_window_sec,
+    )
 
     # --- WebSocket manager ---
     event_manager = ConnectionManager()

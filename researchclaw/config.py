@@ -623,6 +623,8 @@ class ServerConfig:
     voice_enabled: bool = False
     whisper_model: str = "whisper-1"
     whisper_api_url: str = ""  # empty = use OpenAI default
+    rate_limit_requests: int = 30
+    rate_limit_window_sec: int = 60
 
 
 @dataclass(frozen=True)
@@ -1437,6 +1439,8 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
         voice_enabled=bool(data.get("voice_enabled", False)),
         whisper_model=data.get("whisper_model", "whisper-1"),
         whisper_api_url=data.get("whisper_api_url", ""),
+        rate_limit_requests=int(data.get("rate_limit_requests", 30)),
+        rate_limit_window_sec=int(data.get("rate_limit_window_sec", 60)),
     )
 
 

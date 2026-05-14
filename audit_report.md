@@ -466,6 +466,8 @@
 - **建议:** 添加可插拔的状态后端 (Redis, SQLite)。
 
 #### 52. 缺少 API 速率限制
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Added a dependency-free in-memory `RateLimitMiddleware` for state-changing API control endpoints, currently protecting `POST /api/pipeline/start` with per-client sliding-window limits and `Retry-After` responses. `ServerConfig` exposes `rate_limit_requests` and `rate_limit_window_sec`, `create_app()` wires the middleware, and Web platform tests verify 429 behavior.</span>
+
 - **文件:** `researchclaw/server/app.py`
 - **问题:** FastAPI 应用未配置速率限制，单个客户端可以频繁调用 `/api/pipeline/start`。
 - **建议:** 添加 `slowapi` 或类似中间件。
