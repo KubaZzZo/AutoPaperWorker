@@ -96,6 +96,24 @@ def test_executor_map_has_23_entries() -> None:
     assert len(executor_map) == 23
 
 
+def test_stage_impls_have_no_pure_except_pass_handlers() -> None:
+    import ast
+
+    stage_impls_dir = Path("researchclaw/pipeline/stage_impls")
+    offenders: list[str] = []
+    for path in sorted(stage_impls_dir.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.ExceptHandler)
+                and len(node.body) == 1
+                and isinstance(node.body[0], ast.Pass)
+            ):
+                offenders.append(f"{path}:{node.lineno}")
+
+    assert offenders == []
+
+
 def test_every_stage_member_has_matching_executor() -> None:
     executor_map = getattr(rc_executor, "EXECUTOR_MAP", rc_executor._STAGE_EXECUTORS)
     assert set(executor_map.keys()) == set(Stage)

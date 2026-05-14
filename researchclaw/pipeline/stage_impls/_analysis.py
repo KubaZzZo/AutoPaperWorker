@@ -106,7 +106,7 @@ def _execute_result_analysis(
                             try:
                                 _existing_pm = float(_v["mean"] if isinstance(_v, dict) else _v)
                             except (TypeError, ValueError, KeyError):
-                                pass
+                                logger.debug("Stage 14: Could not coerce existing metric %s", _k, exc_info=True)
                             break
                     else:
                         for _k, _v in _ms_items:
@@ -114,7 +114,7 @@ def _execute_result_analysis(
                                 try:
                                     _existing_pm = float(_v["mean"] if isinstance(_v, dict) else _v)
                                 except (TypeError, ValueError, KeyError):
-                                    pass
+                                    logger.debug("Stage 14: Could not coerce fallback existing metric %s", _k, exc_info=True)
                                 break
                     _refine_items = list(_refine_metrics.items())
                     for _k, _v in _refine_items:
@@ -122,7 +122,7 @@ def _execute_result_analysis(
                             try:
                                 _refine_pm = float(_v)
                             except (TypeError, ValueError):
-                                pass
+                                logger.debug("Stage 14: Could not coerce refinement metric %s", _k, exc_info=True)
                             break
                     else:
                         for _k, _v in _refine_items:
@@ -130,7 +130,7 @@ def _execute_result_analysis(
                                 try:
                                     _refine_pm = float(_v)
                                 except (TypeError, ValueError):
-                                    pass
+                                    logger.debug("Stage 14: Could not coerce fallback refinement metric %s", _k, exc_info=True)
                                 break
                     if _existing_pm is None:
                         _refine_is_better = True  # no existing data
@@ -157,7 +157,7 @@ def _execute_result_analysis(
                                 "count": 1,
                             }
                         except (ValueError, TypeError):
-                            pass
+                            logger.debug("Stage 14: Skipping non-numeric refinement summary metric %s", _mk, exc_info=True)
                     if _new_summary:
                         exp_data["metrics_summary"] = _new_summary
                         # Also update best_run with refinement data
@@ -227,7 +227,7 @@ def _execute_result_analysis(
                     if _sbx_stdout:
                         _all_paired.extend(_extract_paired(_sbx_stdout))
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("R19-2: Failed to parse refinement stdout comparisons", exc_info=True)
 
     # --- R19-3: Build structured condition_summaries from metrics ---
     _condition_summaries: dict[str, dict[str, Any]] = {}
@@ -247,7 +247,7 @@ def _execute_result_analysis(
             try:
                 _condition_summaries[cond]["metrics"][metric_name] = float(_mv)
             except (ValueError, TypeError):
-                pass
+                logger.debug("Stage 14: Skipping non-numeric condition metric %s/%s", cond, metric_name, exc_info=True)
 
     # BUG-09 fix: If no condition summaries were built (metrics don't use
     # condition/metric format), try to extract from metrics_summary or
@@ -271,7 +271,7 @@ def _execute_result_analysis(
                     if _val is not None:
                         _condition_summaries[cond]["metrics"][metric_name] = _val
                 except (ValueError, TypeError, KeyError):
-                    pass
+                    logger.debug("Stage 14: Skipping malformed metrics_summary value %s", _mk, exc_info=True)
     if not _condition_summaries:
         # Last resort: build from structured_results condition keys
         _sr = exp_data.get("structured_results", {})
@@ -283,7 +283,7 @@ def _execute_result_analysis(
                         try:
                             _condition_summaries[_sk]["metrics"][_smk] = float(_smv)
                         except (ValueError, TypeError):
-                            pass
+                            logger.debug("Stage 14: Skipping non-numeric structured result %s/%s", _sk, _smk, exc_info=True)
 
     # R33: Build per-seed data structure (needed for CIs and paired tests below)
     _seed_data: dict[str, dict[int, float]] = {}  # {condition: {seed: value}}
@@ -297,7 +297,7 @@ def _execute_result_analysis(
                 val = float(_mv)
                 _seed_data.setdefault(cond, {})[seed_id] = val
             except (ValueError, TypeError):
-                pass
+                logger.debug("Stage 14: Skipping malformed seed metric key=%s value=%r", _mk, _mv, exc_info=True)
 
     # Enrich condition summaries with seed counts, success rates, and CIs
     for _ck, _cv in _condition_summaries.items():
@@ -307,7 +307,7 @@ def _execute_result_analysis(
             try:
                 _cv["success_rate"] = float(_best_metrics[sr_key])
             except (ValueError, TypeError):
-                pass
+                logger.debug("Stage 14: Skipping non-numeric success_rate for %s", _ck, exc_info=True)
         # Count seed-level entries to estimate n_seeds
         _seed_count = 0
         for _mk in _best_metrics:
@@ -819,7 +819,7 @@ def _execute_research_decision(
                 )
                 logger.warning("P6: Degenerate refine cycle detected, injecting PROCEED hint")
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("P6: Failed to parse refinement_log for degenerate cycle check", exc_info=True)
 
     # Phase 2: Inject experiment diagnosis into decision prompt
     _diagnosis_hint = ""
@@ -848,7 +848,7 @@ def _execute_research_decision(
                     _mode, _deficiency_types,
                 )
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("Stage 15: Failed to parse experiment diagnosis", exc_info=True)
 
     # Improvement C: Check ablation quality — if >50% trivial, push REFINE
     _ablation_refine_hint = ""
@@ -878,7 +878,7 @@ def _execute_research_decision(
                     )
                     logger.warning("C: %d/%d ablations trivial → recommending REFINE", _trivial_count, _total_abl)
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 15: Ablation quality assessment skipped", exc_info=True)
 
     if llm is not None:
         _pm = prompts or PromptManager()

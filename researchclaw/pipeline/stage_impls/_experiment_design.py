@@ -131,7 +131,7 @@ def _execute_experiment_design(
             try:
                 _dg_block += _pm.block("rl_step_guidance")
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Stage 09: rl_step_guidance prompt block unavailable", exc_info=True)
             # Improvement G: For RL with short budget, constrain to classic control
             if config.experiment.time_budget_sec <= 3600:
                 _dg_block += (
@@ -157,7 +157,7 @@ def _execute_experiment_design(
                 if _fw_docs:
                     _dg_block += _fw_docs
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 09: Framework doc injection skipped", exc_info=True)
         # Improvement A: Compute hardware profile + per-condition budget
         _hw_profile_str = (
             "- GPU: NVIDIA RTX 6000 Ada (49140 MB VRAM)\n"
@@ -199,7 +199,7 @@ def _execute_experiment_design(
             try:
                 parsed = yaml.safe_load(resp.content)
             except yaml.YAMLError:
-                pass
+                logger.debug("Stage 09: Whole-response YAML parse failed", exc_info=True)
         # Last fallback: try to find any YAML-like dict in the response
         if not isinstance(parsed, dict):
             import re as _re_yaml
@@ -224,7 +224,7 @@ def _execute_experiment_design(
                 try:
                     parsed = yaml.safe_load("\n".join(_yaml_lines))
                 except yaml.YAMLError:
-                    pass
+                    logger.debug("Stage 09: Extracted YAML-like lines parse failed", exc_info=True)
         if isinstance(parsed, dict):
             plan = parsed
         else:
@@ -258,7 +258,7 @@ def _execute_experiment_design(
                         plan = _retry_parsed
                         logger.info("Stage 09: Strict YAML retry succeeded.")
                 except yaml.YAMLError:
-                    pass
+                    logger.debug("Stage 09: Strict YAML retry parse failed", exc_info=True)
 
     # BUG-12: Fallback 4 — extract method/baseline names from Stage 8 hypotheses
     if plan is None:
@@ -420,7 +420,7 @@ def _execute_experiment_design(
                 encoding="utf-8",
             )
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 09: Failed to write benchmark_plan.json", exc_info=True)
 
     plan.setdefault("topic", config.research.topic)
 
@@ -495,7 +495,7 @@ def _execute_experiment_design(
                     if isinstance(parsed_update, dict):
                         plan = parsed_update
                 except yaml.YAMLError:
-                    pass
+                    logger.debug("Stage 09: HITL guidance YAML update parse failed", exc_info=True)
         except Exception:
             logger.debug("HITL guidance application failed (non-blocking)")
 
@@ -520,7 +520,7 @@ def _execute_experiment_design(
                 nav.metrics = [str(m) for m in metrics]
         nav.save()
     except Exception:
-        pass
+        logger.debug("Stage 09: Baseline Navigator persistence failed", exc_info=True)
 
     (stage_dir / "exp_plan.yaml").write_text(
         yaml.dump(plan, default_flow_style=False, allow_unicode=True),

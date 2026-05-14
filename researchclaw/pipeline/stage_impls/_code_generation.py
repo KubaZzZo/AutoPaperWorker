@@ -158,33 +158,33 @@ def _execute_code_generation(
             try:
                 extra_guidance += _pm.block("network_disabled_guidance")
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Stage 10: network_disabled_guidance prompt block unavailable", exc_info=True)
         elif _net_policy == "full":
             try:
                 extra_guidance += _pm.block("dataset_guidance")
                 extra_guidance += _pm.block("network_full_guidance")
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Stage 10: full-network prompt guidance unavailable", exc_info=True)
         else:
             # setup_only or pip_only — existing behavior
             try:
                 extra_guidance += _pm.block("dataset_guidance")
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Stage 10: dataset_guidance prompt block unavailable", exc_info=True)
             if config.experiment.mode == "docker":
                 try:
                     extra_guidance += _pm.block("setup_script_guidance")
                 except Exception:  # noqa: BLE001
-                    pass
+                    logger.debug("Stage 10: setup_script_guidance prompt block unavailable", exc_info=True)
         try:
             extra_guidance += _pm.block("hp_reporting")
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 10: hp_reporting prompt block unavailable", exc_info=True)
         # I-06: Multi-seed enforcement for all experiments
         try:
             extra_guidance += _pm.block("multi_seed_enforcement")
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 10: multi_seed_enforcement prompt block unavailable", exc_info=True)
 
     # --- BA: Inject BenchmarkAgent plan from Stage 9 ---
     _bp_path = None
@@ -245,7 +245,7 @@ def _execute_code_generation(
         try:
             extra_guidance += _pm.block("rl_step_guidance")
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 10: rl_step_guidance prompt block unavailable", exc_info=True)
 
     # --- F-01: Framework API doc injection (auto-detected) ---
     try:
@@ -267,11 +267,11 @@ def _execute_code_generation(
         try:
             extra_guidance += _pm.block("llm_training_guidance")
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 10: llm_training_guidance prompt block unavailable", exc_info=True)
         try:
             extra_guidance += _pm.block("llm_eval_guidance")
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("Stage 10: llm_eval_guidance prompt block unavailable", exc_info=True)
         # P2.3: Warn if time budget is too short for LLM training
         if time_budget_sec < 3600:
             extra_guidance += (

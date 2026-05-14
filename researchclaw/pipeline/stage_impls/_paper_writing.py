@@ -89,7 +89,7 @@ def _execute_paper_outline(
                     f"\nYou MUST address these reviewer concerns in this revision.\n"
                 )
         except (json.JSONDecodeError, KeyError):
-            pass
+            logger.debug("Stage 16: Failed to parse iteration feedback context", exc_info=True)
 
     if llm is not None:
         _pm = prompts or PromptManager()
@@ -198,7 +198,7 @@ def _collect_raw_experiment_metrics(run_dir: Path) -> tuple[str, bool]:
                                 continue  # skip infrastructure lines
                             metric_lines.append(f"  {line}")
                         except (ValueError, TypeError, IndexError):
-                            pass
+                            logger.debug("Stage 17: Skipping non-metric stdout line %r", line, exc_info=True)
 
     # R19-4 + R23-1: Collect metrics from refinement_log.json (Stage 13).
     # If refinement has richer data than Stage 12 runs/, REPLACE Stage 12 data
@@ -231,7 +231,7 @@ def _collect_raw_experiment_metrics(run_dir: Path) -> tuple[str, bool]:
                             try:
                                 _sbx_primary = float(_sbx_metrics[_pm_key])
                             except (ValueError, TypeError):
-                                pass
+                                logger.debug("Stage 17: Could not coerce refinement primary metric %s", _pm_key, exc_info=True)
                             break
                     # Prefer higher primary metric; fall back to count
                     _dominated = False
@@ -246,7 +246,7 @@ def _collect_raw_experiment_metrics(run_dir: Path) -> tuple[str, bool]:
                         _best_refine_stdout = _sbx.get("stdout", "")
                         _best_refine_primary = _sbx_primary
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("Stage 17: Failed to parse refinement log %s", _rl_path, exc_info=True)
 
     if _best_refine_metrics and len(_best_refine_metrics) > len(metric_lines) // 2:
         # Refinement has richer data — REPLACE Stage 12 data to avoid conflicts
@@ -266,7 +266,7 @@ def _collect_raw_experiment_metrics(run_dir: Path) -> tuple[str, bool]:
                         float(parts[1].strip())
                         metric_lines.append(f"  {_line}")
                     except (ValueError, TypeError, IndexError):
-                        pass
+                        logger.debug("Stage 17: Skipping non-metric refinement stdout line %r", _line, exc_info=True)
     elif _best_refine_metrics:
         # Refinement has some data but not richer — append to existing
         run_count += 1
@@ -1170,7 +1170,7 @@ def _detect_result_contradictions(
                 try:
                     means[name] = float(mv)
                 except (TypeError, ValueError):
-                    pass
+                    logger.debug("P10: Skipping non-numeric condition mean for %s/%s", name, mk, exc_info=True)
                 break
 
     if len(means) < 2:
@@ -1259,7 +1259,7 @@ def _execute_paper_draft(
                 exp_summary_text = _text
                 logger.info("BUG-222: Using promoted experiment_summary_best.json")
         except OSError:
-            pass
+            logger.debug("Stage 17: Failed to read promoted experiment_summary_best.json", exc_info=True)
     if exp_summary_text is None:
         # Fallback: pick richest stage-14* (pre-BUG-222 behavior)
         _best_metric_count = 0
@@ -1295,7 +1295,7 @@ def _execute_paper_draft(
         try:
             _refinement_log_for_vr = json.loads(_rl_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug("Stage 17: Failed to parse refinement log for VerifiedRegistry: %s", _rl_path, exc_info=True)
     if exp_summary_text:
         exp_summary = _safe_json_loads(exp_summary_text, {})
         # Phase 1: Build VerifiedRegistry from experiment data
@@ -1803,7 +1803,7 @@ def _execute_paper_draft(
                     if len(_desc_parts) > 1:
                         _fa_descriptions = "\n".join(_desc_parts)
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.debug("Stage 17: Failed to parse figure plan %s", _fp_path, exc_info=True)
             if _fa_descriptions:
                 break
         if _fa_descriptions:
@@ -2100,7 +2100,7 @@ Generated: {_utcnow_iso()}
                     )
                     draft_path.write_text(resp.content, encoding="utf-8")
         except Exception:
-            logger.debug("HITL guidance application to draft failed (non-blocking)")
+            logger.debug("HITL guidance application to draft failed (non-blocking)", exc_info=True)
 
     # --- HITL: Paper Co-Writer data persistence ---
     try:
@@ -2121,7 +2121,7 @@ Generated: {_utcnow_iso()}
                     section.status = "ai_draft"
         writer.save()
     except Exception:
-        pass
+        logger.debug("Stage 17: Paper Co-Writer persistence failed", exc_info=True)
 
     return StageResult(
         stage=Stage.PAPER_DRAFT,
