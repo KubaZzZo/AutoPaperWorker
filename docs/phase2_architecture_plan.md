@@ -28,7 +28,7 @@ the phase explicitly says otherwise.
    - Strategy: split conversion helpers by responsibility after adding tests
      around the public converter behavior.
 
-3. **Run-state backend interface** - in progress
+3. **Run-state backend interface** - implemented 2026-05-15
    - Target: progress and dashboard run-state paths.
    - Why third: this is feature-level architecture work, not a pure refactor.
    - Strategy: introduce a small backend interface with the existing JSON
@@ -131,7 +131,7 @@ small package. This phase should not start until Phase 2.1 is committed.
 
 ## Phase 2.3: Run-State Backend Interface
 
-Status: In progress. First JSON backend slice implemented 2026-05-15.
+Status: Implemented 2026-05-15.
 
 ### Planned Direction
 
@@ -147,13 +147,20 @@ tests proving compatibility with dashboard collection.
   while preserving the existing `progress.json` file contract.
 - 2026-05-15: `DashboardCollector` reads progress through the run-state backend,
   so malformed progress snapshot logging is now owned by `researchclaw.run_state`.
+- 2026-05-15: added `SQLiteRunStateBackend`, which stores progress snapshots in
+  a local SQLite database through the same `RunStateBackend` interface.
+- 2026-05-15: added compatibility tests proving JSON and SQLite are independent
+  adapters and that `DashboardCollector` can read from an injected SQLite
+  backend.
 
-### Remaining Slices
+### Acceptance Criteria
 
-- Add an injectable SQLite backend that implements the same `RunStateBackend`
-  interface.
-- Add migration/compatibility tests proving JSON progress files remain readable
-  while SQLite state can serve dashboard collection.
+- [x] Default pipeline progress writing still produces `progress.json`.
+- [x] Dashboard collection still reads existing JSON progress snapshots.
+- [x] SQLite backend can round-trip progress payloads without writing
+  `progress.json`.
+- [x] Dashboard collection can use an injected SQLite backend.
+- [x] JSON and SQLite backends can coexist for the same run directory.
 
 ## Phase 2.4: Coverage Expansion
 

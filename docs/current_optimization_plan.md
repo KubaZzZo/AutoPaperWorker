@@ -94,6 +94,9 @@ and this active optimization plan.
      `RunStateBackend` interface and JSON backend. Pipeline progress writing
      and dashboard progress reading now go through this backend while
      preserving the existing `progress.json` contract.
+   - 2026-05-15 slice: added `SQLiteRunStateBackend` as an injectable
+     run-state adapter. JSON remains the default backend, and dashboard
+     collection can read from SQLite when explicitly provided.
 
 5. **Coverage expansion**
    - Add tests for every optimization slice.
