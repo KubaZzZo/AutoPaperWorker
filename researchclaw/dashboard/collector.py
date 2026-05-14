@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from researchclaw.run_state import DEFAULT_RUN_STATE_BACKEND, RunStateBackend
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,9 +70,11 @@ class DashboardCollector:
         self,
         artifacts_dir: str = "artifacts",
         max_log_lines: int = 200,
+        run_state_backend: RunStateBackend = DEFAULT_RUN_STATE_BACKEND,
     ) -> None:
         self._artifacts = Path(artifacts_dir)
         self._max_log_lines = max_log_lines
+        self._run_state_backend = run_state_backend
 
     def collect_all(self) -> list[RunSnapshot]:
         """Scan all rc-* directories and return snapshots."""
@@ -95,39 +99,28 @@ class DashboardCollector:
         snap = RunSnapshot(run_id=run_dir.name, path=str(run_dir))
 
         # --- progress.json: canonical structured monitor snapshot ---
-        progress_path = run_dir / "progress.json"
-        if progress_path.exists():
-            try:
-                with progress_path.open(encoding="utf-8") as f:
-                    progress = json.load(f)
-                if isinstance(progress, dict):
-                    snap.run_id = str(progress.get("run_id") or snap.run_id)
-                    snap.status = str(progress.get("status") or snap.status)
-                    snap.current_stage = int(progress.get("current_stage") or 0)
-                    snap.current_stage_name = str(
-                        progress.get("current_stage_name") or ""
-                    )
-                    snap.total_stages = int(
-                        progress.get("total_stages") or snap.total_stages
-                    )
-                    snap.elapsed_sec = float(progress.get("elapsed_sec") or 0.0)
-                    snap.stages_done = int(progress.get("stages_done") or 0)
-                    snap.stages_failed = int(progress.get("stages_failed") or 0)
-                    snap.stages_paused = int(progress.get("stages_paused") or 0)
-                    snap.stages_blocked = int(progress.get("stages_blocked") or 0)
-                    snap.cost_usd = float(progress.get("cost_usd") or 0.0)
-                    experiment_runs = progress.get("experiment_runs")
-                    if isinstance(experiment_runs, list):
-                        snap.experiment_runs = [
-                            item for item in experiment_runs if isinstance(item, dict)
-                        ]
-            except Exception as exc:
-                logger.debug(
-                    "Failed to read progress snapshot %s: %s",
-                    progress_path,
-                    exc,
-                    exc_info=True,
-                )
+        progress = self._run_state_backend.read_progress(run_dir)
+        if progress is not None:
+            snap.run_id = str(progress.get("run_id") or snap.run_id)
+            snap.status = str(progress.get("status") or snap.status)
+            snap.current_stage = int(progress.get("current_stage") or 0)
+            snap.current_stage_name = str(
+                progress.get("current_stage_name") or ""
+            )
+            snap.total_stages = int(
+                progress.get("total_stages") or snap.total_stages
+            )
+            snap.elapsed_sec = float(progress.get("elapsed_sec") or 0.0)
+            snap.stages_done = int(progress.get("stages_done") or 0)
+            snap.stages_failed = int(progress.get("stages_failed") or 0)
+            snap.stages_paused = int(progress.get("stages_paused") or 0)
+            snap.stages_blocked = int(progress.get("stages_blocked") or 0)
+            snap.cost_usd = float(progress.get("cost_usd") or 0.0)
+            experiment_runs = progress.get("experiment_runs")
+            if isinstance(experiment_runs, list):
+                snap.experiment_runs = [
+                    item for item in experiment_runs if isinstance(item, dict)
+                ]
 
         # --- checkpoint.json ---
         ckpt_path = run_dir / "checkpoint.json"

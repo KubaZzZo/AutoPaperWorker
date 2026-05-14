@@ -290,7 +290,7 @@ def test_dashboard_collector_logs_malformed_progress_snapshot(
     run_dir.mkdir()
     (run_dir / "progress.json").write_text("{not-json", encoding="utf-8")
 
-    with caplog.at_level("DEBUG", logger="researchclaw.dashboard.collector"):
+    with caplog.at_level("DEBUG", logger="researchclaw.run_state"):
         snap = DashboardCollector().collect_run(run_dir)
 
     assert snap.run_id == "rc-bad-progress"

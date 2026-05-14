@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from researchclaw.pipeline.stages import Stage, StageStatus
+from researchclaw.run_state import DEFAULT_RUN_STATE_BACKEND, RunStateBackend
 
 if TYPE_CHECKING:
     from researchclaw.pipeline.executor import StageResult
@@ -102,6 +103,7 @@ def write_progress_snapshot(
     total_stages: int,
     status: str = "running",
     elapsed_sec: float | None = None,
+    run_state_backend: RunStateBackend = DEFAULT_RUN_STATE_BACKEND,
 ) -> None:
     """Write a single-file progress snapshot for dashboards and monitors."""
     cost_summary: dict[str, object] | None = None
@@ -154,7 +156,4 @@ def write_progress_snapshot(
             "error": last.error,
             "artifacts": list(last.artifacts),
         }
-    (run_dir / "progress.json").write_text(
-        json.dumps(payload, indent=2),
-        encoding="utf-8",
-    )
+    run_state_backend.write_progress(run_dir, payload)

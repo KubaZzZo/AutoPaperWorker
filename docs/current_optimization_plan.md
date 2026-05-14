@@ -90,6 +90,10 @@ and this active optimization plan.
      ideal for high-throughput multi-run monitoring.
    - A later slice should introduce a pluggable run-state backend such as
      SQLite first, with Redis left optional.
+   - 2026-05-15 slice: introduced `researchclaw/run_state.py` with a
+     `RunStateBackend` interface and JSON backend. Pipeline progress writing
+     and dashboard progress reading now go through this backend while
+     preserving the existing `progress.json` contract.
 
 5. **Coverage expansion**
    - Add tests for every optimization slice.

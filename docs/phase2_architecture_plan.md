@@ -28,7 +28,7 @@ the phase explicitly says otherwise.
    - Strategy: split conversion helpers by responsibility after adding tests
      around the public converter behavior.
 
-3. **Run-state backend interface**
+3. **Run-state backend interface** - in progress
    - Target: progress and dashboard run-state paths.
    - Why third: this is feature-level architecture work, not a pure refactor.
    - Strategy: introduce a small backend interface with the existing JSON
@@ -131,11 +131,29 @@ small package. This phase should not start until Phase 2.1 is committed.
 
 ## Phase 2.3: Run-State Backend Interface
 
+Status: In progress. First JSON backend slice implemented 2026-05-15.
+
 ### Planned Direction
 
 Create a run-state interface that preserves the current JSON progress behavior
 as the default adapter. SQLite should be added only after the JSON adapter has
 tests proving compatibility with dashboard collection.
+
+### Completed Slices
+
+- 2026-05-15: introduced `researchclaw/run_state.py` with
+  `RunStateBackend` and `JsonRunStateBackend`.
+- 2026-05-15: `write_progress_snapshot()` writes through the run-state backend
+  while preserving the existing `progress.json` file contract.
+- 2026-05-15: `DashboardCollector` reads progress through the run-state backend,
+  so malformed progress snapshot logging is now owned by `researchclaw.run_state`.
+
+### Remaining Slices
+
+- Add an injectable SQLite backend that implements the same `RunStateBackend`
+  interface.
+- Add migration/compatibility tests proving JSON progress files remain readable
+  while SQLite state can serve dashboard collection.
 
 ## Phase 2.4: Coverage Expansion
 
