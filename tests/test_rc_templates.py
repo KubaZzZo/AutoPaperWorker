@@ -555,6 +555,16 @@ class TestMarkdownToLatex:
         assert r"\begin{tabular}" in tex
         assert r"\textbf{Model}" in tex
 
+    def test_final_output_normalizes_problematic_unicode(self) -> None:
+        md = "# Abstract\nFullwidth Ａ and narrow\u202fspace.\n# Results\nLRM\u200emark"
+        tex = markdown_to_latex(md, NEURIPS_2024, title="Title Ａ")
+        assert "Ａ" not in tex
+        assert "\u202f" not in tex
+        assert "\u200e" not in tex
+        assert "A" in tex
+        assert "narrow space" in tex
+        assert "LRMmark" in tex
+
 
 # =====================================================================
 # ExportConfig tests

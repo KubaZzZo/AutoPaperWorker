@@ -358,6 +358,8 @@
 ### 中 (MEDIUM)
 
 #### 37. 编译器 LaTeX 文件中包含隐形 Unicode 字符
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Added upstream Unicode normalization in `markdown_to_latex()` final output sanitization: generated LaTeX is now normalized with NFKC before it is written/compiled, whitespace-like Unicode is converted to ASCII spaces, and invisible direction/zero-width/BOM characters are stripped. Existing compiler-level `.tex` and `.bib` sanitizers remain as a fallback. Regression coverage verifies problematic LLM output is normalized before the compiler stage.</span>
+
 - **文件:** `researchclaw/templates/compiler.py:577-661`
 - **问题:** LaTeX 编译器检测到多个 BUG-180, BUG-197 修复：隐形 Unicode 字符 (U+200E, U+200F, U+202F 等) 导致 LaTeX 编译失败。虽然已修复，但属于打补丁式修复而非根治。
 - **建议:** 在 LLM 输出后立即进行 Unicode 规范化 (NFKC)。

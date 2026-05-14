@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 import textwrap
 import threading
+import unicodedata
 from dataclasses import dataclass, field
 
 from researchclaw.templates.conference import ConferenceTemplate
@@ -138,6 +139,8 @@ def _sanitize_latex_output(
     bib_entries: dict[str, str] | None = None,
 ) -> str:
     """Remove artifacts that slip through pre-processing into the final .tex."""
+    tex = _normalize_latex_unicode(tex)
+
     # 0. BUG-102 safety net: Convert remaining author-year citations to \cite{}.
     #    If upstream conversion missed any [Author et al., 2024] patterns, catch them here.
     if bib_entries:
@@ -280,6 +283,38 @@ def _sanitize_latex_output(
     # 8. Remove consecutive blank lines (more than 2)
     tex = re.sub(r"\n{3,}", "\n\n", tex)
 
+    return tex
+
+
+def _normalize_latex_unicode(tex: str) -> str:
+    """Normalize LLM-derived Unicode before writing LaTeX source."""
+    tex = unicodedata.normalize("NFKC", tex)
+
+    unicode_spaces = (
+        "\u00a0",  # NO-BREAK SPACE
+        "\u202f",  # NARROW NO-BREAK SPACE
+        "\u2007",  # FIGURE SPACE
+        "\u2008",  # PUNCTUATION SPACE
+        "\u2009",  # THIN SPACE
+        "\u200a",  # HAIR SPACE
+        "\u205f",  # MEDIUM MATHEMATICAL SPACE
+        "\u3000",  # IDEOGRAPHIC SPACE
+    )
+    invisible_chars = (
+        "\u200b",  # ZERO-WIDTH SPACE
+        "\u200c",  # ZERO-WIDTH NON-JOINER
+        "\u200d",  # ZERO-WIDTH JOINER
+        "\u200e",  # LEFT-TO-RIGHT MARK
+        "\u200f",  # RIGHT-TO-LEFT MARK
+        "\u2028",  # LINE SEPARATOR
+        "\u2029",  # PARAGRAPH SEPARATOR
+        "\u2060",  # WORD JOINER
+        "\ufeff",  # BOM / ZERO-WIDTH NO-BREAK SPACE
+    )
+    for ch in unicode_spaces:
+        tex = tex.replace(ch, " ")
+    for ch in invisible_chars:
+        tex = tex.replace(ch, "")
     return tex
 
 
