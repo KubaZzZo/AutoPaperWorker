@@ -306,7 +306,7 @@ def _run_hitl_post_stage(
             )
             if not should_smart_pause:
                 return result
-            # SmartPause triggered — fall through to pause logic
+            # SmartPause triggered - fall through to pause logic
             _smart_pause_triggered = True
         except Exception as _sp_exc:
             logger.debug("SmartPause check skipped: %s", _sp_exc)
@@ -551,7 +551,7 @@ def _run_collaboration_loop(
                 lines.append(line)
             new_content = "\n".join(lines)
             collab.human_edits_artifact(fname, new_content)
-            print(f"  [{fname} updated — {len(new_content)} chars written]")
+            output(f"  [{fname} updated - {len(new_content)} chars written]")
             continue
 
         # Regular chat message
@@ -567,7 +567,7 @@ def _run_collaboration_loop(
                 if rev.get("action") == "ai_proposal":
                     output(f"  [AI edited: {rev['file']}]")
         else:
-            output("  AI > [LLM not available for chat — your input is recorded]\n")
+            output("  AI > [LLM not available for chat - your input is recorded]\n")
 
     return result
 

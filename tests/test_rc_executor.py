@@ -771,7 +771,7 @@ def test_collaboration_loop_uses_injected_io(
     (stage_dir / "goal.md").write_text("hello", encoding="utf-8")
 
     outputs: list[str] = []
-    inputs = iter(["files", "show goal.md", "done"])
+    inputs = iter(["files", "show goal.md", "edit goal.md", "hello world", "<<<END>>>", "done"])
 
     result = rc_executor.StageResult(
         stage=Stage.TOPIC_INIT,
@@ -794,6 +794,7 @@ def test_collaboration_loop_uses_injected_io(
     assert "Entering collaboration mode" in joined
     assert "goal.md" in joined
     assert "hello" in joined
+    assert "goal.md updated" in joined
     assert "Collaboration finalized." in joined
 
 

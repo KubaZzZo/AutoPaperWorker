@@ -42,6 +42,8 @@ and this active optimization plan.
    - 2026-05-14 slice: collaboration-loop stage I/O can now be injected for
      cleaner library usage, while interactive edit/fallback prompts remain
      terminal-visible on purpose.
+   - 2026-05-14 slice: collaboration-loop artifact update notices now route
+     through injected output hooks instead of direct `print()`.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and
