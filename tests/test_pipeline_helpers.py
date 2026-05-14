@@ -58,6 +58,49 @@ loss: not-a-number
     assert "loss" not in metrics
 
 
+def test_parse_metrics_from_stdout_logs_non_numeric_metric_values(caplog, monkeypatch) -> None:
+    class FakeConditionPattern:
+        def match(self, line: str):
+            if line.startswith("condition="):
+                class FakeMatch:
+                    def group(self, idx: int):
+                        return "baseline/accuracy" if idx == 1 else "not-a-number"
+
+                return FakeMatch()
+            return None
+
+    monkeypatch.setattr(_helpers, "_CONDITION_RE", FakeConditionPattern())
+    stdout = """
+condition=baseline/accuracy metric=not-a-number
+loss: not-a-number
+"""
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        metrics = _helpers._parse_metrics_from_stdout(stdout)
+
+    assert metrics == {}
+    assert "Skipping non-numeric condition metric from stdout" in caplog.text
+    assert "Skipping non-numeric metric from stdout" in caplog.text
+
+
+def test_safe_json_loads_logs_failed_parse_candidates(caplog) -> None:
+    text = """
+not json
+```json
+{bad}
+```
+trailing [bad]
+"""
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        result = _helpers._safe_json_loads(text, default={"fallback": True})
+
+    assert result == {"fallback": True}
+    assert "Failed to parse JSON directly from LLM text" in caplog.text
+    assert "Failed to parse fenced JSON candidate" in caplog.text
+    assert "Failed to parse bracketed JSON candidate" in caplog.text
+
+
 def test_collect_experiment_results_summarizes_and_selects_best(
     tmp_path: Path,
 ) -> None:

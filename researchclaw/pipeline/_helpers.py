@@ -437,15 +437,24 @@ def _safe_json_loads(text: str, default: Any) -> Any:
     # Strategy 1: Direct parse
     try:
         return json.loads(text)
-    except (json.JSONDecodeError, ValueError, RecursionError):
-        pass
+    except (json.JSONDecodeError, ValueError, RecursionError) as exc:
+        logger.debug(
+            "Failed to parse JSON directly from LLM text: %s",
+            exc,
+            exc_info=True,
+        )
 
     # Strategy 2: Find JSON in markdown code fences
     for match in _JSON_FENCE_PATTERN.finditer(text):
         candidate = match.group(1).strip()
         try:
             return json.loads(candidate)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.debug(
+                "Failed to parse fenced JSON candidate: %s",
+                exc,
+                exc_info=True,
+            )
             continue
 
     # Strategy 3: Find outermost balanced braces
@@ -488,8 +497,12 @@ def _safe_json_loads(text: str, default: Any) -> Any:
                     parsed = json.loads(text[start : i + 1])
                     if isinstance(parsed, list):
                         return parsed
-                except (json.JSONDecodeError, ValueError):
-                    pass
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.debug(
+                        "Failed to parse bracketed JSON candidate: %s",
+                        exc,
+                        exc_info=True,
+                    )
                 start = -1
 
     return default
@@ -630,8 +643,14 @@ def _parse_metrics_from_stdout(stdout: str) -> dict[str, Any]:
             try:
                 fval = float(m.group(2))
                 metrics[cond_name] = fval
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.debug(
+                    "Skipping non-numeric condition metric from stdout %s=%r: %s",
+                    cond_name,
+                    m.group(2),
+                    exc,
+                    exc_info=True,
+                )
             continue
         # --- Format 1: name: value ---
         if ":" not in line:
@@ -649,8 +668,14 @@ def _parse_metrics_from_stdout(stdout: str) -> dict[str, Any]:
             fval = float(value_part)
             # Use the full name (e.g. "UCB (Stochastic) cumulative_regret")
             metrics[name_part] = fval
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as exc:
+            logger.debug(
+                "Skipping non-numeric metric from stdout %s=%r: %s",
+                name_part,
+                value_part,
+                exc,
+                exc_info=True,
+            )
     return metrics
 
 
