@@ -21,7 +21,7 @@ the phase explicitly says otherwise.
      `researchclaw/prompts.py`; move default data into focused modules under
      `researchclaw/prompt_defaults/`.
 
-2. **Template converter decomposition**
+2. **Template converter decomposition** - in progress
    - Target: `researchclaw/templates/converter.py`
    - Why second: it remains large and format-sensitive, but it needs narrower
      behavior tests before structural movement.
@@ -96,11 +96,26 @@ Run these commands after implementation:
 
 ## Phase 2.2: Template Converter Decomposition
 
+Status: In progress. First slice implemented 2026-05-15.
+
 ### Planned Direction
 
 Add focused tests around the current converter public behavior, then move
 format-specific helpers out of `researchclaw/templates/converter.py` into a
 small package. This phase should not start until Phase 2.1 is committed.
+
+### Completed Slices
+
+- 2026-05-15: moved inline Markdown/LaTeX conversion helpers from
+  `researchclaw/templates/converter.py` into `researchclaw/templates/inline.py`.
+  Legacy imports from `researchclaw.templates.converter` are preserved by
+  re-exporting `_convert_inline`, `_escape_latex`, and Unicode replacement data.
+
+### Remaining Slices
+
+- Move table parsing/rendering helpers into a focused table module.
+- Move code block rendering helpers into a focused code block module.
+- Move completeness checking into a focused paper quality module.
 
 ## Phase 2.3: Run-State Backend Interface
 

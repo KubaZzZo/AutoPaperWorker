@@ -74,6 +74,10 @@ and this active optimization plan.
      `researchclaw/prompts.py` into focused modules under
      `researchclaw/prompt_defaults/`, while `PromptManager` and legacy
      constants remain import-compatible.
+   - 2026-05-15 slice: inline Markdown/LaTeX conversion helpers moved from
+     `researchclaw/templates/converter.py` into
+     `researchclaw/templates/inline.py`, while legacy converter imports remain
+     compatible.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
