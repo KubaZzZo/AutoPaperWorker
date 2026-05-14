@@ -170,6 +170,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Code search snippet content retrieval now logs GitHub file fetch failures with repository/path context while preserving graceful degradation. AST scanning now reports no pure `except: pass` handlers under `researchclaw/agents/code_searcher`.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Benchmark surveyor optional HuggingFace Hub import is now routed through a testable loader that logs unavailable dependency details at debug level. `researchclaw/agents/benchmark_agent/surveyor.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

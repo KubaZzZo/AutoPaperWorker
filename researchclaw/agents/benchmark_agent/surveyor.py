@@ -9,6 +9,7 @@ Data sources (in priority order):
 from __future__ import annotations
 
 import logging
+import importlib
 from pathlib import Path
 from typing import Any
 
@@ -24,12 +25,21 @@ _KNOWLEDGE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "benc
 # HuggingFace Hub helpers (optional dependency)
 # ---------------------------------------------------------------------------
 
-_HF_AVAILABLE = False
-try:
-    from huggingface_hub import HfApi  # type: ignore[import-untyped]
-    _HF_AVAILABLE = True
-except ImportError:
-    pass
+def _load_hf_api() -> tuple[bool, Any | None]:
+    """Load the optional HuggingFace Hub API class."""
+    try:
+        module = importlib.import_module("huggingface_hub")
+        return True, module.HfApi
+    except ImportError as exc:
+        logger.debug(
+            "HuggingFace Hub optional dependency unavailable: %s",
+            exc,
+            exc_info=True,
+        )
+        return False, None
+
+
+_HF_AVAILABLE, HfApi = _load_hf_api()
 
 # Mapping from our domain keywords to HuggingFace task_categories filters
 _DOMAIN_TO_HF_TASK: dict[str, list[str]] = {

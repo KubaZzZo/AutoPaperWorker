@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import importlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -186,6 +188,24 @@ class TestSurveyor:
         agent = SurveyorAgent(FakeLLM(), enable_hf_search=False)
         result = agent.execute({"topic": ""})
         assert not result.success
+
+    def test_optional_hf_import_failure_is_logged(self, caplog) -> None:
+        import researchclaw.agents.benchmark_agent.surveyor as surveyor
+
+        original_import = importlib.import_module
+
+        def fail_hf_import(name: str, package: str | None = None):
+            if name == "huggingface_hub":
+                raise ImportError("hf missing")
+            return original_import(name, package)
+
+        with patch("importlib.import_module", side_effect=fail_hf_import):
+            with caplog.at_level("DEBUG", logger="researchclaw.agents.benchmark_agent.surveyor"):
+                available, api_cls = surveyor._load_hf_api()
+
+        assert available is False
+        assert api_cls is None
+        assert "HuggingFace Hub optional dependency unavailable" in caplog.text
 
 
 # ---------------------------------------------------------------------------
