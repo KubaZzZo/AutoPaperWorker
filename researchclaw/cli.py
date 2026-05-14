@@ -17,6 +17,7 @@ from typing import cast
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import (
     CONFIG_SEARCH_ORDER,
+    DEFAULT_ARTIFACTS_DIR,
     EXAMPLE_CONFIG,
     RCConfig,
     resolve_config_path,
@@ -214,7 +215,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 1
 
     run_id = _generate_run_id(config.research.topic)
-    run_dir = Path(output or f"artifacts/{run_id}")
+    run_dir = Path(output) if output else DEFAULT_ARTIFACTS_DIR / run_id
 
     # BUG-119 / #216: When --resume or --from-stage is used without --output,
     # search for the most recent existing run directory that matches the topic.
@@ -222,7 +223,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     # StageContract input_files check fails immediately.
     if (resume or from_stage_name) and not output:
         topic_hash = hashlib.sha256(config.research.topic.encode()).hexdigest()[:6]
-        artifacts_root = Path("artifacts")
+        artifacts_root = DEFAULT_ARTIFACTS_DIR
         if artifacts_root.is_dir():
             candidates = sorted(
                 (

@@ -355,6 +355,13 @@ def test_cli_provider_defaults_are_derived_from_shared_llm_presets() -> None:
     assert rc_cli._PROVIDER_MODELS == provider_model_defaults()
 
 
+def test_cli_uses_shared_default_artifacts_dir_constant() -> None:
+    source = Path("researchclaw/cli.py").read_text(encoding="utf-8")
+
+    assert 'Path("artifacts")' not in source
+    assert 'f"artifacts/' not in source
+
+
 def test_cmd_run_missing_config_shows_init_hint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

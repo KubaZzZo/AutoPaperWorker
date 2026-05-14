@@ -40,6 +40,12 @@ def test_pipeline_route_has_no_function_local_dataclasses_import() -> None:
     )
 
 
+def test_pipeline_route_uses_shared_default_artifacts_dir_constant() -> None:
+    source = Path("researchclaw/server/routes/pipeline.py").read_text(encoding="utf-8")
+
+    assert 'Path("artifacts")' not in source
+
+
 class TestServerConfig:
     """Test ServerConfig and DashboardConfig in config.py."""
 

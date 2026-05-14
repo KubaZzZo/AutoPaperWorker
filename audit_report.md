@@ -301,6 +301,8 @@
 - **建议:** 将重复的 import 移到函数外部或模块顶部。
 
 #### 33. 硬编码的 `artifacts/` 路径
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] The default artifacts directory is now centralized as `DEFAULT_ARTIFACTS_DIR` in `researchclaw.config`. CLI run directory creation/resume lookup and server pipeline/project route listings use the shared constant instead of repeated `Path("artifacts")` or `f"artifacts/..."` literals. Static regression tests guard the CLI and pipeline route against reintroducing direct literals.</span>
+
 - **文件:** `researchclaw/cli.py:214`, `researchclaw/server/routes/pipeline.py:24`
 - **问题:** `artifacts/` 目录路径硬编码在多处，未从配置读取。
 - **建议:** 使用配置的 output dir 或定义为常量。

@@ -15,6 +15,7 @@ DEFAULT_PYTHON_PATH = (
 )
 
 CONFIG_SEARCH_ORDER: tuple[str, ...] = ("config.arc.yaml", "config.yaml")
+DEFAULT_ARTIFACTS_DIR = Path("artifacts")
 DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
     "http://127.0.0.1:8080",
     "http://localhost:8080",

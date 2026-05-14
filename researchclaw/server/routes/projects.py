@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
+
+from researchclaw.config import DEFAULT_ARTIFACTS_DIR
 
 router = APIRouter(prefix="/api", tags=["projects"])
 
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/api", tags=["projects"])
 @router.get("/projects")
 async def list_projects() -> dict[str, Any]:
     """List all project directories (artifacts/rc-*)."""
-    artifacts = Path("artifacts")
+    artifacts = DEFAULT_ARTIFACTS_DIR
     projects: list[dict[str, Any]] = []
     if artifacts.exists():
         for d in sorted(artifacts.iterdir(), reverse=True):

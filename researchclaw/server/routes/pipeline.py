@@ -12,6 +12,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from researchclaw.config import DEFAULT_ARTIFACTS_DIR
+
 logger = logging.getLogger(__name__)
 
 import re as _re
@@ -22,9 +24,9 @@ def _validated_run_dir(run_id: str) -> Path:
     """Validate run_id format and return the run directory path."""
     if not _RUN_ID_RE.match(run_id):
         raise HTTPException(status_code=400, detail=f"Invalid run_id format: {run_id}")
-    run_dir = Path("artifacts") / run_id
+    run_dir = DEFAULT_ARTIFACTS_DIR / run_id
     # Ensure resolved path is under artifacts/
-    if not run_dir.resolve().is_relative_to(Path("artifacts").resolve()):
+    if not run_dir.resolve().is_relative_to(DEFAULT_ARTIFACTS_DIR.resolve()):
         raise HTTPException(status_code=400, detail=f"Invalid run_id: {run_id}")
     return run_dir
 
@@ -175,7 +177,7 @@ async def pipeline_stages() -> dict[str, Any]:
 @router.get("/runs")
 async def list_runs() -> dict[str, Any]:
     """List historical pipeline runs from artifacts/ directory."""
-    artifacts = Path("artifacts")
+    artifacts = DEFAULT_ARTIFACTS_DIR
     runs: list[dict[str, Any]] = []
     if artifacts.exists():
         for d in sorted(artifacts.iterdir(), reverse=True):
