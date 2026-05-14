@@ -27,6 +27,7 @@ def _make_server(
     cost: float = 0.0,
     scheduler: str = "",
     cloud_provider: str = "",
+    cloud_instance_type: str = "",
 ) -> ServerEntry:
     return ServerEntry(
         name=name,
@@ -38,6 +39,7 @@ def _make_server(
         cost_per_hour=cost,
         scheduler=scheduler,
         cloud_provider=cloud_provider,
+        cloud_instance_type=cloud_instance_type,
     )
 
 
@@ -301,12 +303,32 @@ class TestCloudExecutor:
         with pytest.raises(ValueError, match="not a cloud"):
             CloudExecutor(server)
 
-    def test_launch_instance_stub(self) -> None:
+    def test_launch_instance_requires_provider_backend(self) -> None:
         server = _make_server(server_type="cloud", cloud_provider="aws")
         exe = CloudExecutor(server)
+        with pytest.raises(NotImplementedError, match="Cloud provider backend"):
+            asyncio.run(exe.launch_instance())
+
+    def test_launch_instance_dry_run_returns_plan(self) -> None:
+        server = _make_server(
+            host="dry-run",
+            server_type="cloud",
+            cloud_provider="aws",
+            cloud_instance_type="g5.xlarge",
+            cost=1.25,
+        )
+        exe = CloudExecutor(server)
         result = asyncio.run(exe.launch_instance())
-        assert result["status"] == "stub_launched"
+        assert result["status"] == "planned"
         assert result["provider"] == "aws"
+        assert result["instance_type"] == "g5.xlarge"
+        assert result["instance_id"].startswith("planned-")
+
+    def test_get_instance_status_rejects_unknown_provider_backend(self) -> None:
+        server = _make_server(server_type="cloud", cloud_provider="aws")
+        exe = CloudExecutor(server)
+        with pytest.raises(NotImplementedError, match="Cloud provider backend"):
+            asyncio.run(exe.get_instance_status("i-123"))
 
 
 # ══════════════════════════════════════════════════════════════════

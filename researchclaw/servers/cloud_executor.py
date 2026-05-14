@@ -1,4 +1,4 @@
-"""Cloud executor: stub for AWS/GCP/Azure GPU instance management."""
+"""Cloud executor: guarded interface for cloud GPU instance management."""
 
 from __future__ import annotations
 
@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 class CloudExecutor:
     """Manage cloud GPU instances for experiment execution.
 
-    This is a stub implementation. Actual cloud provider APIs (boto3, google-cloud,
-    azure-mgmt) are imported lazily to avoid hard dependencies.
+    Provider SDK backends are intentionally not imported unless a concrete
+    implementation is configured. The ``host="dry-run"`` mode returns a launch
+    plan without contacting a cloud API; all other modes fail explicitly until a
+    provider backend is wired.
     """
 
     def __init__(self, server: ServerEntry) -> None:
@@ -31,19 +33,34 @@ class CloudExecutor:
             self.server.cloud_instance_type,
             self.server.name,
         )
-        # Stub: actual implementation would call provider SDK
-        return {
-            "provider": self.provider,
-            "instance_type": self.server.cloud_instance_type,
-            "status": "stub_launched",
-            "instance_id": f"stub-{self.server.name}",
-            "cost_per_hour": self.server.cost_per_hour,
-        }
+        if self.server.host == "dry-run":
+            return {
+                "provider": self.provider,
+                "instance_type": self.server.cloud_instance_type,
+                "status": "planned",
+                "instance_id": f"planned-{self.server.name}",
+                "cost_per_hour": self.server.cost_per_hour,
+            }
+        self._raise_unsupported_backend("launch_instance")
 
     async def terminate_instance(self, instance_id: str) -> None:
         """Terminate a cloud instance."""
         logger.info("Terminating instance %s on %s", instance_id, self.provider)
+        if self.server.host == "dry-run":
+            return
+        self._raise_unsupported_backend("terminate_instance")
 
     async def get_instance_status(self, instance_id: str) -> dict[str, Any]:
         """Check instance status."""
-        return {"instance_id": instance_id, "status": "stub_unknown"}
+        if self.server.host == "dry-run":
+            return {"instance_id": instance_id, "status": "planned"}
+        self._raise_unsupported_backend("get_instance_status")
+
+    def _raise_unsupported_backend(self, operation: str) -> None:
+        provider = self.provider or "unknown"
+        message = (
+            f"Cloud provider backend is not configured for {provider!r} "
+            f"operation {operation!r}; use host='dry-run' to generate a plan."
+        )
+        logger.warning(message)
+        raise NotImplementedError(message)
