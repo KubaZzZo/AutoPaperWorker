@@ -437,19 +437,15 @@ def _write_paper_sections(
     if any(model_name.startswith(p) for p in ("gpt-5", "o3", "o4")):
         _paper_max_tokens = 24000
 
-    # T3.5: Retry once on failure, use placeholder if still fails
+    # T3.5/R-2026-05-14: Retry once on failure, then fail fast. Writing
+    # placeholder manuscript text would make downstream review treat an
+    # incomplete paper as a real artifact.
     try:
         resp1 = _chat_with_prompt(llm, system, call1_user, max_tokens=_paper_max_tokens, retries=1)
         part1 = resp1.content.strip()
-    except Exception:  # noqa: BLE001
-        logger.error("Stage 17: Part 1 LLM call failed after retry — using placeholder")
-        part1 = (
-            "## Title\n[PLACEHOLDER — LLM call failed]\n\n"
-            "## Abstract\n[This section could not be generated due to an LLM error. "
-            "Please regenerate this stage.]\n\n"
-            "## Introduction\n[PLACEHOLDER]\n\n"
-            "## Related Work\n[PLACEHOLDER]"
-        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Stage 17: Part 1 LLM call failed after retry", exc_info=True)
+        raise RuntimeError("paper section 1 generation failed after retry") from exc
     sections.append(part1)
     logger.info("Stage 17: Part 1 (Title+Abstract+Intro+Related Work) — %d chars", len(part1))
 
@@ -485,12 +481,9 @@ def _write_paper_sections(
     try:
         resp2 = _chat_with_prompt(llm, system, call2_user, max_tokens=_paper_max_tokens, retries=1)
         part2 = resp2.content.strip()
-    except Exception:  # noqa: BLE001
-        logger.error("Stage 17: Part 2 LLM call failed after retry — using placeholder")
-        part2 = (
-            "## Method\n[PLACEHOLDER — LLM call failed. Please regenerate this stage.]\n\n"
-            "## Experiments\n[PLACEHOLDER]"
-        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Stage 17: Part 2 LLM call failed after retry", exc_info=True)
+        raise RuntimeError("paper section 2 generation failed after retry") from exc
     sections.append(part2)
     logger.info("Stage 17: Part 2 (Method+Experiments) — %d chars", len(part2))
 
@@ -542,14 +535,9 @@ def _write_paper_sections(
     try:
         resp3 = _chat_with_prompt(llm, system, call3_user, max_tokens=_paper_max_tokens, retries=1)
         part3 = resp3.content.strip()
-    except Exception:  # noqa: BLE001
-        logger.error("Stage 17: Part 3 LLM call failed after retry — using placeholder")
-        part3 = (
-            "## Results\n[PLACEHOLDER — LLM call failed. Please regenerate this stage.]\n\n"
-            "## Discussion\n[PLACEHOLDER]\n\n"
-            "## Limitations\n[PLACEHOLDER]\n\n"
-            "## Conclusion\n[PLACEHOLDER]"
-        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Stage 17: Part 3 LLM call failed after retry", exc_info=True)
+        raise RuntimeError("paper section 3 generation failed after retry") from exc
     sections.append(part3)
     logger.info("Stage 17: Part 3 (Results+Discussion+Limitations+Conclusion) — %d chars", len(part3))
 

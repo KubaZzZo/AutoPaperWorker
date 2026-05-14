@@ -1883,6 +1883,26 @@ class TestWritePaperSections:
         assert "## Results" in draft
         assert "## Conclusion" in draft
 
+    def test_fails_instead_of_writing_placeholder_when_llm_exhausts_retries(self) -> None:
+        class FailingLLM:
+            def chat(self, messages, **kwargs):
+                _ = messages, kwargs
+                raise RuntimeError("provider unavailable")
+
+        from researchclaw.prompts import PromptManager
+        pm = PromptManager()
+
+        with pytest.raises(RuntimeError, match="paper section 1"):
+            rc_executor._write_paper_sections(
+                llm=FailingLLM(),
+                pm=pm,
+                preamble="Test preamble",
+                topic_constraint="",
+                exp_metrics_instruction="",
+                citation_instruction="",
+                outline="Test outline",
+            )
+
     def test_each_call_receives_prior_context(self) -> None:
         class ContextTrackingLLM:
             def __init__(self):

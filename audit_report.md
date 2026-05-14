@@ -22,6 +22,8 @@
 
 <span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `researchclaw wizard` now serializes generated YAML through `yaml.safe_dump(..., sort_keys=False)` and writes UTF-8 output.</span>
 
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Stage 17 paper drafting no longer fabricates `[PLACEHOLDER]` manuscript sections when LLM retries are exhausted. `_write_paper_sections()` now logs the failed section with exception context and raises a section-specific `RuntimeError`, with regression coverage proving incomplete drafts fail instead of being treated as real papers.</span>
+
 ## 一、安全问题 (Security)
 
 ### 严重 (CRITICAL)
