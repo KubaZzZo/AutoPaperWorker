@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import hashlib
 import os
 import shutil
@@ -180,10 +181,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     # Override graceful_degradation if CLI flag is set
     if no_graceful_degradation:
-        import dataclasses as _dc_gd
-
-        new_research = _dc_gd.replace(config.research, graceful_degradation=False)
-        config = _dc_gd.replace(config, research=new_research)
+        new_research = dataclasses.replace(config.research, graceful_degradation=False)
+        config = dataclasses.replace(config, research=new_research)
 
     # Derive gate behavior from project.mode (CLI --auto-approve overrides)
     mode = config.project.mode.lower()
@@ -198,8 +197,6 @@ def cmd_run(args: argparse.Namespace) -> int:
         stop_on_gate = True
 
     if topic:
-        import dataclasses
-
         new_research = dataclasses.replace(config.research, topic=topic)
         config = dataclasses.replace(config, research=new_research)
 
@@ -645,11 +642,12 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     import yaml
 
     config = wizard.run_interactive()
+    dumped = yaml.safe_dump(config, default_flow_style=False, sort_keys=False)
     if output:
-        Path(output).write_text(yaml.dump(config, default_flow_style=False))
+        Path(output).write_text(dumped, encoding="utf-8")
         print(f"Config written to {output}")
     else:
-        print(yaml.dump(config, default_flow_style=False))
+        print(dumped)
     return 0
 
 

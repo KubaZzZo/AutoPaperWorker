@@ -448,6 +448,7 @@ def _write_checkpoint(
     try:
         with open(tmp_path, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(checkpoint, indent=2))
+        os.chmod(tmp_path, 0o644)
         Path(tmp_path).replace(target)
     except BaseException:
         Path(tmp_path).unlink(missing_ok=True)

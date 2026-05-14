@@ -72,6 +72,24 @@ def _blocked(stage: Stage) -> StageResult:
     )
 
 
+def test_write_checkpoint_sets_stable_file_permissions(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+) -> None:
+    chmod_calls: list[tuple[str, int]] = []
+
+    def fake_chmod(path: str, mode: int) -> None:
+        chmod_calls.append((Path(path).name, mode))
+
+    monkeypatch.setattr(rc_runner.os, "chmod", fake_chmod)
+
+    rc_runner._write_checkpoint(run_dir, Stage.TOPIC_INIT, "run-perms")  # type: ignore[attr-defined]
+
+    assert (run_dir / "checkpoint.json").exists()
+    assert chmod_calls
+    assert chmod_calls[-1][1] == 0o644
+
+
 def test_execute_pipeline_runs_stages_in_sequence(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,

@@ -75,6 +75,15 @@ with a learning rate of 0.001.
         result = verify_paper(tex, reg)
         assert result.severity == "PASS"
 
+    def test_common_constants_allowed_with_float_roundoff(self):
+        reg = _make_registry(conditions={"A": {0: 80.0}})
+        tex = r"""
+\section{Experimental Setup}
+The optimizer uses epsilon 0.00010000000000000002.
+"""
+        result = verify_paper(tex, reg)
+        assert result.severity == "PASS"
+
     def test_year_numbers_allowed(self):
         reg = _make_registry(conditions={"A": {0: 80.0}})
         tex = r"""

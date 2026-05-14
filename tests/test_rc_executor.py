@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -2530,6 +2531,22 @@ class TestNaNDivergenceDetection:
         assert "metric_c" in metrics
         assert "metric_a" not in metrics
         assert "metric_b" not in metrics
+
+    def test_sandbox_result_marks_non_finite_metric_divergence(self) -> None:
+        from researchclaw.experiment.sandbox import ExperimentSandbox
+
+        completed = subprocess.CompletedProcess(
+            args=["python"],
+            returncode=0,
+            stdout="metric_a: nan\nmetric_b: 0.42\n",
+            stderr="",
+        )
+
+        result = ExperimentSandbox._result_from_completed(completed, elapsed_sec=0.1)
+
+        assert result.has_divergence is True
+        assert "metric_b" in result.metrics
+        assert "metric_a" not in result.metrics
 
     def test_detect_nan_divergence_finds_nan(self) -> None:
         from researchclaw.experiment.sandbox import detect_nan_divergence

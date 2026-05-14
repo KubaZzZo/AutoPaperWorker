@@ -473,3 +473,29 @@ def test_main_dispatches_init(monkeypatch: pytest.MonkeyPatch) -> None:
     code = rc_cli.main(["init", "--force"])
     assert code == 0
     assert captured["args"].force is True
+
+
+def test_cmd_wizard_uses_safe_yaml_dump(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import yaml
+
+    output = tmp_path / "config.yaml"
+
+    class _Wizard:
+        def run_interactive(self) -> dict[str, object]:
+            return {"project": {"name": "demo"}}
+
+    monkeypatch.setattr("researchclaw.wizard.quickstart.QuickStartWizard", _Wizard)
+    monkeypatch.setattr(
+        yaml,
+        "dump",
+        lambda *args, **kwargs: pytest.fail("cmd_wizard must use yaml.safe_dump"),
+    )
+    monkeypatch.setattr(yaml, "safe_dump", lambda *args, **kwargs: "project:\n  name: demo\n")
+
+    code = rc_cli.cmd_wizard(argparse.Namespace(output=str(output)))
+
+    assert code == 0
+    assert output.read_text(encoding="utf-8") == "project:\n  name: demo\n"

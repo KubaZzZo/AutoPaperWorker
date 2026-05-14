@@ -555,9 +555,7 @@ def _extract_multi_file_blocks(content: str) -> dict[str, str]:
     # R13-2: Multiple patterns to handle LLM format variations
     matches: list[tuple[str, str]] = []
     for pattern in _MULTI_FILE_PATTERNS:
-        matches = pattern.findall(content)
-        if matches:
-            break
+        matches.extend(pattern.findall(content))
 
     if matches:
         files: dict[str, str] = {}
@@ -577,6 +575,7 @@ def _extract_multi_file_blocks(content: str) -> dict[str, str]:
                 first_key = next(iter(files))
                 files["main.py"] = files.pop(first_key)
             return files
+        return {}
 
     # Fallback: single code block → main.py
     code = _extract_code_block(content)

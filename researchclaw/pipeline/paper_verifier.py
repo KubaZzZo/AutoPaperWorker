@@ -35,6 +35,14 @@ _ALWAYS_ALLOWED: set[float] = {
     300.0, 400.0, 500.0,  # epochs
     4096.0, 8192.0,  # larger batch sizes / hidden dims
 }
+_ALWAYS_ALLOWED_TOLERANCE = 1e-10
+
+
+def _is_always_allowed(value: float) -> bool:
+    return any(
+        math.isclose(value, allowed, rel_tol=0.0, abs_tol=_ALWAYS_ALLOWED_TOLERANCE)
+        for allowed in _ALWAYS_ALLOWED
+    )
 
 # Regex for extracting decimal numbers (including negative, scientific notation)
 # NOTE: lookbehind/lookahead must NOT exclude { } — numbers inside \textbf{91.5}
@@ -215,7 +223,7 @@ def verify_paper(
             result.total_numbers_checked += 1
 
             # Always-allowed numbers
-            if value in _ALWAYS_ALLOWED:
+            if _is_always_allowed(value):
                 result.total_numbers_verified += 1
                 continue
 

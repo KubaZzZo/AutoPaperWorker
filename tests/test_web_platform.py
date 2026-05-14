@@ -661,6 +661,7 @@ class TestFastAPIApp:
     @pytest.mark.asyncio
     async def test_health_endpoint(self, app: object) -> None:
         from httpx import AsyncClient, ASGITransport
+        from researchclaw import __version__
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -668,6 +669,12 @@ class TestFastAPIApp:
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
+            assert data["version"] == __version__
+
+    def test_app_version_matches_package_version(self, app: object) -> None:
+        from researchclaw import __version__
+
+        assert app.version == __version__  # type: ignore[attr-defined]
 
     def test_cors_policy_is_restricted(self, app: object) -> None:
         from starlette.middleware import Middleware

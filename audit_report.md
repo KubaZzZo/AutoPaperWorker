@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-05-14 Fix Update
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Version reporting is unified: `researchclaw/server/app.py` now uses `researchclaw.__version__` for FastAPI metadata and `/api/health`.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `_helpers.py` now has dedicated tests in `tests/test_pipeline_helpers.py`, covering code-block extraction, multi-file parsing safety, stdout metric parsing, experiment result aggregation, and paper title extraction. The new coverage also fixed a path-traversal fallback bug in `_extract_multi_file_blocks()`.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `print_doctor_report()` now explicitly disables emoji icons for cp936/cp932/GBK/Shift-JIS style terminals before writing output.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `SandboxResult` now includes `has_divergence`; completed and timeout runs set it from `detect_nan_divergence()` so callers can distinguish filtered non-finite metrics from clean output.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `_write_checkpoint()` now sets temporary checkpoint file mode to `0o644` before atomic replacement.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Paper verification now checks always-allowed numeric constants using an absolute tolerance instead of exact float set membership.</span>
+
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `researchclaw wizard` now serializes generated YAML through `yaml.safe_dump(..., sort_keys=False)` and writes UTF-8 output.</span>
+
 ## 一、安全问题 (Security)
 
 ### 严重 (CRITICAL)

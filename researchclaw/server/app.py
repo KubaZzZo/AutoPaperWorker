@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from researchclaw import __version__
 from researchclaw.config import RCConfig
 from researchclaw.server.middleware.auth import TokenAuthMiddleware
 from researchclaw.server.websocket.manager import ConnectionManager
@@ -38,7 +39,7 @@ def create_app(
     app = FastAPI(
         title="ResearchClaw",
         description="Autonomous Research Pipeline — Web Interface",
-        version="0.5.0",
+        version=__version__,
     )
 
     # Store config in shared state
@@ -67,7 +68,7 @@ def create_app(
     async def health() -> dict[str, Any]:
         return {
             "status": "ok",
-            "version": "0.5.0",
+            "version": __version__,
             "active_connections": event_manager.active_count,
         }
 

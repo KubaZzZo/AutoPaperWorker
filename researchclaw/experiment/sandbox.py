@@ -286,6 +286,7 @@ class SandboxResult:
     elapsed_sec: float
     metrics: dict[str, object]
     timed_out: bool = False
+    has_divergence: bool = False
 
 
 class SandboxProtocol(Protocol):
@@ -499,6 +500,9 @@ class ExperimentSandbox:
             stderr=completed.stderr,
             elapsed_sec=elapsed_sec,
             metrics={key: value for key, value in metrics.items()},
+            has_divergence=detect_nan_divergence(
+                completed.stdout, completed.stderr
+            ) is not None,
         )
 
     @staticmethod
@@ -519,6 +523,7 @@ class ExperimentSandbox:
             elapsed_sec=elapsed_sec,
             metrics={key: value for key, value in metrics.items()},
             timed_out=True,
+            has_divergence=detect_nan_divergence(stdout, stderr) is not None,
         )
 
     @staticmethod
@@ -530,6 +535,7 @@ class ExperimentSandbox:
             stderr=str(exc),
             elapsed_sec=elapsed_sec,
             metrics={},
+            has_divergence=False,
         )
 
     @staticmethod
