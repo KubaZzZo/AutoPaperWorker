@@ -133,8 +133,13 @@ class DashboardCollector:
                 snap.status = ckpt.get("status", "running")
                 snap.topic = ckpt.get("topic", "")
                 snap.start_time = ckpt.get("start_time", "")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read checkpoint %s: %s",
+                    ckpt_path,
+                    exc,
+                    exc_info=True,
+                )
 
         # --- heartbeat.json ---
         hb_path = run_dir / "heartbeat.json"
@@ -146,8 +151,13 @@ class DashboardCollector:
                 snap.is_active = (time.time() - last_ts) < 60
                 if snap.is_active:
                     snap.status = "running"
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read heartbeat %s: %s",
+                    hb_path,
+                    exc,
+                    exc_info=True,
+                )
 
         # --- stage directories ---
         snap.stages_completed = sorted(
@@ -161,8 +171,13 @@ class DashboardCollector:
                 with results_path.open() as f:
                     snap.metrics = json.load(f)
                 break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read metrics %s: %s",
+                    results_path,
+                    exc,
+                    exc_info=True,
+                )
 
         # --- last log lines ---
         log_path = run_dir / "pipeline.log"
@@ -170,7 +185,12 @@ class DashboardCollector:
             try:
                 lines = log_path.read_text(errors="replace").splitlines()
                 snap.last_log_lines = lines[-self._max_log_lines:]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read pipeline log %s: %s",
+                    log_path,
+                    exc,
+                    exc_info=True,
+                )
 
         return snap

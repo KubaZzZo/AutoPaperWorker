@@ -189,6 +189,31 @@ def test_dashboard_collector_logs_malformed_progress_snapshot(
     assert str(run_dir / "progress.json") in caplog.text
 
 
+def test_dashboard_collector_logs_malformed_optional_artifacts(
+    tmp_path: Path,
+    caplog,
+) -> None:
+    from researchclaw.dashboard.collector import DashboardCollector
+
+    run_dir = tmp_path / "rc-bad-optional"
+    run_dir.mkdir()
+    (run_dir / "checkpoint.json").write_text("{not-json", encoding="utf-8")
+    (run_dir / "heartbeat.json").write_text("{not-json", encoding="utf-8")
+    stage_dir = run_dir / "stage-12"
+    stage_dir.mkdir()
+    (stage_dir / "results.json").write_text("{not-json", encoding="utf-8")
+    (run_dir / "pipeline.log").mkdir()
+
+    with caplog.at_level("DEBUG", logger="researchclaw.dashboard.collector"):
+        snap = DashboardCollector().collect_run(run_dir)
+
+    assert snap.run_id == "rc-bad-optional"
+    assert "Failed to read checkpoint" in caplog.text
+    assert "Failed to read heartbeat" in caplog.text
+    assert "Failed to read metrics" in caplog.text
+    assert "Failed to read pipeline log" in caplog.text
+
+
 def test_experiment_spec_parse_and_validate() -> None:
     from researchclaw.pipeline.experiment_spec import (
         MetricDef,
