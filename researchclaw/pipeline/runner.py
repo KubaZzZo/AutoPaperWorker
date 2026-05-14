@@ -103,6 +103,14 @@ def _write_progress_snapshot(
     elapsed_sec: float | None = None,
 ) -> None:
     """Write a single-file progress snapshot for dashboards and monitors."""
+    cost_summary: dict[str, object] | None = None
+    try:
+        from researchclaw.cost_tracker import write_cost_summary
+
+        cost_summary_path = write_cost_summary(run_dir)
+        cost_summary = json.loads(cost_summary_path.read_text(encoding="utf-8"))
+    except Exception:
+        cost_summary = None
     last = results[-1] if results else None
     done_count = sum(1 for item in results if item.status == StageStatus.DONE)
     failed_count = sum(1 for item in results if item.status == StageStatus.FAILED)
@@ -126,6 +134,8 @@ def _write_progress_snapshot(
         "cost_usd": round(_read_total_cost_usd(run_dir), 6),
         "updated_at": _utcnow_iso(),
     }
+    if cost_summary is not None:
+        payload["cost_summary"] = cost_summary
     if elapsed_sec is not None:
         payload["elapsed_sec"] = round(elapsed_sec, 3)
     if last is not None:

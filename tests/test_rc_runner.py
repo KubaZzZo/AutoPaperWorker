@@ -162,6 +162,21 @@ def test_execute_pipeline_writes_structured_progress_snapshot(
 ) -> None:
     def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
         _ = kwargs
+        if stage == Stage.TOPIC_INIT:
+            (run_dir / "cost_log.jsonl").write_text(
+                json.dumps(
+                    {
+                        "provider": "openai",
+                        "model": "gpt-test",
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "cost_usd": 0.02,
+                        "metadata": {"stage": "TOPIC_INIT"},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
         return _done(stage)
 
     monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
@@ -182,8 +197,12 @@ def test_execute_pipeline_writes_structured_progress_snapshot(
     assert progress["stages_done"] == 2
     assert progress["stages_failed"] == 0
     assert progress["total_stages"] == len(STAGE_SEQUENCE)
+    assert progress["cost_summary"]["total_tokens"] == 15
+    assert progress["cost_summary"]["by_stage"]["TOPIC_INIT"]["cost_usd"] == 0.02
     assert progress["last_event"]["type"] == "stage_end"
     assert progress["last_event"]["status"] == "done"
+    cost_summary = json.loads((run_dir / "cost_summary.json").read_text(encoding="utf-8"))
+    assert cost_summary["total_cost_usd"] == 0.02
 
 
 def test_execute_pipeline_stops_on_gate_when_stop_on_gate_enabled(

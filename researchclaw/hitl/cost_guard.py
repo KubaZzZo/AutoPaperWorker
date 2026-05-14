@@ -106,6 +106,22 @@ class CostGuard:
 
     def _get_total_cost(self, run_dir: Path | None) -> float:
         """Read total cost from the global cost tracker or cost log."""
+        if run_dir is not None:
+            cost_log = run_dir / "cost_log.jsonl"
+            if cost_log.exists():
+                try:
+                    from researchclaw.cost_tracker import summarize_cost_log
+
+                    return float(
+                        summarize_cost_log(cost_log).get("total_cost_usd", 0.0)
+                    )
+                except Exception:
+                    logger.warning(
+                        "Failed to read HITL cost log: %s",
+                        cost_log,
+                        exc_info=True,
+                    )
+
         # Try global cost tracker
         try:
             from researchclaw.cost_tracker import get_global_tracker
@@ -114,23 +130,5 @@ class CostGuard:
             return tracker.total_cost_usd
         except Exception:
             logger.warning("Global cost tracker unavailable", exc_info=True)
-
-        # Try cost_log.jsonl in run_dir
-        if run_dir is not None:
-            cost_log = run_dir / "cost_log.jsonl"
-            if cost_log.exists():
-                try:
-                    total = 0.0
-                    for line in cost_log.read_text(encoding="utf-8").strip().split("\n"):
-                        if line.strip():
-                            entry = json.loads(line)
-                            total += entry.get("cost_usd", 0.0)
-                    return total
-                except (json.JSONDecodeError, OSError):
-                    logger.warning(
-                        "Failed to read HITL cost log: %s",
-                        cost_log,
-                        exc_info=True,
-                    )
 
         return 0.0

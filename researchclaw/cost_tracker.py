@@ -75,6 +75,106 @@ class CostTracker:
         return self.total_cost_usd <= float(max_budget_usd)
 
 
+def _empty_cost_bucket() -> dict[str, int | float]:
+    return {
+        "calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost_usd": 0.0,
+    }
+
+
+def _add_cost_to_bucket(
+    bucket: dict[str, int | float],
+    *,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cost_usd: float,
+) -> None:
+    bucket["calls"] = int(bucket["calls"]) + 1
+    bucket["prompt_tokens"] = int(bucket["prompt_tokens"]) + prompt_tokens
+    bucket["completion_tokens"] = (
+        int(bucket["completion_tokens"]) + completion_tokens
+    )
+    bucket["total_tokens"] = int(bucket["total_tokens"]) + prompt_tokens + completion_tokens
+    bucket["cost_usd"] = round(float(bucket["cost_usd"]) + cost_usd, 6)
+
+
+def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
+    """Aggregate a ``cost_log.jsonl`` by stage and model."""
+    path = Path(log_path)
+    summary: dict[str, Any] = {
+        "calls": 0,
+        "total_prompt_tokens": 0,
+        "total_completion_tokens": 0,
+        "total_tokens": 0,
+        "total_cost_usd": 0.0,
+        "by_stage": {},
+        "by_model": {},
+    }
+    if not path.exists():
+        return summary
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(entry, dict):
+            continue
+        prompt_tokens = int(entry.get("prompt_tokens") or 0)
+        completion_tokens = int(entry.get("completion_tokens") or 0)
+        cost_usd = float(entry.get("cost_usd") or 0.0)
+        provider = str(entry.get("provider") or "unknown")
+        model = str(entry.get("model") or "unknown")
+        metadata = entry.get("metadata")
+        stage = "unknown"
+        if isinstance(metadata, dict):
+            stage = str(metadata.get("stage") or metadata.get("stage_name") or stage)
+
+        summary["calls"] += 1
+        summary["total_prompt_tokens"] += prompt_tokens
+        summary["total_completion_tokens"] += completion_tokens
+        summary["total_tokens"] += prompt_tokens + completion_tokens
+        summary["total_cost_usd"] = round(
+            float(summary["total_cost_usd"]) + cost_usd,
+            6,
+        )
+
+        by_stage = summary["by_stage"]
+        stage_bucket = by_stage.setdefault(stage, _empty_cost_bucket())
+        _add_cost_to_bucket(
+            stage_bucket,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_usd=cost_usd,
+        )
+
+        by_model = summary["by_model"]
+        model_key = f"{provider}/{model}"
+        model_bucket = by_model.setdefault(model_key, _empty_cost_bucket())
+        _add_cost_to_bucket(
+            model_bucket,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_usd=cost_usd,
+        )
+
+    return summary
+
+
+def write_cost_summary(run_dir: str | Path) -> Path:
+    """Write ``cost_summary.json`` beside ``cost_log.jsonl``."""
+    root = Path(run_dir)
+    summary = summarize_cost_log(root / "cost_log.jsonl")
+    out_path = root / "cost_summary.json"
+    out_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return out_path
+
+
 _GLOBAL_TRACKER = CostTracker()
 
 

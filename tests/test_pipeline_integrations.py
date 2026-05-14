@@ -32,6 +32,53 @@ def test_cost_tracker_budget_check_and_logging(tmp_path: Path) -> None:
     assert not tracker.check_budget(1.0)
 
 
+def test_cost_tracker_summarizes_by_stage_and_model(tmp_path: Path) -> None:
+    from researchclaw.cost_tracker import (
+        CostTracker,
+        summarize_cost_log,
+        write_cost_summary,
+    )
+
+    tracker = CostTracker(log_path=tmp_path / "cost_log.jsonl")
+    tracker.record(
+        "openai",
+        "gpt-test",
+        prompt_tokens=100,
+        completion_tokens=50,
+        cost_usd=0.10,
+        stage="HYPOTHESIS_GEN",
+    )
+    tracker.record(
+        "openai",
+        "gpt-test",
+        prompt_tokens=25,
+        completion_tokens=25,
+        cost_usd=0.05,
+        stage="HYPOTHESIS_GEN",
+    )
+    tracker.record(
+        "anthropic",
+        "claude-test",
+        prompt_tokens=40,
+        completion_tokens=10,
+        cost_usd=0.20,
+        stage="PAPER_DRAFT",
+    )
+
+    summary = summarize_cost_log(tmp_path / "cost_log.jsonl")
+
+    assert summary["total_cost_usd"] == 0.35
+    assert summary["total_prompt_tokens"] == 165
+    assert summary["total_completion_tokens"] == 85
+    assert summary["by_stage"]["HYPOTHESIS_GEN"]["cost_usd"] == 0.15
+    assert summary["by_stage"]["HYPOTHESIS_GEN"]["total_tokens"] == 200
+    assert summary["by_model"]["openai/gpt-test"]["calls"] == 2
+
+    out_path = write_cost_summary(tmp_path)
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["by_stage"]["PAPER_DRAFT"]["cost_usd"] == 0.2
+
+
 def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
     from researchclaw.dashboard.collector import DashboardCollector
 
