@@ -185,7 +185,23 @@ class TestArtifactPublisher:
         count = publisher.publish_from_run_dir("missing", tmp_path / "nope")
         assert count == 0
 
+    def test_malformed_experiment_summary_is_logged(
+        self,
+        tmp_path: Path,
+        caplog,
+    ) -> None:
+        run_dir = tmp_path / "run"
+        stage = run_dir / "stage-14"
+        stage.mkdir(parents=True)
+        (stage / "experiment_summary.json").write_text("{not-json", encoding="utf-8")
+        repo = ResearchRepository(repo_dir=tmp_path / "pub_repo4")
+        publisher = ArtifactPublisher(repo)
 
+        with caplog.at_level("DEBUG", logger="researchclaw.collaboration.publisher"):
+            count = publisher.publish_from_run_dir("bad-summary", run_dir)
+
+        assert count == 0
+        assert "Failed to parse experiment summary" in caplog.text
 # ── Subscriber Tests ─────────────────────────────────────────────────
 
 

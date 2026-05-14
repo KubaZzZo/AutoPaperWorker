@@ -80,8 +80,13 @@ class ArtifactPublisher:
             if summary.exists():
                 try:
                     return json.loads(summary.read_text(encoding="utf-8"))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as exc:
+                    logger.debug(
+                        "Failed to parse experiment summary %s: %s",
+                        summary,
+                        exc,
+                        exc_info=True,
+                    )
         return None
 
     def _extract_code(self, run_dir: Path) -> Any:
