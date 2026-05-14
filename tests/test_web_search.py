@@ -167,3 +167,32 @@ class TestWebSearchClient:
                 r.url != responses[0].results[0].url
                 for r in responses[1].results
             )
+
+    @pytest.mark.asyncio
+    async def test_search_multi_async_uses_async_delay(self, monkeypatch):
+        client = WebSearchClient(api_key="")
+        sleep_calls: list[float] = []
+
+        def fail_sync_sleep(delay: float) -> None:
+            raise AssertionError(f"sync sleep used in async search: {delay}")
+
+        async def fake_async_sleep(delay: float) -> None:
+            sleep_calls.append(delay)
+
+        def fake_search(query: str, **kwargs):
+            _ = kwargs
+            return WebSearchResponse(
+                query=query,
+                results=[SearchResult(title=query, url=f"https://ex.com/{query}")],
+            )
+
+        monkeypatch.setattr("researchclaw.web.search.time.sleep", fail_sync_sleep)
+        monkeypatch.setattr("researchclaw.web.search.asyncio.sleep", fake_async_sleep)
+        monkeypatch.setattr(client, "search", fake_search)
+
+        responses = await client.search_multi_async(
+            ["query1", "query2"], inter_query_delay=0.5
+        )
+
+        assert [resp.query for resp in responses] == ["query1", "query2"]
+        assert sleep_calls == [0.5]

@@ -11,6 +11,7 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -129,6 +130,30 @@ class WebSearchClient:
             if i > 0:
                 time.sleep(inter_query_delay)
             resp = self.search(query, max_results=max_results)
+            unique_results = [r for r in resp.results if r.url not in seen_urls]
+            seen_urls.update(r.url for r in unique_results)
+            resp.results = unique_results
+            responses.append(resp)
+
+        return responses
+
+    async def search_multi_async(
+        self,
+        queries: list[str],
+        *,
+        max_results: int | None = None,
+        inter_query_delay: float = 1.0,
+    ) -> list[WebSearchResponse]:
+        """Run multiple search queries without blocking an async event loop."""
+        responses = []
+        seen_urls: set[str] = set()
+
+        for i, query in enumerate(queries):
+            if i > 0:
+                await asyncio.sleep(inter_query_delay)
+            resp = await asyncio.to_thread(
+                self.search, query, max_results=max_results
+            )
             unique_results = [r for r in resp.results if r.url not in seen_urls]
             seen_urls.update(r.url for r in unique_results)
             resp.results = unique_results

@@ -268,6 +268,8 @@
 - **建议:** 添加递归深度检查。
 
 #### 28. Web Search 多查询内联延迟
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `WebSearchClient` now exposes `search_multi_async()`, which uses `asyncio.sleep()` for inter-query delay and runs the existing blocking search call through `asyncio.to_thread()`. The original synchronous `search_multi()` remains compatible for non-async callers, while async callers can avoid blocking the event loop. Regression coverage verifies the async path does not call `time.sleep()`.</span>
+
 - **文件:** `researchclaw/web/search.py:128`
 - **问题:** `search_multi` 使用 `time.sleep(inter_query_delay)` 同步等待，如果延迟太长会影响响应性。
 - **建议:** 使用 `asyncio.sleep` 在异步上下文中。
