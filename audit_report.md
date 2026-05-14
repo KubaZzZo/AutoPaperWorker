@@ -166,6 +166,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Stage 23 citation verification now logs `paper.tex` read failures while collecting LaTeX `\cite{}` keys, instead of silently ignoring unreadable export artifacts and then pruning references without diagnostic context.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Code search cache statistics now logs malformed or unreadable cache JSON entries with debug exception context while preserving resilient aggregate counts. `researchclaw/agents/code_searcher/cache.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

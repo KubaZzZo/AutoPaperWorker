@@ -109,8 +109,13 @@ class SearchCache:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if time.time() - data.get("_cached_at", 0) > self._ttl_sec:
                     expired += 1
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read cache stats entry %s: %s",
+                    f,
+                    exc,
+                    exc_info=True,
+                )
 
         return {"total": total, "expired": expired, **by_domain}
 

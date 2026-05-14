@@ -184,6 +184,20 @@ class TestSearchCache:
         assert stats["total"] == 3
         assert stats.get("ml_vision", 0) == 2
 
+    def test_stats_logs_malformed_cache_entries(self, tmp_path, caplog):
+        cache = SearchCache(cache_dir=tmp_path)
+        cache.put("ml_vision", "valid", {"x": 1})
+        bad_dir = tmp_path / "ml_vision"
+        bad_dir.mkdir(parents=True, exist_ok=True)
+        (bad_dir / "bad.json").write_text("{not valid json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.agents.code_searcher.cache"):
+            stats = cache.stats()
+
+        assert stats["total"] == 2
+        assert stats.get("ml_vision", 0) == 2
+        assert "Failed to read cache stats entry" in caplog.text
+
     def test_topic_hash_deterministic(self):
         h1 = SearchCache._topic_hash("test topic")
         h2 = SearchCache._topic_hash("test topic")
