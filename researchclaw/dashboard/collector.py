@@ -30,6 +30,11 @@ class RunSnapshot:
     stages_completed: list[str] = field(default_factory=list)
     last_log_lines: list[str] = field(default_factory=list)
     error: str = ""
+    stages_done: int = 0
+    stages_failed: int = 0
+    stages_paused: int = 0
+    stages_blocked: int = 0
+    cost_usd: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +51,11 @@ class RunSnapshot:
             "metrics": self.metrics,
             "stages_completed": self.stages_completed,
             "error": self.error,
+            "stages_done": self.stages_done,
+            "stages_failed": self.stages_failed,
+            "stages_paused": self.stages_paused,
+            "stages_blocked": self.stages_blocked,
+            "cost_usd": round(self.cost_usd, 6),
         }
 
 
@@ -81,6 +91,31 @@ class DashboardCollector:
 
     def _collect_run(self, run_dir: Path) -> RunSnapshot:
         snap = RunSnapshot(run_id=run_dir.name, path=str(run_dir))
+
+        # --- progress.json: canonical structured monitor snapshot ---
+        progress_path = run_dir / "progress.json"
+        if progress_path.exists():
+            try:
+                with progress_path.open(encoding="utf-8") as f:
+                    progress = json.load(f)
+                if isinstance(progress, dict):
+                    snap.run_id = str(progress.get("run_id") or snap.run_id)
+                    snap.status = str(progress.get("status") or snap.status)
+                    snap.current_stage = int(progress.get("current_stage") or 0)
+                    snap.current_stage_name = str(
+                        progress.get("current_stage_name") or ""
+                    )
+                    snap.total_stages = int(
+                        progress.get("total_stages") or snap.total_stages
+                    )
+                    snap.elapsed_sec = float(progress.get("elapsed_sec") or 0.0)
+                    snap.stages_done = int(progress.get("stages_done") or 0)
+                    snap.stages_failed = int(progress.get("stages_failed") or 0)
+                    snap.stages_paused = int(progress.get("stages_paused") or 0)
+                    snap.stages_blocked = int(progress.get("stages_blocked") or 0)
+                    snap.cost_usd = float(progress.get("cost_usd") or 0.0)
+            except Exception:
+                pass
 
         # --- checkpoint.json ---
         ckpt_path = run_dir / "checkpoint.json"

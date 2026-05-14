@@ -32,6 +32,40 @@ def test_cost_tracker_budget_check_and_logging(tmp_path: Path) -> None:
     assert not tracker.check_budget(1.0)
 
 
+def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
+    from researchclaw.dashboard.collector import DashboardCollector
+
+    run_dir = tmp_path / "rc-progress"
+    run_dir.mkdir()
+    (run_dir / "progress.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run-progress",
+                "status": "running",
+                "current_stage": 7,
+                "current_stage_name": "SYNTHESIS",
+                "total_stages": 23,
+                "elapsed_sec": 12.5,
+                "stages_done": 6,
+                "stages_failed": 0,
+                "cost_usd": 1.25,
+                "updated_at": "2026-05-14T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap = DashboardCollector().collect_run(run_dir)
+
+    assert snap.run_id == "run-progress"
+    assert snap.status == "running"
+    assert snap.current_stage == 7
+    assert snap.current_stage_name == "SYNTHESIS"
+    assert snap.elapsed_sec == 12.5
+    assert snap.stages_done == 6
+    assert snap.cost_usd == 1.25
+
+
 def test_experiment_spec_parse_and_validate() -> None:
     from researchclaw.pipeline.experiment_spec import (
         MetricDef,

@@ -75,6 +75,76 @@ def _write_pipeline_summary(run_dir: Path, summary: dict[str, object]) -> None:
     )
 
 
+def _read_total_cost_usd(run_dir: Path) -> float:
+    cost_log = run_dir / "cost_log.jsonl"
+    if not cost_log.exists():
+        return 0.0
+    total = 0.0
+    try:
+        for line in cost_log.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            entry = json.loads(line)
+            if isinstance(entry, dict):
+                total += float(entry.get("cost_usd") or 0.0)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return total
+    return total
+
+
+def _write_progress_snapshot(
+    *,
+    run_dir: Path,
+    run_id: str,
+    results: list[StageResult],
+    current_stage: Stage,
+    total_stages: int,
+    status: str = "running",
+    elapsed_sec: float | None = None,
+) -> None:
+    """Write a single-file progress snapshot for dashboards and monitors."""
+    last = results[-1] if results else None
+    done_count = sum(1 for item in results if item.status == StageStatus.DONE)
+    failed_count = sum(1 for item in results if item.status == StageStatus.FAILED)
+    paused_count = sum(1 for item in results if item.status == StageStatus.PAUSED)
+    blocked_count = sum(
+        1 for item in results if item.status == StageStatus.BLOCKED_APPROVAL
+    )
+    payload: dict[str, object] = {
+        "run_id": run_id,
+        "status": status,
+        "current_stage": int(current_stage),
+        "current_stage_name": current_stage.name,
+        "total_stages": total_stages,
+        "stages_done": done_count,
+        "stages_failed": failed_count,
+        "stages_paused": paused_count,
+        "stages_blocked": blocked_count,
+        "percent": round(int(current_stage) / total_stages * 100, 1)
+        if total_stages
+        else 0.0,
+        "cost_usd": round(_read_total_cost_usd(run_dir), 6),
+        "updated_at": _utcnow_iso(),
+    }
+    if elapsed_sec is not None:
+        payload["elapsed_sec"] = round(elapsed_sec, 3)
+    if last is not None:
+        event_type = "stage_end" if last.status == StageStatus.DONE else "stage_fail"
+        payload["last_event"] = {
+            "type": event_type,
+            "stage": int(last.stage),
+            "stage_name": last.stage.name,
+            "status": last.status.value,
+            "decision": last.decision,
+            "error": last.error,
+            "artifacts": list(last.artifacts),
+        }
+    (run_dir / "progress.json").write_text(
+        json.dumps(payload, indent=2),
+        encoding="utf-8",
+    )
+
+
 def _prepare_parallel_hypothesis_branches(run_dir: Path) -> Path | None:
     """Create branch input directories from Stage 8 hypothesis branch plan."""
     plan_path = run_dir / "stage-08" / "hypothesis_branches.json"
@@ -929,6 +999,15 @@ def execute_pipeline(
             err = result.error or "paused"
             print(f"{prefix} {stage.name} -- PAUSED ({elapsed:.1f}s) -- {err}")
         results.append(result)
+        _write_progress_snapshot(
+            run_dir=run_dir,
+            run_id=run_id,
+            results=results,
+            current_stage=stage,
+            total_stages=total_stages,
+            status="running",
+            elapsed_sec=elapsed,
+        )
 
         if kb_root is not None and result.status == StageStatus.DONE:
             try:
@@ -1114,6 +1193,15 @@ def execute_pipeline(
         run_dir=run_dir,
     )
     _write_pipeline_summary(run_dir, summary)
+    if results:
+        _write_progress_snapshot(
+            run_dir=run_dir,
+            run_id=run_id,
+            results=results,
+            current_stage=results[-1].stage,
+            total_stages=total_stages,
+            status=str(summary.get("final_status", "completed")),
+        )
 
     # ── Event log: pipeline end ──
     if event_log:

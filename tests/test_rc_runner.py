@@ -154,6 +154,38 @@ def test_execute_pipeline_stops_on_paused_stage(
     assert summary["final_status"] == "paused"
 
 
+def test_execute_pipeline_writes_structured_progress_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        return _done(stage)
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+
+    rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-progress",
+        config=rc_config,
+        adapters=adapters,
+        to_stage=Stage.PROBLEM_DECOMPOSE,
+    )
+
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["run_id"] == "run-progress"
+    assert progress["status"] == "done"
+    assert progress["current_stage"] == int(Stage.PROBLEM_DECOMPOSE)
+    assert progress["current_stage_name"] == "PROBLEM_DECOMPOSE"
+    assert progress["stages_done"] == 2
+    assert progress["stages_failed"] == 0
+    assert progress["total_stages"] == len(STAGE_SEQUENCE)
+    assert progress["last_event"]["type"] == "stage_end"
+    assert progress["last_event"]["status"] == "done"
+
+
 def test_execute_pipeline_stops_on_gate_when_stop_on_gate_enabled(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,
