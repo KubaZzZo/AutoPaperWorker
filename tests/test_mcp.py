@@ -128,7 +128,41 @@ class TestMCPServer:
     def test_handle_review_paper(self) -> None:
         server = ResearchClawMCPServer()
         result = asyncio.run(server.handle_tool_call("review_paper", {"paper_path": "/tmp/paper.md"}))
+        assert result["success"] is False
+        assert "Paper not found" in result["error"]
+
+    def test_handle_review_paper_reads_and_scores_markdown(self, tmp_path) -> None:
+        paper_path = tmp_path / "paper.md"
+        paper_path.write_text(
+            "# Sample Paper\n\n"
+            "## Abstract\n"
+            "This paper proposes a compact method with measurable results.\n\n"
+            "## Introduction\n"
+            "Prior work motivates the problem and the benchmark.\n\n"
+            "## Methods\n"
+            "We train the model and compare against a baseline.\n\n"
+            "## Results\n"
+            "The proposed method improves accuracy by 2.0 points [1].\n\n"
+            "## References\n"
+            "[1] Example Reference.\n",
+            encoding="utf-8",
+        )
+
+        server = ResearchClawMCPServer()
+        result = asyncio.run(
+            server.handle_tool_call(
+                "review_paper",
+                {"paper_path": str(paper_path)},
+            )
+        )
+
         assert result["success"] is True
+        assert result["paper_path"] == str(paper_path)
+        assert result["review"]["word_count"] > 20
+        assert result["review"]["section_count"] >= 6
+        assert result["review"]["citation_count"] == 2
+        assert result["review"]["missing_sections"] == []
+        assert "stub" not in json.dumps(result).lower()
 
     def test_start_stop(self) -> None:
         server = ResearchClawMCPServer()

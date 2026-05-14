@@ -13,6 +13,18 @@ from researchclaw.mcp.tools import TOOL_DEFINITIONS, list_tool_names
 logger = logging.getLogger(__name__)
 
 _VALID_RUN_ID = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_REQUIRED_PAPER_SECTIONS = {
+    "abstract": ("abstract",),
+    "introduction": ("introduction",),
+    "methods": ("methods", "method", "methodology", "approach"),
+    "results": ("results", "experiments", "experiment"),
+    "references": ("references", "bibliography"),
+}
+
+
+def _normalize_heading(heading: str) -> str:
+    """Normalize a markdown/LaTeX heading for section checks."""
+    return re.sub(r"[^a-z0-9]+", " ", heading.lower()).strip()
 
 
 def _validated_run_dir(run_id: str) -> Path:
@@ -120,11 +132,34 @@ class ResearchClawMCPServer:
         }
 
     async def _handle_review_paper(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Review paper (stub)."""
+        """Review a generated paper with lightweight offline checks."""
+        paper_path = Path(str(args["paper_path"]))
+        if not paper_path.exists() or not paper_path.is_file():
+            return {"success": False, "error": f"Paper not found: {paper_path}"}
+        content = paper_path.read_text(encoding="utf-8", errors="replace")
+        headings = re.findall(r"(?m)^#{1,6}\s+(.+?)\s*$", content)
+        heading_norms = [_normalize_heading(heading) for heading in headings]
+        missing_sections = [
+            section
+            for section, aliases in _REQUIRED_PAPER_SECTIONS.items()
+            if not any(alias in heading_norms for alias in aliases)
+        ]
+        citations = re.findall(r"\[[0-9,\-\s]+\]|\\cite[tp]?\{[^}]+\}", content)
+        issues: list[str] = []
+        if missing_sections:
+            issues.append("Missing core sections: " + ", ".join(missing_sections))
+        if not citations:
+            issues.append("No bracket or LaTeX citations detected")
         return {
             "success": True,
-            "paper_path": args["paper_path"],
-            "review": "Stub review — not yet implemented",
+            "paper_path": str(paper_path),
+            "review": {
+                "word_count": len(re.findall(r"\b\w+\b", content)),
+                "section_count": len(headings),
+                "citation_count": len(citations),
+                "missing_sections": missing_sections,
+                "issues": issues,
+            },
         }
 
     async def _handle_get_paper(self, args: dict[str, Any]) -> dict[str, Any]:
