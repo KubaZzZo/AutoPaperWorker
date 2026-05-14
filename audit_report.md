@@ -261,6 +261,8 @@
 - **建议:** 考虑使用 `urllib3` 或 `httpx` 的连接池。
 
 #### 27. 配置加载时缺少递归深度限制
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Config validation now rejects dictionaries/lists deeper than `MAX_CONFIG_NESTING_DEPTH` using an iterative scanner before normal field parsing; `RCConfig.from_dict()` surfaces the validation error. Regression tests cover both `validate_config()` and `from_dict()`.</span>
+
 - **文件:** `researchclaw/config.py:764-915`
 - **问题:** `from_dict()` 方法支持任意嵌套的配置字典。恶意构造的深层嵌套 YAML 可能导致栈溢出。
 - **建议:** 添加递归深度检查。

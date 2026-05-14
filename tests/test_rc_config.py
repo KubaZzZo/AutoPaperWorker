@@ -231,6 +231,36 @@ def test_validate_config_rejects_invalid_metric_direction(tmp_path: Path):
     assert "Invalid experiment.metric_direction: upward" in result.errors
 
 
+def test_validate_config_rejects_excessive_nested_depth(tmp_path: Path):
+    data = _valid_config_data()
+    nested: dict[str, object] = {}
+    cursor = nested
+    for idx in range(80):
+        child: dict[str, object] = {}
+        cursor[f"level_{idx}"] = child
+        cursor = child
+    data["experiment"]["deeply_nested"] = nested
+
+    result = validate_config(data, project_root=tmp_path, check_paths=False)
+
+    assert result.ok is False
+    assert any("maximum nesting depth" in error for error in result.errors)
+
+
+def test_rcconfig_from_dict_rejects_excessive_nested_depth(tmp_path: Path):
+    data = _valid_config_data()
+    nested: dict[str, object] = {}
+    cursor = nested
+    for idx in range(80):
+        child = {}
+        cursor[f"level_{idx}"] = child
+        cursor = child
+    data["experiment"]["deeply_nested"] = nested
+
+    with pytest.raises(ValueError, match="maximum nesting depth"):
+        RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+
 def test_rcconfig_from_dict_happy_path(tmp_path: Path):
     config = RCConfig.from_dict(
         _valid_config_data(),

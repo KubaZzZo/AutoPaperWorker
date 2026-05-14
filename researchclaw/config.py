@@ -19,6 +19,7 @@ DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
     "http://127.0.0.1:8080",
     "http://localhost:8080",
 )
+MAX_CONFIG_NESTING_DEPTH = 64
 
 
 def _safe_int(val: Any, default: int) -> int:
@@ -47,6 +48,22 @@ def _validate_network_policy(val: object, default: str = "setup_only") -> str:
         )
         return default
     return s
+
+
+def _config_depth_error(data: object, max_depth: int = MAX_CONFIG_NESTING_DEPTH) -> str | None:
+    """Return an error if a config object exceeds the supported nesting depth."""
+    stack: list[tuple[object, int, str]] = [(data, 0, "config")]
+    while stack:
+        value, depth, path = stack.pop()
+        if depth > max_depth:
+            return f"Config exceeds maximum nesting depth ({max_depth}) at {path}"
+        if isinstance(value, dict):
+            for key, child in value.items():
+                stack.append((child, depth + 1, f"{path}.{key}"))
+        elif isinstance(value, (list, tuple)):
+            for idx, child in enumerate(value):
+                stack.append((child, depth + 1, f"{path}[{idx}]"))
+    return None
 
 
 def _safe_float(val: Any, default: float) -> float:
@@ -933,6 +950,11 @@ def validate_config(
 ) -> ValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
+
+    depth_error = _config_depth_error(data)
+    if depth_error is not None:
+        errors.append(depth_error)
+        return ValidationResult(ok=False, errors=tuple(errors), warnings=())
 
     llm_provider = _get_by_path(data, "llm.provider")
     for key in REQUIRED_FIELDS:
