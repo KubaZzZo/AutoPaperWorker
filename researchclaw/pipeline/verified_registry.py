@@ -293,7 +293,10 @@ class VerifiedRegistry:
                             sub = cls.from_experiment(es_data, metric_direction=metric_direction)
                             _merge_into(target, sub)
                     except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
-                        pass
+                        logger.debug(
+                            "from_run_dir(best_only): failed to load stage-14 experiment_summary.json",
+                            exc_info=True,
+                        )
         else:
             # --- 1. All stage-14* experiment summaries ---
             for es_path in sorted(run_dir.glob("stage-14*/experiment_summary.json")):

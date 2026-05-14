@@ -461,6 +461,19 @@ class TestFromRunDir:
         assert reg.is_verified(0.85)
         assert "Baseline" in reg.condition_names
 
+    def test_best_only_logs_invalid_stage14_fallback(self, tmp_path: Path, caplog) -> None:
+        """best_only=True should log malformed stage-14 fallback summaries."""
+        run_dir = tmp_path / "run"
+        summary_path = run_dir / "stage-14" / "experiment_summary.json"
+        summary_path.parent.mkdir(parents=True)
+        summary_path.write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.verified_registry"):
+            reg = VerifiedRegistry.from_run_dir(run_dir, best_only=True)
+
+        assert not reg.values
+        assert "from_run_dir(best_only): failed to load stage-14 experiment_summary.json" in caplog.text
+
     def test_default_mode_still_merges_all(self, tmp_path: Path) -> None:
         """Default (best_only=False) preserves backward-compat merging."""
         run_dir = tmp_path / "run"
