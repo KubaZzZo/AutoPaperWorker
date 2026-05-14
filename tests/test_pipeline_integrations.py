@@ -170,6 +170,116 @@ def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
     assert snap.cost_usd == 1.25
 
 
+def test_progress_snapshot_includes_stage12_experiment_runs(tmp_path: Path) -> None:
+    from researchclaw.pipeline.runner import _write_progress_snapshot
+    from researchclaw.pipeline.stages import Stage
+
+    run_dir = tmp_path / "rc-telemetry"
+    runs_dir = run_dir / "stage-12" / "runs"
+    runs_dir.mkdir(parents=True)
+    (runs_dir / "run-1.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run-1",
+                "status": "completed",
+                "elapsed_sec": 12.3456,
+                "stdout_log": str(runs_dir / "run-1.stdout.log"),
+                "stderr_log": str(runs_dir / "run-1.stderr.log"),
+                "metrics": {"accuracy": 0.91},
+                "completed_at": "2026-05-14T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _write_progress_snapshot(
+        run_dir=run_dir,
+        run_id="rc-telemetry",
+        results=[],
+        current_stage=Stage.EXPERIMENT_RUN,
+        total_stages=23,
+        elapsed_sec=15.0,
+    )
+
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+
+    assert progress["experiment_runs"] == [
+        {
+            "run_id": "run-1",
+            "status": "completed",
+            "elapsed_sec": 12.346,
+            "stdout_log": "stage-12/runs/run-1.stdout.log",
+            "stderr_log": "stage-12/runs/run-1.stderr.log",
+            "metrics": {"accuracy": 0.91},
+            "updated_at": "2026-05-14T00:00:00+00:00",
+        }
+    ]
+
+
+def test_progress_snapshot_skips_malformed_experiment_run(
+    tmp_path: Path,
+    caplog,
+) -> None:
+    from researchclaw.pipeline.runner import _write_progress_snapshot
+    from researchclaw.pipeline.stages import Stage
+
+    run_dir = tmp_path / "rc-bad-telemetry"
+    runs_dir = run_dir / "stage-12" / "runs"
+    runs_dir.mkdir(parents=True)
+    (runs_dir / "run-1.json").write_text("{not-json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+        _write_progress_snapshot(
+            run_dir=run_dir,
+            run_id="rc-bad-telemetry",
+            results=[],
+            current_stage=Stage.EXPERIMENT_RUN,
+            total_stages=23,
+        )
+
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+
+    assert "experiment_runs" not in progress
+    assert "Failed to read experiment run progress" in caplog.text
+
+
+def test_dashboard_snapshot_exports_experiment_runs_from_progress(
+    tmp_path: Path,
+) -> None:
+    from researchclaw.dashboard.collector import DashboardCollector
+
+    run_dir = tmp_path / "rc-progress-runs"
+    run_dir.mkdir()
+    (run_dir / "progress.json").write_text(
+        json.dumps(
+            {
+                "run_id": "rc-progress-runs",
+                "status": "running",
+                "current_stage": 12,
+                "current_stage_name": "EXPERIMENT_RUN",
+                "experiment_runs": [
+                    {
+                        "run_id": "run-1",
+                        "status": "partial",
+                        "stdout_log": "stage-12/runs/run-1.stdout.log",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snap = DashboardCollector().collect_run(run_dir)
+
+    assert snap.to_dict()["experiment_runs"] == [
+        {
+            "run_id": "run-1",
+            "status": "partial",
+            "stdout_log": "stage-12/runs/run-1.stdout.log",
+        }
+    ]
+
+
 def test_dashboard_collector_logs_malformed_progress_snapshot(
     tmp_path: Path,
     caplog,

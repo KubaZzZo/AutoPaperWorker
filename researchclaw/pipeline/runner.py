@@ -92,6 +92,64 @@ def _read_total_cost_usd(run_dir: Path) -> float:
     return total
 
 
+def _relative_artifact_path(run_dir: Path, value: object) -> str | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    try:
+        return path.resolve().relative_to(run_dir.resolve()).as_posix()
+    except (OSError, ValueError):
+        try:
+            return path.relative_to(run_dir).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+
+def _collect_experiment_run_progress(run_dir: Path) -> list[dict[str, object]]:
+    runs_dir = run_dir / "stage-12" / "runs"
+    if not runs_dir.exists():
+        return []
+
+    runs: list[dict[str, object]] = []
+    for run_path in sorted(runs_dir.glob("run-*.json")):
+        try:
+            payload = json.loads(run_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug(
+                "Failed to read experiment run progress %s: %s",
+                run_path,
+                exc,
+                exc_info=True,
+            )
+            continue
+        if not isinstance(payload, dict):
+            continue
+
+        run: dict[str, object] = {
+            "run_id": str(payload.get("run_id") or run_path.stem),
+            "status": str(payload.get("status") or "unknown"),
+        }
+        elapsed = payload.get("elapsed_sec")
+        if isinstance(elapsed, int | float):
+            run["elapsed_sec"] = round(float(elapsed), 3)
+
+        for key in ("stdout_log", "stderr_log"):
+            rel_path = _relative_artifact_path(run_dir, payload.get(key))
+            if rel_path is not None:
+                run[key] = rel_path
+
+        metrics = payload.get("metrics")
+        if isinstance(metrics, dict):
+            run["metrics"] = metrics
+
+        updated_at = payload.get("completed_at") or payload.get("updated_at")
+        if updated_at:
+            run["updated_at"] = str(updated_at)
+
+        runs.append(run)
+    return runs
+
+
 def _write_progress_snapshot(
     *,
     run_dir: Path,
@@ -138,6 +196,9 @@ def _write_progress_snapshot(
         payload["cost_summary"] = cost_summary
     if elapsed_sec is not None:
         payload["elapsed_sec"] = round(elapsed_sec, 3)
+    experiment_runs = _collect_experiment_run_progress(run_dir)
+    if experiment_runs:
+        payload["experiment_runs"] = experiment_runs
     if last is not None:
         event_type = "stage_end" if last.status == StageStatus.DONE else "stage_fail"
         payload["last_event"] = {

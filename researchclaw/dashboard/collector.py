@@ -35,6 +35,7 @@ class RunSnapshot:
     stages_paused: int = 0
     stages_blocked: int = 0
     cost_usd: float = 0.0
+    experiment_runs: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +57,7 @@ class RunSnapshot:
             "stages_paused": self.stages_paused,
             "stages_blocked": self.stages_blocked,
             "cost_usd": round(self.cost_usd, 6),
+            "experiment_runs": self.experiment_runs,
         }
 
 
@@ -114,6 +116,11 @@ class DashboardCollector:
                     snap.stages_paused = int(progress.get("stages_paused") or 0)
                     snap.stages_blocked = int(progress.get("stages_blocked") or 0)
                     snap.cost_usd = float(progress.get("cost_usd") or 0.0)
+                    experiment_runs = progress.get("experiment_runs")
+                    if isinstance(experiment_runs, list):
+                        snap.experiment_runs = [
+                            item for item in experiment_runs if isinstance(item, dict)
+                        ]
             except Exception as exc:
                 logger.debug(
                     "Failed to read progress snapshot %s: %s",

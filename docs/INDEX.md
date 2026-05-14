@@ -1,7 +1,7 @@
 # Documentation Index
 
-This folder keeps the public-facing guides, active project trackers, and
-architecture notes for AutoResearchClaw. Historical fix logs and one-off
+This folder keeps the public-facing guides, current optimization plan, and
+operator references for AutoResearchClaw. Historical fix logs and completed
 planning notes are intentionally pruned from the main docs tree so the current
 state is easier to find.
 
@@ -14,15 +14,8 @@ state is easier to find.
 
 ## Project Status
 
-- [Issue Tracker v9](issue_tracker_v9.md) - active issue and feature tracker.
-- [Roadmap](ROADMAP.md) - current roadmap and remaining quality gaps.
-
-## Architecture And Feature Plans
-
-- [Figure and Benchmark Agent Plan](agent_figure_and_benchmark_plan.md) -
-  BenchmarkAgent and FigureAgent architecture.
-- [MetaClaw Integration Plan](metaclaw-integration-plan.md) - MetaClaw bridge,
-  PRM gate, and skill feedback design.
+- [Current Optimization Plan](current_optimization_plan.md) - active cleanup
+  and throughput work.
 
 ## Localized Documentation
 
