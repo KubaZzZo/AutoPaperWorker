@@ -132,15 +132,16 @@ class BaseAgent(ABC):
         # 1. Direct parse
         try:
             return _as_dict(json.loads(text))
-        except (json.JSONDecodeError, ValueError):
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            if text.lstrip().startswith(("{", "[")):
+                logger.debug("Failed to parse direct JSON response: %s", exc)
         # 2. Fenced code block
         m = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
         if m:
             try:
                 return _as_dict(json.loads(m.group(1)))
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug("Failed to parse fenced JSON block: %s", exc)
         # 3. First balanced { ... } block (BUG-DA6-07: use non-greedy brace matching)
         depth = 0
         start_idx = -1
@@ -155,7 +156,8 @@ class BaseAgent(ABC):
                     candidate = text[start_idx : i + 1]
                     try:
                         return _as_dict(json.loads(candidate))
-                    except (json.JSONDecodeError, ValueError):
+                    except (json.JSONDecodeError, ValueError) as exc:
+                        logger.debug("Failed to parse embedded JSON block: %s", exc)
                         start_idx = -1  # try next top-level block
         return None
 

@@ -613,6 +613,15 @@ class TestBaseAgent:
         result = BaseAgent._parse_json("no json here at all")
         assert result is None
 
+    def test_parse_json_logs_malformed_fenced_json(self, caplog) -> None:
+        from researchclaw.agents.base import BaseAgent
+
+        with caplog.at_level("DEBUG", logger="researchclaw.agents.base"):
+            result = BaseAgent._parse_json("```json\n{bad-json\n```")
+
+        assert result is None
+        assert "Failed to parse fenced JSON block" in caplog.text
+
 
 # ---------------------------------------------------------------------------
 # Required baselines injection (Improvement E)
