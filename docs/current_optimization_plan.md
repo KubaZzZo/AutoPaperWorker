@@ -29,6 +29,8 @@ and this active optimization plan.
    - Library `print()` calls remain in pipeline and experiment modules.
    - Keep intentional CLI output, but move background pipeline status and
      repair messages toward structured logging or explicit reporter hooks.
+   - 2026-05-14 slice: experiment repair progress no longer writes directly to
+     stdout by default; callers can opt in with an injected progress reporter.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and

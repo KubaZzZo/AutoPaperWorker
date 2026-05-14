@@ -562,6 +562,102 @@ print("condition=Ablation metric=85.0")
         assert (repair_dir / "experiment" / "main.py").exists()
         assert (repair_dir / "experiment_summary.json").exists()
 
+    def test_repair_loop_does_not_print_progress_by_default(self, tmp_path, capsys):
+        """Background repair runs should not write progress directly to stdout."""
+        run_dir = self._make_run_dir(tmp_path, n_conditions=1)
+
+        from researchclaw.config import ExperimentRepairConfig, OpenCodeConfig
+
+        class FakeConfig:
+            class experiment:
+                time_budget_sec = 2400
+                mode = "simulated"
+                repair = ExperimentRepairConfig(enabled=True, max_cycles=1, use_opencode=False)
+                opencode = OpenCodeConfig(enabled=False)
+                metric_key = "primary_metric"
+
+            class llm:
+                pass
+
+        mock_llm = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.content = """```python main.py
+print("condition=Baseline metric=80.0")
+```"""
+        mock_llm.chat.return_value = mock_resp
+
+        mock_sandbox_result = MagicMock()
+        mock_sandbox_result.stdout = "condition=Baseline metric=80.0\n"
+        mock_sandbox_result.stderr = ""
+        mock_sandbox_result.returncode = 0
+        mock_sandbox_result.metrics = {"Baseline/accuracy": 80.0}
+        mock_sandbox_result.elapsed_sec = 10.0
+        mock_sandbox_result.timed_out = False
+
+        mock_sandbox = MagicMock()
+        mock_sandbox.run_project.return_value = mock_sandbox_result
+
+        with patch("researchclaw.llm.create_llm_client") as mock_create_llm, \
+             patch("researchclaw.experiment.factory.create_sandbox") as mock_create_sb:
+            mock_create_llm.return_value = mock_llm
+            mock_create_sb.return_value = mock_sandbox
+
+            run_repair_loop(run_dir, FakeConfig(), "quiet-run")
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    def test_repair_loop_reports_progress_to_injected_reporter(self, tmp_path):
+        """CLI callers can opt in to user-visible repair progress."""
+        run_dir = self._make_run_dir(tmp_path, n_conditions=1)
+
+        from researchclaw.config import ExperimentRepairConfig, OpenCodeConfig
+
+        class FakeConfig:
+            class experiment:
+                time_budget_sec = 2400
+                mode = "simulated"
+                repair = ExperimentRepairConfig(enabled=True, max_cycles=1, use_opencode=False)
+                opencode = OpenCodeConfig(enabled=False)
+                metric_key = "primary_metric"
+
+            class llm:
+                pass
+
+        messages: list[str] = []
+        mock_llm = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.content = """```python main.py
+print("condition=Baseline metric=80.0")
+```"""
+        mock_llm.chat.return_value = mock_resp
+
+        mock_sandbox_result = MagicMock()
+        mock_sandbox_result.stdout = "condition=Baseline metric=80.0\n"
+        mock_sandbox_result.stderr = ""
+        mock_sandbox_result.returncode = 0
+        mock_sandbox_result.metrics = {"Baseline/accuracy": 80.0}
+        mock_sandbox_result.elapsed_sec = 10.0
+        mock_sandbox_result.timed_out = False
+
+        mock_sandbox = MagicMock()
+        mock_sandbox.run_project.return_value = mock_sandbox_result
+
+        with patch("researchclaw.llm.create_llm_client") as mock_create_llm, \
+             patch("researchclaw.experiment.factory.create_sandbox") as mock_create_sb:
+            mock_create_llm.return_value = mock_llm
+            mock_create_sb.return_value = mock_sandbox
+
+            run_repair_loop(
+                run_dir,
+                FakeConfig(),
+                "reported-run",
+                progress_reporter=messages.append,
+            )
+
+        assert any("Repair cycle 1/1" in message for message in messages)
+        assert any("Repair cycle 1:" in message for message in messages)
+
 
 # ---------------------------------------------------------------------------
 # BUG-199: 2-part metric keys (condition/metric) in summary builder

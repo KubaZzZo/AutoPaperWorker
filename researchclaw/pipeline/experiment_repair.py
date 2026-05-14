@@ -18,7 +18,7 @@ import re
 import time as _time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from researchclaw.pipeline.experiment_diagnosis import (
     DeficiencyType,
@@ -43,6 +43,13 @@ _UNNAMED_BLOCK_RE = re.compile(
     r"```python\s*\n(.*?)```",
     re.DOTALL,
 )
+
+ProgressReporter = Callable[[str], None]
+
+
+def _report_progress(reporter: ProgressReporter | None, message: str) -> None:
+    if reporter is not None:
+        reporter(message)
 
 
 @dataclass
@@ -275,6 +282,7 @@ def run_repair_loop(
     run_dir: Path,
     config: Any,
     run_id: str = "",
+    progress_reporter: ProgressReporter | None = None,
 ) -> ExperimentRepairResult:
     """Execute the full experiment repair loop.
 
@@ -352,7 +360,10 @@ def run_repair_loop(
 
     for cycle in range(1, max_cycles + 1):
         logger.info("[%s] Repair cycle %d/%d starting...", run_id, cycle, max_cycles)
-        print(f"[{run_id}] Repair cycle {cycle}/{max_cycles}...")
+        _report_progress(
+            progress_reporter,
+            f"[{run_id}] Repair cycle {cycle}/{max_cycles}...",
+        )
 
         # 1. Diagnose current state
         diag = diagnose_experiment(
@@ -450,15 +461,19 @@ def run_repair_loop(
             "[%s] Repair cycle %d: score %.1f → %.1f, mode=%s, sufficient=%s",
             run_id, cycle, old_score, new_score, new_qa.mode.value, new_qa.sufficient,
         )
-        print(
+        _report_progress(
+            progress_reporter,
             f"[{run_id}] Repair cycle {cycle}: "
             f"score {old_score:.1f} → {new_score:.1f}, "
-            f"mode={new_qa.mode.value}"
+            f"mode={new_qa.mode.value}",
         )
 
         if new_qa.sufficient:
             logger.info("[%s] Repair successful after %d cycles!", run_id, cycle)
-            print(f"[{run_id}] Experiment repair successful! Mode: {new_qa.mode.value}")
+            _report_progress(
+                progress_reporter,
+                f"[{run_id}] Experiment repair successful! Mode: {new_qa.mode.value}",
+            )
             return ExperimentRepairResult(
                 success=True,
                 total_cycles=cycle,
