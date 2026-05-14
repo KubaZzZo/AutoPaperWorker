@@ -188,6 +188,8 @@ class DockerSandbox:
         *,
         timeout_sec: int = 300,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         """Run a single Python code string inside a container."""
         self._run_counter += 1
@@ -216,6 +218,8 @@ class DockerSandbox:
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         """Run a multi-file experiment project inside a container."""
         self._run_counter += 1

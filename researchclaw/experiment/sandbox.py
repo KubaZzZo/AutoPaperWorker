@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import math
 import os
+import queue
 import re
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -304,6 +306,8 @@ class SandboxProtocol(Protocol):
         *,
         timeout_sec: int = 300,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult: ...
 
     def run_project(
@@ -315,6 +319,8 @@ class SandboxProtocol(Protocol):
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult: ...
 
 
@@ -331,6 +337,8 @@ class ExperimentSandbox:
         *,
         timeout_sec: int = 300,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         script_path = self._next_script_path()
         self._write_script(script_path, code)
@@ -365,6 +373,8 @@ class ExperimentSandbox:
                     timeout_sec=timeout_sec,
                     cancel_event=cancel_event,
                     start=start,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
                 )
         except subprocess.TimeoutExpired as exc:
             result = self._result_from_timeout(
@@ -389,6 +399,8 @@ class ExperimentSandbox:
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         """Run a multi-file experiment project in the sandbox.
 
@@ -479,6 +491,8 @@ class ExperimentSandbox:
                     timeout_sec=timeout_sec,
                     cancel_event=cancel_event,
                     start=start,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
                 )
         except subprocess.TimeoutExpired as exc:
             result = self._result_from_timeout(
@@ -587,7 +601,30 @@ class ExperimentSandbox:
         timeout_sec: int,
         cancel_event: Any,
         start: float,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
+        def _reader(
+            pipe: Any,
+            chunks: list[str],
+            out_path: Path | None,
+            errors: "queue.Queue[Exception]",
+        ) -> None:
+            try:
+                if out_path is not None:
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    out_path.write_text("", encoding="utf-8")
+                for chunk in iter(pipe.readline, ""):
+                    chunks.append(chunk)
+                    if out_path is not None:
+                        with out_path.open("a", encoding="utf-8") as fh:
+                            fh.write(chunk)
+                            fh.flush()
+            except Exception as exc:  # noqa: BLE001
+                errors.put(exc)
+            finally:
+                pipe.close()
+
         proc = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -598,6 +635,21 @@ class ExperimentSandbox:
             cwd=cwd,
             env=env,
         )
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+        reader_errors: "queue.Queue[Exception]" = queue.Queue()
+        stdout_thread = threading.Thread(
+            target=_reader,
+            args=(proc.stdout, stdout_chunks, stdout_path, reader_errors),
+            daemon=True,
+        )
+        stderr_thread = threading.Thread(
+            target=_reader,
+            args=(proc.stderr, stderr_chunks, stderr_path, reader_errors),
+            daemon=True,
+        )
+        stdout_thread.start()
+        stderr_thread.start()
         deadline = start + timeout_sec
         timed_out = False
         cancelled = False
@@ -614,20 +666,30 @@ class ExperimentSandbox:
                     proc.terminate()
                     break
                 time.sleep(0.1)
-            try:
-                stdout, stderr = proc.communicate(timeout=5)
-            except subprocess.TimeoutExpired:
+            stdout_thread.join(timeout=5)
+            stderr_thread.join(timeout=5)
+            if stdout_thread.is_alive() or stderr_thread.is_alive():
                 proc.kill()
-                stdout, stderr = proc.communicate(timeout=5)
+                stdout_thread.join(timeout=5)
+                stderr_thread.join(timeout=5)
                 timed_out = True
         except Exception:
             proc.kill()
-            stdout, stderr = proc.communicate()
             raise
 
         elapsed = time.monotonic() - start
+        stdout = "".join(stdout_chunks)
+        stderr = "".join(stderr_chunks)
+        while not reader_errors.empty():
+            logger.debug(
+                "Sandbox stream log writer failed",
+                exc_info=reader_errors.get(),
+            )
         if cancelled:
             stderr = (stderr or "") + "\nSandbox execution cancelled by user"
+            if stderr_path is not None:
+                with stderr_path.open("a", encoding="utf-8") as fh:
+                    fh.write("\nSandbox execution cancelled by user")
         metrics = parse_metrics(stdout or "")
         return SandboxResult(
             returncode=proc.returncode if proc.returncode is not None else -1,

@@ -145,6 +145,8 @@ class ColabDriveSandbox:
         *,
         timeout_sec: int = 300,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         self._run_counter += 1
         task_id = f"rc-{uuid.uuid4().hex[:8]}"
@@ -168,6 +170,8 @@ class ColabDriveSandbox:
         args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
         cancel_event: Any | None = None,
+        stdout_path: Path | None = None,
+        stderr_path: Path | None = None,
     ) -> SandboxResult:
         # BUG-DA8-07: Validate entry_point (path traversal, etc.) like other backends
         from researchclaw.experiment.sandbox import validate_entry_point

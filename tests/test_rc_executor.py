@@ -3346,6 +3346,48 @@ class TestExperimentHarness:
         assert result.metrics["best_loss"] == 0.5
         assert result.elapsed_sec < 5.0
 
+    def test_sandbox_streams_stdout_to_log_while_running(self, tmp_path: Path) -> None:
+        import sys
+        import threading
+        import time
+        from researchclaw.config import SandboxConfig
+        from researchclaw.experiment.sandbox import ExperimentSandbox
+
+        config = SandboxConfig(python_path=sys.executable)
+        sandbox = ExperimentSandbox(config, tmp_path / "sandbox")
+        cancel_event = threading.Event()
+        stdout_path = tmp_path / "stdout.log"
+        result_holder: dict[str, object] = {}
+
+        def _run() -> None:
+            result_holder["result"] = sandbox.run(
+                "import time\n"
+                "print('progress: 1', flush=True)\n"
+                "time.sleep(10)\n",
+                timeout_sec=20,
+                cancel_event=cancel_event,
+                stdout_path=stdout_path,
+            )
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        try:
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                if stdout_path.exists() and "progress: 1" in stdout_path.read_text(encoding="utf-8"):
+                    break
+                time.sleep(0.05)
+
+            assert thread.is_alive()
+            assert stdout_path.exists()
+            assert "progress: 1" in stdout_path.read_text(encoding="utf-8")
+            cancel_event.set()
+        finally:
+            thread.join(timeout=5)
+
+        result = result_holder["result"]
+        assert getattr(result, "timed_out") is True
+
     def test_prompt_mentions_harness(self) -> None:
         from researchclaw.prompts import PromptManager
 
@@ -3625,6 +3667,8 @@ class TestExperimentRunFallbackLogging:
         class FakeSandbox:
             def run_project(self, *_args: object, **kwargs: object) -> SandboxResult:
                 seen["cancel_event"] = kwargs.get("cancel_event")
+                seen["stdout_path"] = kwargs.get("stdout_path")
+                seen["stderr_path"] = kwargs.get("stderr_path")
                 return SandboxResult(
                     returncode=-1,
                     stdout="primary_metric: 0.5\n",
@@ -3654,6 +3698,8 @@ class TestExperimentRunFallbackLogging:
 
         assert result.status is StageStatus.DONE
         assert seen["cancel_event"] is cancel_event
+        assert seen["stdout_path"] == stage_dir / "runs" / "run-1.stdout.log"
+        assert seen["stderr_path"] == stage_dir / "runs" / "run-1.stderr.log"
         payload = json.loads((stage_dir / "runs" / "run-1.json").read_text())
         assert payload["status"] == "partial"
         assert payload["timed_out"] is True

@@ -153,18 +153,24 @@ def _execute_experiment_run(
             _ensure_sandbox_deps(_all_code, config.experiment.sandbox.python_path)
 
         sandbox = create_sandbox(config.experiment, runs_dir / "sandbox")
+        stdout_log_path = runs_dir / "run-1.stdout.log"
+        stderr_log_path = runs_dir / "run-1.stderr.log"
         # Use run_project for multi-file, run for single-file
         if exp_dir_path and Path(exp_dir_path).is_dir():
             result = sandbox.run_project(
                 Path(exp_dir_path),
                 timeout_sec=config.experiment.time_budget_sec,
                 cancel_event=cancel_event,
+                stdout_path=stdout_log_path,
+                stderr_path=stderr_log_path,
             )
         else:
             result = sandbox.run(
                 code_text,
                 timeout_sec=config.experiment.time_budget_sec,
                 cancel_event=cancel_event,
+                stdout_path=stdout_log_path,
+                stderr_path=stderr_log_path,
             )
         # Try to read structured results.json from sandbox working dir
         structured_results: dict[str, Any] | None = None
@@ -250,6 +256,8 @@ def _execute_experiment_run(
             "elapsed_sec": result.elapsed_sec,
             "stdout": result.stdout,
             "stderr": result.stderr,
+            "stdout_log": str(stdout_log_path),
+            "stderr_log": str(stderr_log_path),
             "timed_out": result.timed_out,
             "completed_at": _utcnow_iso(),
             "environment": _env_info,
