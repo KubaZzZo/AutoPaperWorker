@@ -761,6 +761,78 @@ def test_hitl_post_stage_logs_quality_and_artifact_read_failures(
     assert "Failed to read HITL context artifact" in caplog.text
 
 
+def test_collaboration_loop_uses_injected_io(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    adapters: AdapterBundle,
+) -> None:
+    stage_dir = run_dir / "stage-01"
+    stage_dir.mkdir()
+    (stage_dir / "goal.md").write_text("hello", encoding="utf-8")
+
+    outputs: list[str] = []
+    inputs = iter(["files", "show goal.md", "done"])
+
+    result = rc_executor.StageResult(
+        stage=Stage.TOPIC_INIT,
+        status=StageStatus.DONE,
+        artifacts=("topic.json",),
+    )
+
+    returned = rc_executor._run_collaboration_loop(
+        Stage.TOPIC_INIT,
+        result,
+        run_dir,
+        adapters,
+        SimpleNamespace(),
+        output=outputs.append,
+        input_func=lambda _prompt="": next(inputs),
+    )
+
+    joined = "\n".join(outputs)
+    assert returned is result
+    assert "Entering collaboration mode" in joined
+    assert "goal.md" in joined
+    assert "hello" in joined
+    assert "Collaboration finalized." in joined
+
+
+def test_collaboration_loop_defaults_to_print_and_input(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    adapters: AdapterBundle,
+) -> None:
+    stage_dir = run_dir / "stage-01"
+    stage_dir.mkdir()
+    (stage_dir / "goal.md").write_text("hello", encoding="utf-8")
+
+    captured: list[str] = []
+    inputs = iter(["done"])
+
+    def fake_print(message: str) -> None:
+        captured.append(message)
+
+    result = rc_executor.StageResult(
+        stage=Stage.TOPIC_INIT,
+        status=StageStatus.DONE,
+        artifacts=("topic.json",),
+    )
+
+    returned = rc_executor._run_collaboration_loop(
+        Stage.TOPIC_INIT,
+        result,
+        run_dir,
+        adapters,
+        SimpleNamespace(),
+        output=fake_print,
+        input_func=lambda _prompt="": next(inputs),
+    )
+
+    assert returned is result
+    assert any("Entering collaboration mode" in line for line in captured)
+    assert any("Collaboration finalized." in line for line in captured)
+
+
 class TestStageHealth:
     def test_stage_health_json_written(self, tmp_path: Path) -> None:
         from researchclaw.pipeline.executor import execute_stage

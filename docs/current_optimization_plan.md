@@ -39,6 +39,9 @@ and this active optimization plan.
    - 2026-05-14 slice: generated Colab worker templates now support
      `RC_COLAB_WORKER_VERBOSE=0` for quiet polling logs while preserving
      visible status output by default.
+   - 2026-05-14 slice: collaboration-loop stage I/O can now be injected for
+     cleaner library usage, while interactive edit/fallback prompts remain
+     terminal-visible on purpose.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and

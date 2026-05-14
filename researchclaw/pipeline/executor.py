@@ -36,6 +36,9 @@ from researchclaw.experiment.validator import (
 
 logger = logging.getLogger(__name__)
 
+OutputFunc = Callable[[str], None]
+InputFunc = Callable[[str], str]
+
 # ---------------------------------------------------------------------------
 # Domain detection (extracted to _domain.py)
 # ---------------------------------------------------------------------------
@@ -417,7 +420,13 @@ def _run_hitl_post_stage(
         session.enter_collaboration(stage_num, stage.name)
         try:
             result = _run_collaboration_loop(
-                stage, result, run_dir, adapters, session, config=config
+                stage,
+                result,
+                run_dir,
+                adapters,
+                session,
+                config=config,
+                output=getattr(adapters.hitl, "display", print),
             )
         except Exception as _collab_exc:
             logger.warning("Collaboration failed: %s", _collab_exc)
@@ -442,6 +451,8 @@ def _run_collaboration_loop(
     session: Any,
     *,
     config: RCConfig | None = None,
+    output: OutputFunc = print,
+    input_func: InputFunc = input,
 ) -> StageResult:
     """Run an interactive collaboration loop for a stage.
 
@@ -475,16 +486,16 @@ def _run_collaboration_loop(
         stage_num, stage.name, topic, run_dir, artifacts=output_files,
     )
 
-    print(f"\n  Entering collaboration mode for Stage {stage_num} ({stage.name})")
-    print("  Commands: 'done' finalize | 'abort' cancel | 'show <file>' view | 'edit <file>' edit | 'files' list")
-    print("  Or type a message to chat with AI.\n")
+    output(f"\n  Entering collaboration mode for Stage {stage_num} ({stage.name})")
+    output("  Commands: 'done' finalize | 'abort' cancel | 'show <file>' view | 'edit <file>' edit | 'files' list")
+    output("  Or type a message to chat with AI.\n")
 
     # Simple collaboration loop via stdin
     while True:
         try:
-            user_input = input("  You > ").strip()
+            user_input = input_func("  You > ").strip()
         except (EOFError, KeyboardInterrupt):
-            print()
+            output("")
             break
 
         if not user_input:
@@ -494,18 +505,18 @@ def _run_collaboration_loop(
 
         if lower in ("done", "approve", "finalize"):
             collab.finalize()
-            print("  Collaboration finalized.")
+            output("  Collaboration finalized.")
             break
 
         if lower in ("abort", "quit", "cancel"):
-            print("  Collaboration cancelled.")
+            output("  Collaboration cancelled.")
             break
 
         # List available artifacts
         if lower == "files":
             for fname in collab.shared_artifacts:
                 mod = " [modified]" if fname in collab._modified_artifacts else ""
-                print(f"    {fname}{mod}")
+                output(f"    {fname}{mod}")
             continue
 
         # Show artifact content
@@ -513,26 +524,26 @@ def _run_collaboration_loop(
             fname = user_input[5:].strip()
             if fname in collab.shared_artifacts:
                 content = collab.shared_artifacts[fname]
-                print(f"\n  --- {fname} ({len(content)} chars) ---")
-                print(content[:3000])
+                output(f"\n  --- {fname} ({len(content)} chars) ---")
+                output(content[:3000])
                 if len(content) > 3000:
-                    print(f"  ... ({len(content) - 3000} chars truncated)")
-                print(f"  --- end {fname} ---\n")
+                    output(f"  ... ({len(content) - 3000} chars truncated)")
+                output(f"  --- end {fname} ---\n")
             else:
-                print(f"  File not found: {fname}. Use 'files' to list available artifacts.")
+                output(f"  File not found: {fname}. Use 'files' to list available artifacts.")
             continue
 
         # Interactive edit: read from stdin until <<<END>>>
         if lower.startswith("edit "):
             fname = user_input[5:].strip()
             if fname not in collab.shared_artifacts:
-                print(f"  File not found: {fname}. Use 'files' to list available artifacts.")
+                output(f"  File not found: {fname}. Use 'files' to list available artifacts.")
                 continue
-            print(f"  Editing {fname}. Paste new content, then type <<<END>>> on its own line:")
+            output(f"  Editing {fname}. Paste new content, then type <<<END>>> on its own line:")
             lines = []
             while True:
                 try:
-                    line = input()
+                    line = input_func("")
                 except (EOFError, KeyboardInterrupt):
                     break
                 if line.strip() == "<<<END>>>":
@@ -550,13 +561,13 @@ def _run_collaboration_loop(
         if llm_client is not None:
             rev_before = len(collab.revision_history)
             response = collab.ai_responds(llm_client)
-            print(f"\n  AI > {response}\n")
+            output(f"\n  AI > {response}\n")
             # Report any artifact edits the AI made
             for rev in collab.revision_history[rev_before:]:
                 if rev.get("action") == "ai_proposal":
-                    print(f"  [AI edited: {rev['file']}]")
+                    output(f"  [AI edited: {rev['file']}]")
         else:
-            print("  AI > [LLM not available for chat — your input is recorded]\n")
+            output("  AI > [LLM not available for chat — your input is recorded]\n")
 
     return result
 
