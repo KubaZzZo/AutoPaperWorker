@@ -438,6 +438,14 @@ class TestColabWorkerTemplate:
         assert "result.json" in COLAB_WORKER_TEMPLATE
         assert "drive.mount" in COLAB_WORKER_TEMPLATE
 
+    def test_template_supports_quiet_worker_mode(self):
+        assert "RC_COLAB_WORKER_VERBOSE" in COLAB_WORKER_TEMPLATE
+        assert "def worker_log(" in COLAB_WORKER_TEMPLATE
+        assert "worker_log(" in COLAB_WORKER_TEMPLATE
+        assert "print(f\"Worker ready" not in COLAB_WORKER_TEMPLATE
+        assert "print(f\"[{task_id}] Running" not in COLAB_WORKER_TEMPLATE
+        assert "print(f\"[{task_id}] Done" not in COLAB_WORKER_TEMPLATE
+
 
 # ===========================================================================
 # Factory integration tests

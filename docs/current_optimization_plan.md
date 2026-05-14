@@ -36,6 +36,9 @@ and this active optimization plan.
      reporter to preserve terminal feedback.
    - 2026-05-14 slice: Context7 MCP client usage docs no longer include a
      direct `print()` example, keeping client guidance side-effect free.
+   - 2026-05-14 slice: generated Colab worker templates now support
+     `RC_COLAB_WORKER_VERBOSE=0` for quiet polling logs while preserving
+     visible status output by default.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and

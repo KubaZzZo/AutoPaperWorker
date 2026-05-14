@@ -47,12 +47,18 @@ DRIVE_ROOT = Path("/content/drive/MyDrive/researchclaw")
 PENDING = DRIVE_ROOT / "pending"
 RUNNING = DRIVE_ROOT / "running"
 DONE = DRIVE_ROOT / "done"
+VERBOSE = os.environ.get("RC_COLAB_WORKER_VERBOSE", "1").lower() not in {"0", "false", "no", "off"}
+
+
+def worker_log(message):
+    if VERBOSE:
+        print(message)
 
 for d in [PENDING, RUNNING, DONE]:
     d.mkdir(parents=True, exist_ok=True)
 
-print(f"Worker ready. Watching {PENDING}")
-print("Press Ctrl+C or stop the cell to quit.\\n")
+worker_log(f"Worker ready. Watching {PENDING}")
+worker_log("Press Ctrl+C or stop the cell to quit.\\n")
 
 while True:
     for task_dir in sorted(PENDING.iterdir()):
@@ -65,7 +71,7 @@ while True:
 
         # Move to running
         task_dir.rename(run_dir)
-        print(f"[{task_id}] Running...")
+        worker_log(f"[{task_id}] Running...")
 
         # Run setup.sh if present
         setup_sh = run_dir / "setup.sh"
@@ -112,7 +118,7 @@ while True:
         # Write result and move to done
         (run_dir / "result.json").write_text(json.dumps(result))
         run_dir.rename(done_dir)
-        print(f"[{task_id}] Done (exit {result['returncode']})")
+        worker_log(f"[{task_id}] Done (exit {result['returncode']})")
 
     time.sleep(10)
 '''
