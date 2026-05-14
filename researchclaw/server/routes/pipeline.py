@@ -29,6 +29,23 @@ def _validated_run_dir(run_id: str) -> Path:
         raise HTTPException(status_code=400, detail=f"Invalid run_id: {run_id}")
     return run_dir
 
+
+def _load_json_file(path: Path, description: str) -> Any | None:
+    """Load a JSON file for API responses, logging malformed optional data."""
+    try:
+        with path.open() as f:
+            return json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to load %s JSON from %s: %s",
+            description,
+            path,
+            exc,
+            exc_info=True,
+        )
+        return None
+
+
 router = APIRouter(prefix="/api", tags=["pipeline"])
 
 
@@ -184,11 +201,9 @@ async def list_runs() -> dict[str, Any]:
                 # Try reading checkpoint
                 ckpt = d / "checkpoint.json"
                 if ckpt.exists():
-                    try:
-                        with ckpt.open() as f:
-                            info["checkpoint"] = json.load(f)
-                    except Exception:
-                        pass
+                    checkpoint = _load_json_file(ckpt, "run checkpoint")
+                    if checkpoint is not None:
+                        info["checkpoint"] = checkpoint
                 runs.append(info)
     return {"runs": runs[:50]}  # limit to 50 most recent
 
@@ -204,11 +219,9 @@ async def get_run(run_id: str) -> dict[str, Any]:
 
     ckpt = run_dir / "checkpoint.json"
     if ckpt.exists():
-        try:
-            with ckpt.open() as f:
-                info["checkpoint"] = json.load(f)
-        except Exception:
-            pass
+        checkpoint = _load_json_file(ckpt, "run checkpoint")
+        if checkpoint is not None:
+            info["checkpoint"] = checkpoint
 
     # List stage directories
     stage_dirs = sorted(
@@ -235,10 +248,8 @@ async def get_run_metrics(run_id: str) -> dict[str, Any]:
     metrics: dict[str, Any] = {}
     results_file = run_dir / "results.json"
     if results_file.exists():
-        try:
-            with results_file.open() as f:
-                metrics = json.load(f)
-        except Exception:
-            pass
+        loaded_metrics = _load_json_file(results_file, "run metrics")
+        if isinstance(loaded_metrics, dict):
+            metrics = loaded_metrics
 
     return {"run_id": run_id, "metrics": metrics}

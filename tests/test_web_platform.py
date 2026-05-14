@@ -837,6 +837,43 @@ class TestFastAPIApp:
             assert "runs" in resp.json()
 
     @pytest.mark.asyncio
+    async def test_runs_list_logs_malformed_checkpoint(self, tmp_path: Path, caplog, monkeypatch) -> None:
+        from researchclaw.server.routes import pipeline
+
+        run_dir = tmp_path / "rc-20260514-120000-abcdef"
+        run_dir.mkdir()
+        (run_dir / "checkpoint.json").write_text("{bad json", encoding="utf-8")
+        monkeypatch.setattr(pipeline, "DEFAULT_ARTIFACTS_DIR", tmp_path)
+
+        with caplog.at_level("WARNING", logger="researchclaw.server.routes.pipeline"):
+            result = await pipeline.list_runs()
+
+        assert result["runs"][0]["run_id"] == "rc-20260514-120000-abcdef"
+        assert "checkpoint" not in result["runs"][0]
+        assert "Failed to load run checkpoint JSON" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_run_detail_and_metrics_log_malformed_json(self, tmp_path: Path, caplog, monkeypatch) -> None:
+        from researchclaw.server.routes import pipeline
+
+        run_id = "rc-20260514-120000-abcdef"
+        run_dir = tmp_path / run_id
+        run_dir.mkdir()
+        (run_dir / "checkpoint.json").write_text("{bad json", encoding="utf-8")
+        (run_dir / "results.json").write_text("{bad json", encoding="utf-8")
+        monkeypatch.setattr(pipeline, "DEFAULT_ARTIFACTS_DIR", tmp_path)
+
+        with caplog.at_level("WARNING", logger="researchclaw.server.routes.pipeline"):
+            detail = await pipeline.get_run(run_id)
+            metrics = await pipeline.get_run_metrics(run_id)
+
+        assert detail["run_id"] == run_id
+        assert "checkpoint" not in detail
+        assert metrics == {"run_id": run_id, "metrics": {}}
+        assert "Failed to load run checkpoint JSON" in caplog.text
+        assert "Failed to load run metrics JSON" in caplog.text
+
+    @pytest.mark.asyncio
     async def test_projects_list(self, app: object) -> None:
         from httpx import AsyncClient, ASGITransport
 

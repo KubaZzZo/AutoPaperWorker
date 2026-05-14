@@ -184,6 +184,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Verified registry best-only fallback now logs malformed `stage-14/experiment_summary.json` loads before returning an empty registry. `researchclaw/pipeline/verified_registry.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Pipeline API run listing, run detail, and metrics endpoints now log malformed optional checkpoint/results JSON files while preserving resilient responses. `researchclaw/server/routes/pipeline.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
