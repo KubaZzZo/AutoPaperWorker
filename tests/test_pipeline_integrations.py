@@ -101,6 +101,41 @@ def test_cost_tracker_reports_forecast_variance(tmp_path: Path) -> None:
     assert summary["by_model"]["openai/gpt-4o-mini"]["cost_variance_usd"] == 0.25
 
 
+def test_cost_tracker_loads_price_table_from_json(tmp_path: Path) -> None:
+    from researchclaw.cost_tracker import estimate_entry_cost_usd, load_price_table
+
+    price_path = tmp_path / "provider_prices.json"
+    price_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "currency": "USD",
+                "unit": "1M_tokens",
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model": "gpt-test-priced",
+                        "input_usd_per_1m_tokens": 1.25,
+                        "output_usd_per_1m_tokens": 2.50,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    table = load_price_table(price_path)
+
+    assert table["openai/gpt-test-priced"] == (1.25, 2.50)
+    assert estimate_entry_cost_usd(
+        "OpenAI",
+        "GPT-Test-Priced",
+        prompt_tokens=1_000_000,
+        completion_tokens=1_000_000,
+        price_table_path=price_path,
+    ) == 3.75
+
+
 def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
     from researchclaw.dashboard.collector import DashboardCollector
 

@@ -10,6 +10,8 @@ from threading import Lock
 from typing import Any
 
 
+DEFAULT_PRICE_TABLE_PATH = Path(__file__).with_name("data") / "provider_prices.json"
+
 PRICE_TABLE_USD_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
     # input, output prices per 1M tokens
     "openai/gpt-4o-mini": (0.15, 0.60),
@@ -21,6 +23,45 @@ PRICE_TABLE_USD_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
     "anthropic/claude-sonnet-4": (3.00, 15.00),
     "anthropic/claude-opus-4": (15.00, 75.00),
 }
+
+
+def load_price_table(path: str | Path = DEFAULT_PRICE_TABLE_PATH) -> dict[str, tuple[float, float]]:
+    """Load provider/model token prices from a JSON data file.
+
+    The JSON file is intentionally data-only so provider price maintenance can
+    happen without changing cost aggregation code.
+    """
+
+    price_path = Path(path)
+    payload = json.loads(price_path.read_text(encoding="utf-8"))
+    models = payload.get("models", []) if isinstance(payload, dict) else []
+    table: dict[str, tuple[float, float]] = {}
+    if not isinstance(models, list):
+        return table
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        provider = str(item.get("provider") or "")
+        model = str(item.get("model") or "")
+        if not provider or not model:
+            continue
+        try:
+            input_price = float(item["input_usd_per_1m_tokens"])
+            output_price = float(item["output_usd_per_1m_tokens"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        table[_price_key(provider, model)] = (input_price, output_price)
+    return table
+
+
+def get_price_table(path: str | Path = DEFAULT_PRICE_TABLE_PATH) -> dict[str, tuple[float, float]]:
+    """Return configured prices, falling back to built-in defaults."""
+
+    try:
+        loaded = load_price_table(path)
+    except (OSError, json.JSONDecodeError):
+        loaded = {}
+    return loaded or PRICE_TABLE_USD_PER_MILLION_TOKENS
 
 
 @dataclass(frozen=True)
@@ -129,11 +170,12 @@ def estimate_entry_cost_usd(
     *,
     prompt_tokens: int,
     completion_tokens: int,
+    price_table_path: str | Path = DEFAULT_PRICE_TABLE_PATH,
 ) -> float:
-    """Estimate cost from the built-in provider/model price table."""
+    """Estimate cost from the provider/model price table."""
 
     key = _price_key(provider, model)
-    prices = PRICE_TABLE_USD_PER_MILLION_TOKENS.get(key)
+    prices = get_price_table(price_table_path).get(key)
     if prices is None:
         return 0.0
     input_price, output_price = prices

@@ -31,6 +31,7 @@ reproducibility updates were integrated.
 | Structured progress observability | Integrated | Runner writes `progress.json` snapshots after each stage; dashboard collector reads stage status, counts, elapsed time, and cost |
 | Fine-grained cost accounting | Integrated | `cost_log.jsonl` is aggregated into `cost_summary.json` by stage and model; progress snapshots include token and spend totals |
 | Cost forecast calibration | Integrated | `cost_summary.json` now includes built-in provider/model price estimates plus forecast-vs-actual cost variance totals by run, stage, and model |
+| Provider price table maintenance | Integrated | Token price presets now live in `researchclaw/data/provider_prices.json`; `load_price_table()` lets tests and future refreshes update pricing without touching aggregation logic |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -39,8 +40,8 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Provider price table maintenance | Low | Keep built-in token price presets current as model vendors change pricing. |
+| None currently tracked | - | Continue using `audit_report.md` and future iteration plans for newly discovered issues. |
 
 ## Suggested Next Order
 
-1. Periodically refresh provider price presets and add more providers as needed.
+1. Continue sweeping `audit_report.md` follow-up batches, especially remaining broad exception logging and MCP server stub behavior.
