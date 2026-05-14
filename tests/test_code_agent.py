@@ -648,7 +648,6 @@ class TestConfigIntegration:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "TEST",
-                "api_key": "test-key",
                 "primary_model": "test",
                 "fallback_models": [],
             },

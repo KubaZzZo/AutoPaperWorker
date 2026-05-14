@@ -49,9 +49,10 @@ and this active optimization plan.
      sandbox behavior.
 
 3. **Large-module reduction**
-   - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and
+   - `researchclaw/pipeline/runner.py` and
      `researchclaw/templates/converter.py` remain large enough to slow review
-     and targeted agent edits.
+     and targeted agent edits; `researchclaw/prompts.py` is now a small
+     public manager module backed by `researchclaw/prompt_defaults/`.
    - Extract narrow helpers only where tests already define behavior.
    - 2026-05-14 slice: progress snapshot writing moved out of
      `researchclaw/pipeline/runner.py` into `researchclaw/pipeline/progress.py`
@@ -69,6 +70,10 @@ and this active optimization plan.
    - 2026-05-14 slice: pipeline summary and content authenticity metrics moved
      into `researchclaw/pipeline/summary.py`, leaving runner focused on stage
      scheduling and rollback control.
+   - 2026-05-15 slice: prompt defaults moved out of
+     `researchclaw/prompts.py` into focused modules under
+     `researchclaw/prompt_defaults/`, while `PromptManager` and legacy
+     constants remain import-compatible.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
