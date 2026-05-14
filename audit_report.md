@@ -212,6 +212,8 @@
 - **建议:** 确认所有子类正确覆盖了这些方法。
 
 #### 19. chcp 编码处理缺失 (Windows)
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Same fix as #35: doctor output now pre-detects cp936/cp932/GBK/GB2312/Shift-JIS style stdout encodings and uses ASCII status markers before printing, with regression coverage for cp936 and generic ASCII fallback.</span>
+
 - **文件:** `researchclaw/health.py:627`
 - **问题:** `print_doctor_report` 尝试使用 emoji 图标，检测 stdout 编码并降级为 ASCII。但如果终端编码是 cp936/cp932，降级逻辑可能已足够。
 - **建议:** 添加对 Windows cp936/cp932 编码的显式处理。
