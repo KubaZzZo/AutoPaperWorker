@@ -187,11 +187,15 @@
 - **建议:** 提取为共享常量到 `utils/` 模块。
 
 #### 20. `_helpers.py` (50+ 函数) 缺少专门测试
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Added dedicated `tests/test_pipeline_helpers.py` coverage for core `_helpers.py` behavior, including code-block extraction, multi-file parsing safety, stdout metric parsing, experiment result aggregation, and paper title extraction. The same coverage fixed a path-traversal fallback bug in `_extract_multi_file_blocks()`.</span>
+
 - **文件:** `researchclaw/pipeline/_helpers.py`
 - **问题:** 该文件包含 50+ 个被所有 stage_impls 使用的共享辅助函数，但没有专门测试（`test_rc_stages.py` 仅间接测试）。包括文本提取、指标解析、代码块提取、引用格式化等关键功能。
 - **建议:** 添加 `test_pipeline_helpers.py`，至少覆盖核心函数。
 
 #### 21. 版本号不一致
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] FastAPI app metadata and `/api/health` now report `researchclaw.__version__` instead of a hardcoded server version. Web platform tests verify both `app.version` and the health endpoint match the package version.</span>
+
 - **文件:** `researchclaw/__init__.py:2` vs `researchclaw/server/app.py:41`
 - **问题:** `__init__.py` 声明 `__version__ = "0.3.1"`，但 `server/app.py` 硬编码 `version="0.5.0"`。
 - **建议:** 统一使用 `from researchclaw import __version__`。
@@ -223,6 +227,8 @@
 - **建议:** 使用 Stage 枚举引用阶段号。
 
 #### 22. 实验沙箱指标解析对 NaN/Inf 只发警告
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `SandboxResult` now carries `has_divergence`, and sandbox execution sets it from `detect_nan_divergence()` so callers can distinguish clean output from filtered NaN/Inf or divergent metrics. Regression coverage verifies non-finite metric output marks divergence.</span>
+
 - **文件:** `researchclaw/experiment/sandbox.py:141-142`
 - **问题:** parse_metrics 遇到 NaN/Inf 时只是 `logger.warning` 并跳过，没有将异常指标的存在通知调用方。
 - **建议:** 在 SandboxResult 中添加 `has_divergence: bool` 字段。
@@ -230,11 +236,15 @@
 ### 中 (MEDIUM)
 
 #### 23. 临时文件原子写入
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `_write_checkpoint()` now sets the temporary checkpoint file mode to `0o644` before atomic replacement. Runner tests verify the chmod call and existing atomic-write behavior.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:158-166`
 - **问题:** `_write_checkpoint` 使用 `tempfile.mkstemp` + 重命名实现原子写入，但未设置文件权限模式。
 - **建议:** 设置 `os.chmod` 为 `0o644` 防止权限泄露。
 
 #### 24. 浮点数精确相等比较
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Paper verification now checks always-allowed numeric constants with an absolute tolerance instead of exact float set membership. Regression coverage verifies common constants with floating-point roundoff still pass.</span>
+
 - **文件:** `researchclaw/pipeline/paper_verifier.py:218`
 - **问题:** `if value in _ALWAYS_ALLOWED:` 使用精确浮点数比较匹配 `0.0003`, `3e-4` 等。浮点表示误差可能导致相等比较失败。
 - **建议:** 使用容差比较 (`abs(a-b) < 1e-10`)。
@@ -246,6 +256,8 @@
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
 
 #### 26. yaml.dump 不使用安全导出
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `researchclaw wizard` now serializes generated config through `yaml.safe_dump(..., sort_keys=False)` and writes UTF-8 output. CLI regression coverage fails if the wizard path calls `yaml.dump()`.</span>
+
 - **文件:** `researchclaw/cli.py:639,642`
 - **问题:** `yaml.dump(config, default_flow_style=False)` 未显式使用 SafeDumper。`yaml.dump` 默认使用 Dumper，支持 Python 对象标记 (`!!python/object`)。
 - **建议:** 使用 `yaml.safe_dump`。
