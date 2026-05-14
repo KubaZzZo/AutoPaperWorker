@@ -8,8 +8,7 @@ Usage::
     client = Context7MCPClient()
     lib_id = client.resolve_library_id("pytorch")
     docs = client.query_docs(lib_id, "nn.Module forward method")
-    if docs:
-        print(docs)
+    # Use ``docs`` in the caller's UI, logs, or generated context.
 """
 
 from __future__ import annotations

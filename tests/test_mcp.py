@@ -391,6 +391,13 @@ class TestSSETransport:
 
 
 class TestContext7MCPClient:
+    def test_context7_client_source_has_no_print_calls(self) -> None:
+        from pathlib import Path
+
+        source = Path("researchclaw/mcp/context7_client.py").read_text(encoding="utf-8")
+
+        assert "print(" not in source
+
     def test_stop_logs_failed_kill(self, caplog) -> None:
         from researchclaw.mcp.context7_client import Context7MCPClient
 

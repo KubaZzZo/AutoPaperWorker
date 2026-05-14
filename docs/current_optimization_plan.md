@@ -34,6 +34,8 @@ and this active optimization plan.
    - 2026-05-14 slice: pipeline runner stage progress no longer writes directly
      to stdout by default; CLI explicitly passes `print` as the progress
      reporter to preserve terminal feedback.
+   - 2026-05-14 slice: Context7 MCP client usage docs no longer include a
+     direct `print()` example, keeping client guidance side-effect free.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/prompts.py`, and
