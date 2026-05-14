@@ -1,3 +1,4 @@
+<!-- charset: utf-8 -->
 <p align="center">
   <img src="image/logo.png" width="700" alt="AutoResearchClaw Logo">
 </p>

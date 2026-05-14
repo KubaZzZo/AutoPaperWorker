@@ -381,6 +381,8 @@
 - **建议:** 在编辑器返回后检测并转换编码。
 
 #### 40. README.md 中的文档编码声明
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `README.md` now starts with a non-rendered `charset: utf-8` metadata comment, and CI-testable coverage verifies the README strictly decodes as UTF-8 and declares the charset in the first five lines.</span>
+
 - **文件:** `README.md` (45KB)
 - **问题:** README.md 较大 (45KB)，但未声明 charset。
 - **建议:** 保持 UTF-8 编码并在 CI 中验证。
