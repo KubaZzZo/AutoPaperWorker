@@ -27,6 +27,7 @@ reproducibility updates were integrated.
 | Multi-GPU training guidance | Integrated | Added `experiment.distributed` config and Stage 10 DeepSpeed/FSDP/torchrun guidance with single-GPU fallback |
 | Distributed launcher execution | Integrated | Docker and SSH sandboxes now launch `torchrun`, `accelerate launch`, or DeepSpeed when `experiment.distributed.enabled=true` |
 | Parallel hypothesis branch planning | Integrated | Stage 8 can write `hypothesis_branches.json`; runner prepares per-branch Stage 8 contexts and `branches/branch_manifest.json` |
+| Pipeline parallel hypothesis fan-out | Integrated | Runner executes Stage 9-15 per prepared branch, selects the best branch by configured metric, and promotes its artifacts for paper writing |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -35,12 +36,10 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Pipeline parallel hypothesis fan-out | Medium | Branch contexts are prepared; next slice is running Stage 9-15 per branch and selecting the best branch by metric. |
 | Observability depth | Medium | Dashboard and logs exist, but long-running multi-stage jobs could use richer structured progress and alerting. |
 | Fine-grained cost accounting | Low | `cost_guard` exists; token forecast vs actual spend could be tracked per stage and per model. |
 
 ## Suggested Next Order
 
-1. Wire branch plans into runner-level Stage 9-15 fan-out and best-branch selection.
-2. Extend structured observability for long-running pipeline stages.
-3. Refine cost accounting with forecast-vs-actual token and spend reports.
+1. Extend structured observability for long-running pipeline stages.
+2. Refine cost accounting with forecast-vs-actual token and spend reports.

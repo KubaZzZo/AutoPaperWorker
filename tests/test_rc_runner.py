@@ -504,6 +504,110 @@ def test_prepare_parallel_hypothesis_branches_ignores_bad_plan(run_dir: Path) ->
     assert not (run_dir / "branches" / "branch_manifest.json").exists()
 
 
+def test_execute_pipeline_runs_parallel_hypothesis_branches_and_promotes_best(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    branch_scores = {"hypothesis-01": 0.73, "hypothesis-02": 0.42}
+    seen_branch_stages: dict[str, list[Stage]] = {
+        "hypothesis-01": [],
+        "hypothesis-02": [],
+    }
+
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        stage_run_dir = cast(Path, kwargs["run_dir"])
+        if stage == Stage.HYPOTHESIS_GEN:
+            stage_dir = stage_run_dir / "stage-08"
+            stage_dir.mkdir(parents=True, exist_ok=True)
+            (stage_dir / "hypotheses.md").write_text(
+                "1. First hypothesis\n2. Second hypothesis\n",
+                encoding="utf-8",
+            )
+            (stage_dir / "hypothesis_branches.json").write_text(
+                json.dumps(
+                    {
+                        "enabled": True,
+                        "selection_metric": "primary_metric",
+                        "branches": [
+                            {
+                                "branch_id": "hypothesis-01",
+                                "rank": 1,
+                                "hypothesis": "First hypothesis",
+                            },
+                            {
+                                "branch_id": "hypothesis-02",
+                                "rank": 2,
+                                "hypothesis": "Second hypothesis",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return _done(stage, artifacts=("hypotheses.md", "hypothesis_branches.json"))
+
+        branch_id = stage_run_dir.name
+        if branch_id in seen_branch_stages:
+            seen_branch_stages[branch_id].append(stage)
+            if stage == Stage.RESULT_ANALYSIS:
+                (stage_run_dir / "results.json").write_text(
+                    json.dumps({"primary_metric": branch_scores[branch_id]}),
+                    encoding="utf-8",
+                )
+                analysis_dir = stage_run_dir / "stage-14"
+                analysis_dir.mkdir(parents=True, exist_ok=True)
+                (analysis_dir / "experiment_summary.json").write_text(
+                    json.dumps(
+                        {
+                            "metrics_summary": {
+                                "primary_metric": {
+                                    "mean": branch_scores[branch_id],
+                                    "count": 1,
+                                }
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            return _done(stage)
+
+        return _done(stage)
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+
+    rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-branches",
+        config=rc_config,
+        adapters=adapters,
+        to_stage=Stage.RESEARCH_DECISION,
+    )
+
+    expected = [
+        Stage.EXPERIMENT_DESIGN,
+        Stage.CODE_GENERATION,
+        Stage.RESOURCE_PLANNING,
+        Stage.EXPERIMENT_RUN,
+        Stage.ITERATIVE_REFINE,
+        Stage.RESULT_ANALYSIS,
+        Stage.RESEARCH_DECISION,
+    ]
+    assert seen_branch_stages == {
+        "hypothesis-01": expected,
+        "hypothesis-02": expected,
+    }
+    manifest = json.loads(
+        (run_dir / "branches" / "branch_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["status"] == "completed"
+    assert manifest["best_branch_id"] == "hypothesis-02"
+    assert manifest["branches"][1]["selection_score"] == 0.42
+    promoted = json.loads((run_dir / "results.json").read_text(encoding="utf-8"))
+    assert promoted["primary_metric"] == 0.42
+
+
 @pytest.mark.parametrize(
     ("stage", "started", "expected"),
     [
