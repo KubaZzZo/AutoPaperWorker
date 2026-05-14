@@ -471,6 +471,8 @@
 - **建议:** 添加 `slowapi` 或类似中间件。
 
 #### 53. 缺少 LLM 代理配置验证
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] LLM provider validation now uses the shared `researchclaw.llm.PROVIDER_DETAILS` registry, the same source used by CLI provider menus/defaults. Unknown `llm.provider` values are rejected during `validate_config()`, while every registered provider preset, including `acp`, is covered by regression tests.</span>
+
 - **文件:** `researchclaw/cli.py:646-719`
 - **问题:** `_PROVIDER_CHOICES` 硬编码了 9 个 LLM 提供商，但新增提供商需要修改代码。
 - **建议:** 从配置文件读取提供商列表。

@@ -10,6 +10,8 @@ from typing import Any
 import sys
 import yaml
 
+from researchclaw.llm import PROVIDER_DETAILS
+
 DEFAULT_PYTHON_PATH = (
     ".venv/Scripts/python.exe" if sys.platform == "win32" else ".venv/bin/python3"
 )
@@ -973,6 +975,9 @@ def validate_config(
     project_mode = _get_by_path(data, "project.mode")
     if not _is_blank(project_mode) and project_mode not in PROJECT_MODES:
         errors.append(f"Invalid project.mode: {project_mode}")
+
+    if not _is_blank(llm_provider) and llm_provider not in PROVIDER_DETAILS:
+        errors.append(f"Invalid llm.provider: {llm_provider}")
 
     kb_backend = _get_by_path(data, "knowledge_base.backend")
     if not _is_blank(kb_backend) and kb_backend not in KB_BACKENDS:

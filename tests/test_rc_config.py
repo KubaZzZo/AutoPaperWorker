@@ -197,6 +197,31 @@ def test_validate_config_rejects_invalid_llm_wire_api(tmp_path: Path):
     assert "Invalid llm.wire_api: responses_only" in result.errors
 
 
+def test_validate_config_rejects_unknown_llm_provider(tmp_path: Path):
+    data = _valid_config_data()
+    data["llm"]["provider"] = "new-provider-without-preset"
+
+    result = validate_config(data, project_root=tmp_path, check_paths=False)
+
+    assert result.ok is False
+    assert "Invalid llm.provider: new-provider-without-preset" in result.errors
+
+
+def test_validate_config_accepts_shared_llm_provider_presets(tmp_path: Path):
+    from researchclaw.llm import PROVIDER_DETAILS
+
+    for provider in PROVIDER_DETAILS:
+        data = _valid_config_data()
+        data["llm"]["provider"] = provider
+        if provider == "acp":
+            data["llm"]["base_url"] = ""
+            data["llm"]["api_key_env"] = ""
+
+        result = validate_config(data, project_root=tmp_path, check_paths=False)
+
+        assert result.ok is True, (provider, result.errors)
+
+
 @pytest.mark.parametrize("entry", [0, 24, "5", 9.1])
 def test_validate_config_rejects_invalid_hitl_required_stages_entries(
     tmp_path: Path, entry: object
