@@ -221,8 +221,15 @@ class PlannerAgent(BaseAgent):
                 if val is not None:
                     try:
                         condition_values[cond] = float(val)
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as exc:
+                        logger.debug(
+                            "Skipping non-numeric figure condition metric %s.%s=%r: %s",
+                            cond,
+                            metric_key,
+                            val,
+                            exc,
+                            exc_info=True,
+                        )
         analysis["condition_values"] = condition_values
 
         return analysis

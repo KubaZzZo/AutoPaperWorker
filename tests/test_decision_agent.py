@@ -464,6 +464,30 @@ class TestDockerRenderer:
             )
             assert "timed out" in result["error"]
 
+    def test_docker_timeout_logs_failed_container_kill(self, tmp_path, caplog):
+        """Verify failed timeout cleanup is logged."""
+        agent = self._agent()
+        script_path = tmp_path / "scripts" / "fig_timeout.py"
+        script_path.parent.mkdir(parents=True, exist_ok=True)
+        script_path.write_text("import time; time.sleep(999)")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        with mock.patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                subprocess.TimeoutExpired(cmd=["docker", "run"], timeout=10),
+                subprocess.TimeoutExpired(cmd=["docker", "kill"], timeout=10),
+            ]
+            with caplog.at_level("WARNING", logger="researchclaw.agents.figure_agent.renderer"):
+                result = agent._execute_in_docker(
+                    script_path=script_path,
+                    output_dir=output_dir,
+                    figure_id="fig_timeout",
+                )
+
+        assert "timed out" in result["error"]
+        assert "Failed to kill timed-out figure render container" in caplog.text
+
     def test_docker_not_found(self, tmp_path):
         """Verify graceful handling when Docker is not installed."""
         agent = self._agent()

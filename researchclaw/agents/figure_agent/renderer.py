@@ -359,8 +359,13 @@ class RendererAgent(BaseAgent):
                     timeout=10,
                     check=False,
                 )
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
+            except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+                logger.warning(
+                    "Failed to kill timed-out figure render container %s: %s",
+                    container_name,
+                    exc,
+                    exc_info=True,
+                )
             return {"error": f"Docker script timed out after {self._timeout}s"}
         except FileNotFoundError:
             return {"error": "Docker executable not found"}

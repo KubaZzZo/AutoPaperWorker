@@ -193,8 +193,13 @@ class CriticAgent(BaseAgent):
         for m in re.finditer(r"(\d+\.\d{2,})", script_code):
             try:
                 script_numbers.add(round(float(m.group(1)), 4))
-            except ValueError:
-                pass
+            except ValueError as exc:
+                logger.debug(
+                    "Skipping unparseable script figure value %r: %s",
+                    m.group(1),
+                    exc,
+                    exc_info=True,
+                )
 
         # Extract expected values from condition summaries
         expected_values = set()
@@ -207,8 +212,15 @@ class CriticAgent(BaseAgent):
                 if val is not None:
                     try:
                         expected_values.add(round(float(val), 4))
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as exc:
+                        logger.debug(
+                            "Skipping non-numeric expected figure metric %s.%s=%r: %s",
+                            cond,
+                            key,
+                            val,
+                            exc,
+                            exc_info=True,
+                        )
 
         if not expected_values:
             return issues

@@ -165,6 +165,22 @@ class TestPlannerAgent:
         )
         assert analysis["has_training_history"] is True
 
+    def test_analyze_data_logs_invalid_condition_metric(self, caplog):
+        from researchclaw.agents.figure_agent.planner import PlannerAgent
+        agent = PlannerAgent(_FakeLLM())
+
+        with caplog.at_level("DEBUG", logger="researchclaw.agents.figure_agent.planner"):
+            analysis = agent._analyze_data(
+                results={},
+                conditions=["bad"],
+                metrics_summary={},
+                condition_summaries={"bad": {"metrics": {"primary_metric": "n/a"}}},
+                metric_key="primary_metric",
+            )
+
+        assert analysis["condition_values"] == {}
+        assert "Skipping non-numeric figure condition metric" in caplog.text
+
     def test_fallback_plan(self):
         from researchclaw.agents.figure_agent.planner import PlannerAgent
         agent = PlannerAgent(_FakeLLM())
@@ -614,6 +630,23 @@ class TestCriticAgent:
         script = "values = [0.99, 0.98, 0.97]"  # Wrong values
         issues = agent._check_numerical_accuracy(script, _SAMPLE_CONDITIONS, "primary_metric")
         assert any(i["severity"] == "critical" for i in issues)
+
+    def test_numerical_accuracy_logs_unparseable_values(self, caplog):
+        from researchclaw.agents.figure_agent.critic import CriticAgent
+        agent = CriticAgent(_FakeLLM())
+        condition_summaries = {
+            "bad": {"metrics": {"primary_metric": "not-a-number"}},
+        }
+
+        with caplog.at_level("DEBUG", logger="researchclaw.agents.figure_agent.critic"):
+            issues = agent._check_numerical_accuracy(
+                "values = [1.23456789012345678901234567890]",
+                condition_summaries,
+                "primary_metric",
+            )
+
+        assert issues == []
+        assert "Skipping non-numeric expected figure metric" in caplog.text
 
     def test_text_correctness_missing_labels(self):
         from researchclaw.agents.figure_agent.critic import CriticAgent
