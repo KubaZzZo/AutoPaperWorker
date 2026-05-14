@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+import sys
 
 import pytest
 
@@ -256,6 +257,23 @@ class TestBuildExperimentSummary:
         assert abs(bl["metrics"]["accuracy"] - 81.0) < 0.01
         assert bl["n_seeds"] == 2
 
+    def test_logs_when_stdout_metric_parser_unavailable(self, caplog, monkeypatch):
+        monkeypatch.setitem(sys.modules, "researchclaw.experiment.sandbox", None)
+        run_result = {
+            "stdout": "condition=Baseline metric=80.0",
+            "stderr": "",
+            "returncode": 0,
+            "metrics": {},
+            "elapsed_sec": 1.0,
+            "timed_out": False,
+        }
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.experiment_repair"):
+            summary = _build_experiment_summary_from_run(run_result, {})
+
+        assert summary["total_conditions"] == 0
+        assert "parse_metrics unavailable while building experiment summary" in caplog.text
+
 
 # ---------------------------------------------------------------------------
 # File loading tests
@@ -284,6 +302,53 @@ class TestLoadExperimentCode:
     def test_empty_when_no_code(self, tmp_path):
         code = _load_experiment_code(tmp_path)
         assert code == {}
+
+    def test_logs_stage_13_code_read_failure_and_continues(self, tmp_path, caplog, monkeypatch):
+        exp_dir = tmp_path / "stage-13" / "experiment_final"
+        exp_dir.mkdir(parents=True)
+        broken_file = exp_dir / "broken.py"
+        broken_file.write_text("raise RuntimeError")
+        good_file = exp_dir / "main.py"
+        good_file.write_text("print('ok')")
+
+        original_read_text = Path.read_text
+
+        def fail_for_broken(self: Path, *args, **kwargs):
+            if self == broken_file:
+                raise OSError("unavailable")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", fail_for_broken)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.experiment_repair"):
+            code = _load_experiment_code(tmp_path)
+
+        assert code == {"main.py": "print('ok')"}
+        assert "Failed to read experiment code file" in caplog.text
+        assert "broken.py" in caplog.text
+
+    def test_logs_extra_file_read_failure_and_continues(self, tmp_path, caplog, monkeypatch):
+        exp_dir = tmp_path / "stage-10" / "experiment"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "main.py").write_text("print('ok')")
+        broken_extra = exp_dir / "requirements.txt"
+        broken_extra.write_text("torch")
+
+        original_read_text = Path.read_text
+
+        def fail_for_extra(self: Path, *args, **kwargs):
+            if self == broken_extra:
+                raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", fail_for_extra)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.experiment_repair"):
+            code = _load_experiment_code(tmp_path)
+
+        assert code == {"main.py": "print('ok')"}
+        assert "Failed to read experiment support file" in caplog.text
+        assert "requirements.txt" in caplog.text
 
 
 class TestLoadExperimentSummary:

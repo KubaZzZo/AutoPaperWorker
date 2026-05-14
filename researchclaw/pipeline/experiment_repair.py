@@ -533,16 +533,26 @@ def _load_experiment_code(run_dir: Path) -> dict[str, str]:
             for py_file in sorted(refine_dir.glob("*.py")):
                 try:
                     code[py_file.name] = py_file.read_text(encoding="utf-8")
-                except (OSError, UnicodeDecodeError):
-                    pass
+                except (OSError, UnicodeDecodeError) as exc:
+                    logger.debug(
+                        "Failed to read experiment code file %s: %s",
+                        py_file,
+                        exc,
+                        exc_info=True,
+                    )
             # Also grab requirements.txt, setup.py
             for extra in ("requirements.txt", "setup.py"):
                 extra_path = refine_dir / extra
                 if extra_path.exists():
                     try:
                         code[extra] = extra_path.read_text(encoding="utf-8")
-                    except (OSError, UnicodeDecodeError):
-                        pass
+                    except (OSError, UnicodeDecodeError) as exc:
+                        logger.debug(
+                            "Failed to read experiment support file %s: %s",
+                            extra_path,
+                            exc,
+                            exc_info=True,
+                        )
             if code:
                 return code
 
@@ -552,15 +562,25 @@ def _load_experiment_code(run_dir: Path) -> dict[str, str]:
             for py_file in sorted(exp_dir.glob("*.py")):
                 try:
                     code[py_file.name] = py_file.read_text(encoding="utf-8")
-                except (OSError, UnicodeDecodeError):
-                    pass
+                except (OSError, UnicodeDecodeError) as exc:
+                    logger.debug(
+                        "Failed to read experiment code file %s: %s",
+                        py_file,
+                        exc,
+                        exc_info=True,
+                    )
             for extra in ("requirements.txt", "setup.py"):
                 extra_path = exp_dir / extra
                 if extra_path.exists():
                     try:
                         code[extra] = extra_path.read_text(encoding="utf-8")
-                    except (OSError, UnicodeDecodeError):
-                        pass
+                    except (OSError, UnicodeDecodeError) as exc:
+                        logger.debug(
+                            "Failed to read experiment support file %s: %s",
+                            extra_path,
+                            exc,
+                            exc_info=True,
+                        )
             if code:
                 return code
 
@@ -569,8 +589,13 @@ def _load_experiment_code(run_dir: Path) -> dict[str, str]:
         for py_file in sorted(stage_dir.glob("*.py")):
             try:
                 code[py_file.name] = py_file.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                pass
+            except (OSError, UnicodeDecodeError) as exc:
+                logger.debug(
+                    "Failed to read experiment code file %s: %s",
+                    py_file,
+                    exc,
+                    exc_info=True,
+                )
         if code:
             return code
 
@@ -824,8 +849,12 @@ def _build_experiment_summary_from_run(
         try:
             from researchclaw.experiment.sandbox import parse_metrics
             metrics = parse_metrics(stdout)
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug(
+                "parse_metrics unavailable while building experiment summary: %s",
+                exc,
+                exc_info=True,
+            )
 
     # Group metrics by condition
     condition_summaries: dict[str, dict] = {}
