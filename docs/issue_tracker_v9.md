@@ -383,7 +383,7 @@ FRAMEWORK_KEYWORDS = {
 
 ### F-02: Advanced Coding Agent for Experiment Code Generation (FIXED)
 - **Severity**: Critical (pipeline capability ceiling)
-- **Status**: OPEN — research complete, implementation pending
+- **Status**: FIXED — integrated into Stage 10 CodeAgent path
 - **Problem**: Current code generation stage produces relatively simple, single-file experiments. Cannot design large-scale multi-file projects (e.g., complex RL systems with custom environments, multi-component fine-tuning pipelines). This limits paper quality and experiment sophistication.
 - **Goal**: Replace single-shot code generation with an agentic coding system capable of iterative development, debugging, and multi-file project design — analogous to how Claude Code or Devin can build complex projects from scratch.
 
