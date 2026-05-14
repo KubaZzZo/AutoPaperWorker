@@ -407,6 +407,40 @@ def test_execute_pipeline_writes_kb_entries_when_kb_root_provided(
     assert calls[0] == (1, "topic_init", "run-kb")
 
 
+def test_execute_pipeline_logs_kb_write_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        return _done(stage)
+
+    def fail_write_stage_to_kb(*args, **kwargs):
+        _ = args, kwargs
+        raise OSError("kb disk full")
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+    monkeypatch.setattr(rc_runner, "write_stage_to_kb", fail_write_stage_to_kb)
+
+    with caplog.at_level("WARNING", logger="researchclaw.pipeline.runner"):
+        results = rc_runner.execute_pipeline(
+            run_dir=run_dir,
+            run_id="run-kb-fail",
+            config=rc_config,
+            adapters=adapters,
+            kb_root=tmp_path / "kb-out",
+            to_stage=Stage.TOPIC_INIT,
+        )
+
+    assert results[-1].status == StageStatus.DONE
+    assert "Knowledge-base stage write failed" in caplog.text
+    assert "kb disk full" in caplog.text
+
+
 def test_execute_pipeline_logs_event_log_initialisation_failure(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,

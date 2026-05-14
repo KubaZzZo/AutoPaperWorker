@@ -289,6 +289,8 @@
 ### 低 (LOW)
 
 #### 31. 空的 except 块
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] KB write failures in `execute_pipeline()` now log `Knowledge-base stage write failed` with exception context instead of silently passing. Regression coverage forces `write_stage_to_kb()` to raise and verifies the pipeline continues while the warning includes the underlying error.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:718-719`
 - **问题:** `except Exception: pass` 在 KB 写入失败时静默跳过。
 - **建议:** 至少记录 debug 日志。
