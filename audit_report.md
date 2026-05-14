@@ -134,6 +134,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-13] Remaining pure `except ...: pass` handlers under `researchclaw/web`, `researchclaw/literature`, and `researchclaw/hitl` were removed or converted to debug/warning logs, including claim verification, stage editor snapshots, TUI status rendering, experiment monitoring, and idea/baseline workshop JSON parsing. AST scanning now reports no pure pass handlers in those directories.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Dashboard progress collection now logs malformed or unreadable `progress.json` snapshots with debug exception context instead of silently discarding them, while still returning a fallback run snapshot so the dashboard remains resilient.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

@@ -114,8 +114,13 @@ class DashboardCollector:
                     snap.stages_paused = int(progress.get("stages_paused") or 0)
                     snap.stages_blocked = int(progress.get("stages_blocked") or 0)
                     snap.cost_usd = float(progress.get("cost_usd") or 0.0)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed to read progress snapshot %s: %s",
+                    progress_path,
+                    exc,
+                    exc_info=True,
+                )
 
         # --- checkpoint.json ---
         ckpt_path = run_dir / "checkpoint.json"

@@ -135,6 +135,25 @@ def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
     assert snap.cost_usd == 1.25
 
 
+def test_dashboard_collector_logs_malformed_progress_snapshot(
+    tmp_path: Path,
+    caplog,
+) -> None:
+    from researchclaw.dashboard.collector import DashboardCollector
+
+    run_dir = tmp_path / "rc-bad-progress"
+    run_dir.mkdir()
+    (run_dir / "progress.json").write_text("{not-json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.dashboard.collector"):
+        snap = DashboardCollector().collect_run(run_dir)
+
+    assert snap.run_id == "rc-bad-progress"
+    assert snap.status == "unknown"
+    assert "Failed to read progress snapshot" in caplog.text
+    assert str(run_dir / "progress.json") in caplog.text
+
+
 def test_experiment_spec_parse_and_validate() -> None:
     from researchclaw.pipeline.experiment_spec import (
         MetricDef,
