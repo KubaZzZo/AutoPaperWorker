@@ -272,8 +272,14 @@ def detect_nan_divergence(stdout: str, stderr: str) -> str | None:
                     issues.append(f"Non-finite metric: {name}={value}")
                 elif "loss" in name.lower() and val > 100:
                     issues.append(f"Diverging loss: {name}={val} (>100)")
-            except ValueError:
-                pass
+            except ValueError as exc:
+                logger.debug(
+                    "Skipping non-numeric sandbox metric while checking divergence %s=%r: %s",
+                    name,
+                    value,
+                    exc,
+                    exc_info=True,
+                )
 
     return "; ".join(issues) if issues else None
 

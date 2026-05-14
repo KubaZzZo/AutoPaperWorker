@@ -448,18 +448,11 @@ class _CliAgentBase:
             stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout_sec)
         except subprocess.TimeoutExpired:
             timed_out = True
-            # Kill entire process group
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except OSError:
-                pass
+            self._terminate_timed_out_process(proc, signal.SIGTERM)
             try:
                 stdout_bytes, stderr_bytes = proc.communicate(timeout=5)
             except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except OSError:
-                    pass
+                self._terminate_timed_out_process(proc, signal.SIGKILL)
                 stdout_bytes, stderr_bytes = proc.communicate(timeout=5)
 
         elapsed = time.monotonic() - start
@@ -470,6 +463,26 @@ class _CliAgentBase:
             elapsed,
             timed_out,
         )
+
+    def _terminate_timed_out_process(self, proc: subprocess.Popen, sig: int) -> None:
+        """Terminate a timed-out subprocess, preferring process-group cleanup."""
+        try:
+            getpgid = getattr(os, "getpgid", None)
+            killpg = getattr(os, "killpg", None)
+            if getpgid is not None and killpg is not None:
+                killpg(getpgid(proc.pid), sig)
+            elif sig == signal.SIGTERM:
+                proc.terminate()
+            else:
+                proc.kill()
+        except OSError as exc:
+            logger.warning(
+                "Failed to terminate timed-out code agent process group %s with signal %s: %s",
+                proc.pid,
+                sig,
+                exc,
+                exc_info=True,
+            )
 
     def _build_result(
         self,

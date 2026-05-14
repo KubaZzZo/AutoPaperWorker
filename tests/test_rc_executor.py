@@ -2708,6 +2708,25 @@ class TestNaNDivergenceDetection:
         result = detect_nan_divergence("best_loss: 0.123\naccuracy: 0.95\n", "")
         assert result is None
 
+    def test_detect_nan_divergence_logs_non_numeric_metric_line(self, caplog, monkeypatch) -> None:
+        import researchclaw.experiment.sandbox as sandbox
+
+        class FakeMetricPattern:
+            def match(self, _line: str):
+                class FakeMatch:
+                    def groups(self):
+                        return ("best_loss", "not-a-number")
+
+                return FakeMatch()
+
+        monkeypatch.setattr(sandbox, "_METRIC_PATTERN", FakeMetricPattern())
+
+        with caplog.at_level("DEBUG", logger="researchclaw.experiment.sandbox"):
+            result = sandbox.detect_nan_divergence("best_loss: not-a-number\n", "")
+
+        assert result is None
+        assert "Skipping non-numeric sandbox metric while checking divergence" in caplog.text
+
     def test_runtime_issues_detects_diverging_loss(self) -> None:
         from types import SimpleNamespace
 

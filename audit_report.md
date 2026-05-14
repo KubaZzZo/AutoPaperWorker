@@ -174,6 +174,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Figure planning, critique, and Docker rendering degradation paths now log non-numeric metric skips and failed timeout cleanup with exception context. AST scanning now reports no pure `except: pass` handlers under `researchclaw/agents/figure_agent`.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Experiment CLI code-agent timeout cleanup now logs failed process-group termination and falls back safely on platforms without process-group APIs; sandbox divergence checks now log non-numeric metric skips. `researchclaw/experiment/code_agent.py` and `researchclaw/experiment/sandbox.py` no longer contain pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
