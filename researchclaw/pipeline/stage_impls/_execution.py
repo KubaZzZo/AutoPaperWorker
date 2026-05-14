@@ -123,6 +123,11 @@ def _execute_experiment_run(
             try:
                 code_text = main_path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
+                logger.debug(
+                    "Failed to read multi-file experiment entry point: %s",
+                    main_path,
+                    exc_info=True,
+                )
                 code_text = ""
     if not code_text:
         code_text = _read_prior_artifact(run_dir, "experiment.py") or ""
@@ -139,7 +144,11 @@ def _execute_experiment_run(
                     try:
                         _all_code += "\n" + _pyf.read_text(encoding="utf-8")
                     except (OSError, UnicodeDecodeError):
-                        pass
+                        logger.debug(
+                            "Failed to read experiment file during dependency scan: %s",
+                            _pyf,
+                            exc_info=True,
+                        )
             _ensure_sandbox_deps(_all_code, config.experiment.sandbox.python_path)
 
         sandbox = create_sandbox(config.experiment, runs_dir / "sandbox")
@@ -167,6 +176,11 @@ def _execute_experiment_run(
                     encoding="utf-8",
                 )
             except (json.JSONDecodeError, OSError):
+                logger.debug(
+                    "Failed to read sandbox structured results: %s",
+                    results_json_path,
+                    exc_info=True,
+                )
                 structured_results = None
 
         # If sandbox metrics are empty, try to parse from stdout
@@ -453,8 +467,12 @@ def _execute_iterative_refine(
                             metric_direction,
                         )
                     break
-            except OSError:
-                pass
+            except (OSError, UnicodeDecodeError):
+                logger.debug(
+                    "Failed to read run file during metric direction detection: %s",
+                    _rf,
+                    exc_info=True,
+                )
 
     maximize = metric_direction == "maximize"
 
@@ -523,7 +541,15 @@ def _execute_iterative_refine(
     baseline_metric: float | None = None
     if runs_dir_path is not None:
         for run_file in sorted(runs_dir_path.glob("*.json"))[:40]:
-            payload = _safe_json_loads(run_file.read_text(encoding="utf-8"), {})
+            try:
+                payload = _safe_json_loads(run_file.read_text(encoding="utf-8"), {})
+            except (OSError, UnicodeDecodeError):
+                logger.debug(
+                    "Failed to read run summary file during refinement setup: %s",
+                    run_file,
+                    exc_info=True,
+                )
+                continue
             if not isinstance(payload, dict):
                 continue
             # R5-5: Truncate stdout/stderr for context efficiency
@@ -610,7 +636,11 @@ def _execute_iterative_refine(
                 try:
                     best_files[src_file.name] = src_file.read_text(encoding="utf-8")
                 except UnicodeDecodeError:
-                    pass  # skip binary files
+                    logger.debug(
+                        "Skipped unreadable experiment project file: %s",
+                        src_file,
+                        exc_info=True,
+                    )
     if not best_files:
         # Backward compat: single experiment.py
         original_code = _read_prior_artifact(run_dir, "experiment.py") or ""
@@ -627,8 +657,12 @@ def _execute_iterative_refine(
                 if isinstance(payload, dict) and payload.get("timed_out"):
                     prior_timed_out = True
                     break
-            except OSError:
-                pass
+            except (OSError, UnicodeDecodeError):
+                logger.debug(
+                    "Failed to read run file during timeout detection: %s",
+                    run_file,
+                    exc_info=True,
+                )
 
     best_metric = baseline_metric
     best_version = "experiment/"

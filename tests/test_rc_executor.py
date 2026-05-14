@@ -1067,7 +1067,6 @@ class TestIterativeRefine:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -1174,7 +1173,6 @@ class TestIterativeRefine:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -2350,7 +2348,6 @@ class TestComputeBudgetBlock:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -2412,7 +2409,6 @@ class TestComputeBudgetBlock:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -2479,7 +2475,6 @@ class TestPartialTimeoutStatus:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -2583,7 +2578,6 @@ class TestTimeoutAwareRefine:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost:1234/v1",
                 "api_key_env": "RC_TEST_KEY",
-                "api_key": "inline-test-key",
                 "primary_model": "fake-model",
                 "fallback_models": [],
             },
@@ -2828,7 +2822,7 @@ class TestRefineTimeoutAndIterationCap:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3115,7 +3109,7 @@ class TestStdoutTruncation:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3180,7 +3174,7 @@ class TestNoImproveStreakFix:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3240,7 +3234,7 @@ class TestStdoutFailureDetection:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3299,7 +3293,7 @@ class TestStdoutFailureDetection:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3326,6 +3320,163 @@ class TestStdoutFailureDetection:
         runs_dir = stage_dir / "runs"
         payload = json.loads((runs_dir / "run-1.json").read_text())
         assert payload["status"] == "completed"
+
+
+class TestExperimentRunFallbackLogging:
+    def test_logs_unreadable_multifile_main_and_dependency_scan_file(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.experiment.sandbox import SandboxResult
+        from researchclaw.pipeline.stage_impls import _execution
+
+        class FakeSandbox:
+            def run_project(self, *_args: object, **_kwargs: object) -> SandboxResult:
+                return SandboxResult(
+                    returncode=0,
+                    stdout="primary_metric: 0.5\n",
+                    stderr="",
+                    metrics={"primary_metric": 0.5},
+                    elapsed_sec=6.0,
+                )
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        exp_dir = run_dir / "stage-10" / "experiment"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "main.py").write_bytes(b"\xff\xfe\x00")
+        (exp_dir / "helper.py").write_bytes(b"\xff\xfe\x00")
+        stage_dir = run_dir / "stage-12"
+        stage_dir.mkdir()
+
+        monkeypatch.setattr(
+            "researchclaw.experiment.factory.create_sandbox",
+            lambda *_args, **_kwargs: FakeSandbox(),
+        )
+        monkeypatch.setattr(_execution, "_ensure_sandbox_deps", lambda *_args, **_kwargs: None)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._execution"):
+            result = _execution._execute_experiment_run(
+                stage_dir, run_dir, rc_config, adapters
+            )
+
+        assert result.status is StageStatus.DONE
+        assert "Failed to read multi-file experiment entry point" in caplog.text
+        assert "Failed to read experiment file during dependency scan" in caplog.text
+        assert "main.py" in caplog.text
+        assert "helper.py" in caplog.text
+
+    def test_logs_malformed_sandbox_results_json(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.experiment.sandbox import SandboxResult
+        from researchclaw.pipeline.stage_impls import _execution
+
+        class FakeSandbox:
+            def run(self, *_args: object, **_kwargs: object) -> SandboxResult:
+                project_dir = tmp_path / "run" / "stage-12" / "runs" / "sandbox" / "_project"
+                project_dir.mkdir(parents=True)
+                (project_dir / "results.json").write_text("{bad json", encoding="utf-8")
+                return SandboxResult(
+                    returncode=0,
+                    stdout="primary_metric: 0.7\n",
+                    stderr="",
+                    metrics={"primary_metric": 0.7},
+                    elapsed_sec=6.0,
+                )
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        _write_prior_artifact(run_dir, 10, "experiment.py", "print('primary_metric: 0.7')\n")
+        stage_dir = run_dir / "stage-12"
+        stage_dir.mkdir()
+
+        monkeypatch.setattr(
+            "researchclaw.experiment.factory.create_sandbox",
+            lambda *_args, **_kwargs: FakeSandbox(),
+        )
+        monkeypatch.setattr(_execution, "_ensure_sandbox_deps", lambda *_args, **_kwargs: None)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._execution"):
+            result = _execution._execute_experiment_run(
+                stage_dir, run_dir, rc_config, adapters
+            )
+
+        assert result.status is StageStatus.DONE
+        payload = json.loads((stage_dir / "runs" / "run-1.json").read_text())
+        assert "structured_results" not in payload
+        assert "Failed to read sandbox structured results" in caplog.text
+        assert "results.json" in caplog.text
+
+
+class TestIterativeRefineFallbackLogging:
+    def test_logs_unreadable_run_files_during_direction_and_timeout_detection(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _execution
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        runs_dir = run_dir / "stage-12" / "runs"
+        runs_dir.mkdir(parents=True)
+        (runs_dir / "run-1.json").write_bytes(b"\xff\xfe\x00")
+        exp_dir = run_dir / "stage-10" / "experiment"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "main.py").write_text("print('primary_metric: 0.5')\n", encoding="utf-8")
+        stage_dir = run_dir / "stage-13"
+        stage_dir.mkdir()
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._execution"):
+            result = _execution._execute_iterative_refine(
+                stage_dir, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert "Failed to read run file during metric direction detection" in caplog.text
+        assert "Failed to read run file during timeout detection" in caplog.text
+        assert "run-1.json" in caplog.text
+
+    def test_logs_binary_project_file_skipped_during_refine_load(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _execution
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        exp_dir = run_dir / "stage-10" / "experiment"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "main.py").write_text("print('primary_metric: 0.5')\n", encoding="utf-8")
+        (exp_dir / "bad_config.json").write_bytes(b"\xff\xfe\x00")
+        stage_dir = run_dir / "stage-13"
+        stage_dir.mkdir()
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._execution"):
+            result = _execution._execute_iterative_refine(
+                stage_dir, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert "Skipped unreadable experiment project file" in caplog.text
+        assert "bad_config.json" in caplog.text
+        assert (stage_dir / "experiment_final" / "main.py").exists()
+        assert not (stage_dir / "experiment_final" / "bad_config.json").exists()
 
 
 class TestMetricValUndefined:
@@ -3405,7 +3556,7 @@ class TestConsecutiveEmptyMetrics:
 
 
 # ===================================================================
-# R7 Tests — Experiment-Paper Quality Alignment
+# R7 Tests 鈥?Experiment-Paper Quality Alignment
 # ===================================================================
 
 
@@ -3518,7 +3669,7 @@ class TestConditionCoverageDetection:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3580,7 +3731,7 @@ class TestConditionCoverageDetection:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3604,7 +3755,7 @@ class TestConditionCoverageDetection:
 
 
 # ===================================================================
-# R8 Tests — AutoBench Round 1 Fixes
+# R8 Tests 鈥?AutoBench Round 1 Fixes
 # ===================================================================
 
 
@@ -3664,7 +3815,7 @@ class TestRefineFilePreservation:
             "knowledge_base": {"backend": "markdown", "root": str(tmp_path / "kb")},
             "openclaw_bridge": {"use_memory": True, "use_message": True},
             "llm": {"provider": "openai-compatible", "base_url": "http://localhost:1234/v1",
-                    "api_key_env": "RC_TEST_KEY", "api_key": "inline-test-key",
+                    "api_key_env": "RC_TEST_KEY",
                     "primary_model": "fake-model", "fallback_models": []},
             "security": {"hitl_required_stages": [5, 9, 20]},
             "experiment": {
@@ -3693,7 +3844,7 @@ class TestRefineFilePreservation:
 
 
 # ===================================================================
-# R9 Tests — AutoBench Round 2 Fixes
+# R9 Tests 鈥?AutoBench Round 2 Fixes
 # ===================================================================
 
 
@@ -3791,7 +3942,7 @@ def _make_comparative_prose(word_count: int) -> str:
 def _make_results_prose(word_count: int) -> str:
     """Generate results prose with statistical measures."""
     sentence = (
-        "Our method achieves 85.3 ± 1.2 accuracy averaged over 5 seeds. "
+        "Our method achieves 85.3 卤 1.2 accuracy averaged over 5 seeds. "
         "The baseline comparison yields a p-value of 0.003, confirming "
         "statistical significance with 95% confidence interval. "
     )
