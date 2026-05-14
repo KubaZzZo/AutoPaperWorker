@@ -10,6 +10,19 @@ from threading import Lock
 from typing import Any
 
 
+PRICE_TABLE_USD_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
+    # input, output prices per 1M tokens
+    "openai/gpt-4o-mini": (0.15, 0.60),
+    "openai/gpt-4o": (2.50, 10.00),
+    "openai/gpt-4.1": (2.00, 8.00),
+    "openai/gpt-4.1-mini": (0.40, 1.60),
+    "anthropic/claude-3-5-sonnet": (3.00, 15.00),
+    "anthropic/claude-3-7-sonnet": (3.00, 15.00),
+    "anthropic/claude-sonnet-4": (3.00, 15.00),
+    "anthropic/claude-opus-4": (15.00, 75.00),
+}
+
+
 @dataclass(frozen=True)
 class CostEntry:
     """One recorded API cost event."""
@@ -82,6 +95,9 @@ def _empty_cost_bucket() -> dict[str, int | float]:
         "completion_tokens": 0,
         "total_tokens": 0,
         "cost_usd": 0.0,
+        "estimated_cost_usd": 0.0,
+        "cost_variance_usd": 0.0,
+        "cost_variance_ratio": 0.0,
     }
 
 
@@ -91,6 +107,7 @@ def _add_cost_to_bucket(
     prompt_tokens: int,
     completion_tokens: int,
     cost_usd: float,
+    estimated_cost_usd: float,
 ) -> None:
     bucket["calls"] = int(bucket["calls"]) + 1
     bucket["prompt_tokens"] = int(bucket["prompt_tokens"]) + prompt_tokens
@@ -99,6 +116,50 @@ def _add_cost_to_bucket(
     )
     bucket["total_tokens"] = int(bucket["total_tokens"]) + prompt_tokens + completion_tokens
     bucket["cost_usd"] = round(float(bucket["cost_usd"]) + cost_usd, 6)
+    bucket["estimated_cost_usd"] = round(
+        float(bucket["estimated_cost_usd"]) + estimated_cost_usd,
+        6,
+    )
+    _update_variance(bucket)
+
+
+def estimate_entry_cost_usd(
+    provider: str,
+    model: str,
+    *,
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> float:
+    """Estimate cost from the built-in provider/model price table."""
+
+    key = _price_key(provider, model)
+    prices = PRICE_TABLE_USD_PER_MILLION_TOKENS.get(key)
+    if prices is None:
+        return 0.0
+    input_price, output_price = prices
+    return round(
+        (prompt_tokens / 1_000_000) * input_price
+        + (completion_tokens / 1_000_000) * output_price,
+        6,
+    )
+
+
+def _price_key(provider: str, model: str) -> str:
+    provider_norm = (provider or "unknown").strip().lower()
+    model_norm = (model or "unknown").strip().lower()
+    return f"{provider_norm}/{model_norm}"
+
+
+def _update_variance(bucket: dict[str, int | float]) -> None:
+    actual_key = "cost_usd" if "cost_usd" in bucket else "total_cost_usd"
+    actual = float(bucket[actual_key])
+    estimated = float(bucket["estimated_cost_usd"])
+    variance = round(actual - estimated, 6)
+    bucket["cost_variance_usd"] = variance
+    if estimated:
+        bucket["cost_variance_ratio"] = round(variance / estimated, 6)
+    else:
+        bucket["cost_variance_ratio"] = 0.0
 
 
 def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
@@ -110,6 +171,9 @@ def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
         "total_completion_tokens": 0,
         "total_tokens": 0,
         "total_cost_usd": 0.0,
+        "estimated_cost_usd": 0.0,
+        "cost_variance_usd": 0.0,
+        "cost_variance_ratio": 0.0,
         "by_stage": {},
         "by_model": {},
     }
@@ -130,6 +194,12 @@ def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
         cost_usd = float(entry.get("cost_usd") or 0.0)
         provider = str(entry.get("provider") or "unknown")
         model = str(entry.get("model") or "unknown")
+        estimated_cost_usd = estimate_entry_cost_usd(
+            provider,
+            model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
         metadata = entry.get("metadata")
         stage = "unknown"
         if isinstance(metadata, dict):
@@ -143,6 +213,11 @@ def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
             float(summary["total_cost_usd"]) + cost_usd,
             6,
         )
+        summary["estimated_cost_usd"] = round(
+            float(summary["estimated_cost_usd"]) + estimated_cost_usd,
+            6,
+        )
+        _update_variance(summary)
 
         by_stage = summary["by_stage"]
         stage_bucket = by_stage.setdefault(stage, _empty_cost_bucket())
@@ -151,16 +226,18 @@ def summarize_cost_log(log_path: str | Path) -> dict[str, Any]:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cost_usd=cost_usd,
+            estimated_cost_usd=estimated_cost_usd,
         )
 
         by_model = summary["by_model"]
-        model_key = f"{provider}/{model}"
+        model_key = _price_key(provider, model)
         model_bucket = by_model.setdefault(model_key, _empty_cost_bucket())
         _add_cost_to_bucket(
             model_bucket,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cost_usd=cost_usd,
+            estimated_cost_usd=estimated_cost_usd,
         )
 
     return summary

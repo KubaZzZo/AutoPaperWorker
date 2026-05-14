@@ -30,6 +30,7 @@ reproducibility updates were integrated.
 | Pipeline parallel hypothesis fan-out | Integrated | Runner executes Stage 9-15 per prepared branch, selects the best branch by configured metric, and promotes its artifacts for paper writing |
 | Structured progress observability | Integrated | Runner writes `progress.json` snapshots after each stage; dashboard collector reads stage status, counts, elapsed time, and cost |
 | Fine-grained cost accounting | Integrated | `cost_log.jsonl` is aggregated into `cost_summary.json` by stage and model; progress snapshots include token and spend totals |
+| Cost forecast calibration | Integrated | `cost_summary.json` now includes built-in provider/model price estimates plus forecast-vs-actual cost variance totals by run, stage, and model |
 | Topic trend validation | Prompt-level support | Topic prompt requires recent work and benchmark context |
 | Multi-seed enforcement | Prompt-level support | Code generation guidance and quality checks |
 | RL step guidance | Prompt-level support | RL topics receive minimum training-step guidance |
@@ -38,8 +39,8 @@ reproducibility updates were integrated.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Cost forecast calibration | Low | Actual token/spend totals are now tracked; future work can add provider price tables and forecast-vs-actual variance by model. |
+| Provider price table maintenance | Low | Keep built-in token price presets current as model vendors change pricing. |
 
 ## Suggested Next Order
 
-1. Add provider price tables and forecast-vs-actual variance reports.
+1. Periodically refresh provider price presets and add more providers as needed.

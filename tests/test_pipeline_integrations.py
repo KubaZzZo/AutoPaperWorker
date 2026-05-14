@@ -79,6 +79,28 @@ def test_cost_tracker_summarizes_by_stage_and_model(tmp_path: Path) -> None:
     assert written["by_stage"]["PAPER_DRAFT"]["cost_usd"] == 0.2
 
 
+def test_cost_tracker_reports_forecast_variance(tmp_path: Path) -> None:
+    from researchclaw.cost_tracker import CostTracker, summarize_cost_log
+
+    tracker = CostTracker(log_path=tmp_path / "cost_log.jsonl")
+    tracker.record(
+        "openai",
+        "gpt-4o-mini",
+        prompt_tokens=1_000_000,
+        completion_tokens=1_000_000,
+        cost_usd=1.00,
+        stage="PAPER_DRAFT",
+    )
+
+    summary = summarize_cost_log(tmp_path / "cost_log.jsonl")
+
+    assert summary["estimated_cost_usd"] == 0.75
+    assert summary["cost_variance_usd"] == 0.25
+    assert summary["cost_variance_ratio"] == 0.333333
+    assert summary["by_model"]["openai/gpt-4o-mini"]["estimated_cost_usd"] == 0.75
+    assert summary["by_model"]["openai/gpt-4o-mini"]["cost_variance_usd"] == 0.25
+
+
 def test_dashboard_collector_prefers_progress_snapshot(tmp_path: Path) -> None:
     from researchclaw.dashboard.collector import DashboardCollector
 
