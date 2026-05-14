@@ -21,6 +21,7 @@ reproducibility updates were integrated.
 | OpenCode entry-point fail-fast | Integrated | Beast Mode code generation now raises a clear error when `main.py` lacks both a `__main__` guard and a known entry function, instead of passing a non-executable project to the sandbox |
 | Literature placeholder suppression | Integrated | Stage 4 no longer fabricates placeholder papers when all searches fail; it writes empty candidates plus failure metadata and returns a failed stage for retry/diagnosis |
 | Paper draft placeholder suppression | Integrated | Stage 17 no longer writes placeholder manuscript sections after LLM retry exhaustion; it raises a section-specific failure so retry/diagnosis paths handle incomplete drafts explicitly |
+| Citation verification empty-BibTeX fail-fast | Integrated | Stage 23 no longer writes placeholder verified references when all BibTeX entries are filtered; it writes a diagnostic failure artifact and returns a failed stage |
 | P4.1 Benchmark discovery | Integrated | `researchclaw/agents/benchmark_agent/`; Stage 9 benchmark plan |
 | P4.1 non-ML benchmark support | Integrated | `researchclaw/data/benchmark_knowledge.yaml`; domain-aware survey/acquire paths |
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |

@@ -2768,12 +2768,42 @@ def _execute_citation_verify(
                 len(_vbib_keys) - len(_uncited_vbib),
             )
 
-    # BUG-100: If all entries were filtered out (low-relevance + uncited pruning),
-    # write a comment instead of an empty file to avoid "Missing or empty output" error.
+    # BUG-100/R-2026-05-14: If all entries were filtered out
+    # (low-relevance + uncited pruning), fail explicitly. A placeholder
+    # references file can make downstream packaging treat an uncited or
+    # fully-filtered bibliography as publication-ready.
     if not verified_bib.strip():
-        verified_bib = "% All citations were filtered out during verification\n"
+        failure_data = {
+            "error": "all_bibtex_entries_filtered",
+            "message": (
+                "All BibTeX entries were removed during citation verification. "
+                "Check citation keys in the paper body and regenerate the draft "
+                "or references before publishing."
+            ),
+            "original_count": original_count,
+            "verified_count": verified_count,
+            "low_relevance_keys": sorted(low_relevance_keys),
+        }
+        (stage_dir / "citation_verify_failure.json").write_text(
+            json.dumps(failure_data, indent=2), encoding="utf-8"
+        )
+        (stage_dir / "references_verified.bib").write_text("", encoding="utf-8")
         logger.warning(
-            "Stage 23: All BibTeX entries filtered out — writing placeholder"
+            "Stage 23: All BibTeX entries filtered out; failing citation verification"
+        )
+        return StageResult(
+            stage=Stage.CITATION_VERIFY,
+            status=StageStatus.FAILED,
+            artifacts=(
+                "verification_report.json",
+                "citation_verify_failure.json",
+                "references_verified.bib",
+            ),
+            evidence_refs=(
+                "stage-23/verification_report.json",
+                "stage-23/citation_verify_failure.json",
+                "stage-23/references_verified.bib",
+            ),
         )
 
     (stage_dir / "references_verified.bib").write_text(verified_bib, encoding="utf-8")

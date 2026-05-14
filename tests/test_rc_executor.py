@@ -1965,6 +1965,78 @@ class TestWritePaperSections:
         assert all("Write the paper in Chinese" in prompt for prompt in llm.user_prompts)
 
 
+def test_citation_verify_fails_when_all_bibtex_entries_are_pruned(
+    tmp_path: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from researchclaw.literature.verify import (
+        CitationResult,
+        VerificationReport,
+        VerifyStatus,
+    )
+
+    run_dir = tmp_path / "run"
+    source_dir = run_dir / "stage-22"
+    stage_dir = run_dir / "stage-23"
+    source_dir.mkdir(parents=True)
+    stage_dir.mkdir()
+    (source_dir / "references.bib").write_text(
+        "@article{smith2024missing,\n"
+        "  title={Missing From Paper},\n"
+        "  author={Smith, Ada},\n"
+        "  year={2024}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (source_dir / "paper_final.md").write_text(
+        "# Paper\n\nThis final paper has no citation markers.",
+        encoding="utf-8",
+    )
+
+    report = VerificationReport(
+        total=1,
+        verified=1,
+        results=[
+            CitationResult(
+                cite_key="smith2024missing",
+                title="Missing From Paper",
+                status=VerifyStatus.VERIFIED,
+                confidence=1.0,
+                method="test",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "researchclaw.literature.verify.verify_citations",
+        lambda bib_text, s2_api_key="": report,
+    )
+    monkeypatch.setattr(
+        "researchclaw.literature.verify.filter_verified_bibtex",
+        lambda bib_text, report, include_suspicious=True: bib_text,
+    )
+
+    result = rc_executor._execute_citation_verify(
+        stage_dir,
+        run_dir,
+        rc_config,
+        adapters,
+    )
+
+    assert result.status == StageStatus.FAILED
+    verified_bib = (stage_dir / "references_verified.bib").read_text(
+        encoding="utf-8"
+    )
+    assert verified_bib == ""
+    assert "placeholder" not in verified_bib.lower()
+    failure = json.loads(
+        (stage_dir / "citation_verify_failure.json").read_text(encoding="utf-8")
+    )
+    assert failure["error"] == "all_bibtex_entries_filtered"
+    assert failure["original_count"] == 1
+
+
 class TestLoadHardwareProfile:
     """Tests for _load_hardware_profile()."""
 

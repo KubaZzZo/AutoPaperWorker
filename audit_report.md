@@ -24,6 +24,8 @@
 
 <span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Stage 17 paper drafting no longer fabricates `[PLACEHOLDER]` manuscript sections when LLM retries are exhausted. `_write_paper_sections()` now logs the failed section with exception context and raises a section-specific `RuntimeError`, with regression coverage proving incomplete drafts fail instead of being treated as real papers.</span>
 
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Stage 23 citation verification no longer writes a placeholder `references_verified.bib` when verification and citation pruning remove every BibTeX entry. It now writes `citation_verify_failure.json`, clears the verified bibliography to avoid stale content, and returns `StageStatus.FAILED` so publication packaging cannot treat an empty bibliography as complete.</span>
+
 ## 一、安全问题 (Security)
 
 ### 严重 (CRITICAL)
