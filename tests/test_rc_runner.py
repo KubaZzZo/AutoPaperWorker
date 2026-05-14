@@ -919,6 +919,38 @@ def test_max_pivot_count_prevents_infinite_loop(
     assert decision_count <= MAX_DECISION_PIVOTS + 1
 
 
+def test_recursion_depth_guard_prevents_pivot_loop_when_history_read_breaks(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    seen: list[Stage] = []
+
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        seen.append(stage)
+        if stage == Stage.RESEARCH_DECISION:
+            return _pivot_result(stage)
+        return _done(stage)
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+    monkeypatch.setattr(rc_runner, "_read_pivot_count", lambda run_dir: 0)
+
+    results = rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-pivot-broken-history",
+        config=rc_config,
+        adapters=adapters,
+    )
+
+    from researchclaw.pipeline.stages import MAX_DECISION_PIVOTS
+
+    decision_count = sum(1 for s in seen if s == Stage.RESEARCH_DECISION)
+    assert decision_count <= MAX_DECISION_PIVOTS + 1
+    assert results[-1].stage == Stage.CITATION_VERIFY
+
+
 def test_proceed_decision_does_not_trigger_rollback(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,

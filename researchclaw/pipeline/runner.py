@@ -793,6 +793,7 @@ def execute_pipeline(
     skip_noncritical: bool = False,
     kb_root: Path | None = None,
     cancel_event: "threading.Event | None" = None,
+    _pivot_depth: int = 0,
 ) -> list[StageResult]:
     """Execute pipeline stages sequentially from *from_stage* to *to_stage* (inclusive)."""
 
@@ -1089,7 +1090,10 @@ def execute_pipeline(
                 # BUG-211: Promote best stage-14 before proceeding with
                 # empty data — an earlier iteration may have real metrics.
                 _promote_best_stage14(run_dir, config)
-            elif pivot_count < MAX_DECISION_PIVOTS:
+            elif (
+                pivot_count < MAX_DECISION_PIVOTS
+                and _pivot_depth < MAX_DECISION_PIVOTS
+            ):
                 rollback_target = DECISION_ROLLBACK[result.decision]
                 _record_decision_history(
                     run_dir, result.decision, rollback_target, pivot_count + 1
@@ -1122,6 +1126,7 @@ def execute_pipeline(
                     skip_noncritical=skip_noncritical,
                     kb_root=kb_root,
                     cancel_event=cancel_event,
+                    _pivot_depth=_pivot_depth + 1,
                 )
                 results.extend(pivot_results)
                 # BUG-211: Promote best stage-14 after REFINE completes so
@@ -1129,9 +1134,10 @@ def execute_pipeline(
                 _promote_best_stage14(run_dir, config)
                 break  # Exit current loop; recursive call handles the rest
             else:
+                effective_pivot_count = max(pivot_count, _pivot_depth)
                 # Quality gate: check if experiment results are actually usable
                 _quality_ok, _quality_msg = _check_experiment_quality(
-                    run_dir, pivot_count
+                    run_dir, effective_pivot_count
                 )
                 if not _quality_ok:
                     logger.warning(

@@ -278,6 +278,8 @@
 - **建议:** 添加 schema 验证层包装 LLM 响应。
 
 #### 30. Pipeline 递归调用无限循环风险
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `execute_pipeline()` now carries an internal pivot recursion depth guard in addition to `decision_history.json` counting. If history reads fail or keep returning zero, rollback recursion stops at `MAX_DECISION_PIVOTS` and the pipeline proceeds through the remaining stages. Regression coverage simulates a broken pivot counter.</span>
+
 - **文件:** `researchclaw/pipeline/runner.py:792-808`
 - **问题:** `execute_pipeline` 在 PIVOT/REFINE 时可以递归调用自身。虽然有 `MAX_DECISION_PIVOTS=2` 限制，但如果 `_read_pivot_count` 错误返回 0，递归可能无限。
 - **建议:** 添加递归深度保护 (`sys.setrecursionlimit` 检查)。
