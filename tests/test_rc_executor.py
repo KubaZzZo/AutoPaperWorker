@@ -1369,6 +1369,239 @@ def test_contracts_stage22_includes_code_dir() -> None:
     assert "code/" in CONTRACTS[Stage.EXPORT_PUBLISH].output_files
 
 
+
+class TestReviewPublishFallbackLogging:
+    def test_collect_experiment_evidence_logs_malformed_refinement_log(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        run_dir = tmp_path / "run"
+        stage_13 = run_dir / "stage-13"
+        stage_13.mkdir(parents=True)
+        (stage_13 / "refinement_log.json").write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            evidence = _review_publish._collect_experiment_evidence(run_dir)
+
+        assert evidence == ""
+        assert "Failed to parse refinement log for experiment evidence" in caplog.text
+
+    def test_peer_review_logs_malformed_draft_quality(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        run_dir = tmp_path / "run"
+        stage_17 = run_dir / "stage-17"
+        stage_18 = run_dir / "stage-18"
+        stage_17.mkdir(parents=True)
+        stage_18.mkdir()
+        (stage_17 / "paper_draft.md").write_text("# Draft\n", encoding="utf-8")
+        (stage_17 / "draft_quality.json").write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_peer_review(
+                stage_18, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert (stage_18 / "reviews.md").exists()
+        assert "Failed to read draft quality warnings for peer review" in caplog.text
+
+    def test_paper_revision_logs_prompt_block_and_quality_directive_failures(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        class BrokenRevisionPrompts:
+            def block(self, name: str, **_kwargs: object) -> str:
+                if name == "topic_constraint":
+                    return "topic"
+                raise KeyError(name)
+
+            def for_stage(self, *_args: object, **_kwargs: object) -> SimpleNamespace:
+                return SimpleNamespace(
+                    system="system",
+                    user="user",
+                    json_mode=False,
+                    max_tokens=100,
+                )
+
+        run_dir = tmp_path / "run"
+        stage_17 = run_dir / "stage-17"
+        stage_18 = run_dir / "stage-18"
+        stage_19 = run_dir / "stage-19"
+        stage_17.mkdir(parents=True)
+        stage_18.mkdir()
+        stage_19.mkdir()
+        (stage_17 / "paper_draft.md").write_text("# Draft\ncontent", encoding="utf-8")
+        (stage_17 / "draft_quality.json").write_text("{bad json", encoding="utf-8")
+        (stage_18 / "reviews.md").write_text("# Reviews\nrevise", encoding="utf-8")
+        monkeypatch.setattr(
+            _review_publish,
+            "_get_collect_raw_experiment_metrics",
+            lambda: (lambda _run_dir: ("", False)),
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_paper_revision(
+                stage_19,
+                run_dir,
+                rc_config,
+                adapters,
+                llm=FakeLLMClient("# Revised\ncontent"),
+                prompts=BrokenRevisionPrompts(),  # type: ignore[arg-type]
+            )
+
+        assert result.status is StageStatus.DONE
+        assert (stage_19 / "paper_revised.md").read_text(encoding="utf-8")
+        assert "Prompt block unavailable for paper revision" in caplog.text
+        assert "Failed to read draft quality directives for paper revision" in caplog.text
+
+    def test_quality_gate_logs_unreadable_experiment_summaries(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        run_dir = tmp_path / "run"
+        stage_14 = run_dir / "stage-14"
+        stage_20 = run_dir / "stage-20"
+        stage_19 = run_dir / "stage-19"
+        stage_14.mkdir(parents=True)
+        stage_19.mkdir()
+        stage_20.mkdir()
+        (stage_14 / "experiment_summary.json").write_bytes(b"\xff\xfe\x00")
+        (run_dir / "experiment_summary_best.json").write_bytes(b"\xff\xfe\x00")
+        (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_quality_gate(
+                stage_20, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status in {StageStatus.DONE, StageStatus.FAILED}
+        assert (stage_20 / "quality_report.json").exists()
+        assert "Failed to read experiment summary for quality gate" in caplog.text
+        assert "Failed to read root best experiment summary for quality gate" in caplog.text
+
+
+    def test_quality_gate_logs_refinement_log_and_registry_fallback_failures(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        class BrokenRegistry:
+            @classmethod
+            def from_run_dir(cls, *_args: object, **_kwargs: object) -> object:
+                raise RuntimeError("registry unavailable")
+
+        run_dir = tmp_path / "run"
+        stage_13 = run_dir / "stage-13"
+        stage_14 = run_dir / "stage-14"
+        stage_19 = run_dir / "stage-19"
+        stage_20 = run_dir / "stage-20"
+        stage_13.mkdir(parents=True)
+        stage_14.mkdir()
+        stage_19.mkdir()
+        stage_20.mkdir()
+        (stage_13 / "refinement_log.json").write_text("{bad json", encoding="utf-8")
+        (stage_14 / "experiment_summary.json").write_text(
+            json.dumps({"metrics_summary": {"accuracy": {"mean": 0.8}}}),
+            encoding="utf-8",
+        )
+        (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
+        monkeypatch.setattr(
+            "researchclaw.pipeline.verified_registry.VerifiedRegistry.from_run_dir",
+            BrokenRegistry.from_run_dir,
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_quality_gate(
+                stage_20, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status in {StageStatus.DONE, StageStatus.FAILED}
+        assert "Failed to read refinement log for quality gate fabrication checks" in caplog.text
+        assert "Verified registry quality gate enrichment failed" in caplog.text
+        assert "registry unavailable" in caplog.text
+
+    def test_export_publish_logs_dependency_parse_failures(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        run_dir = tmp_path / "run"
+        stage_13 = run_dir / "stage-13"
+        stage_19 = run_dir / "stage-19"
+        stage_22 = run_dir / "stage-22"
+        exp_dir = stage_13 / "experiment_final"
+        exp_dir.mkdir(parents=True)
+        stage_19.mkdir()
+        stage_22.mkdir()
+        (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
+        (exp_dir / "main.py").write_text("import numpy\ndef broken(:\n", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_export_publish(
+                stage_22, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert (stage_22 / "code" / "requirements.txt").exists()
+        assert "Failed to parse packaged experiment files for dependency detection" in caplog.text
+
+    def test_export_publish_logs_single_file_dependency_parse_failure(
+        self,
+        tmp_path: Path,
+        rc_config: RCConfig,
+        adapters: AdapterBundle,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from researchclaw.pipeline.stage_impls import _review_publish
+
+        run_dir = tmp_path / "run"
+        stage_13 = run_dir / "stage-13"
+        stage_19 = run_dir / "stage-19"
+        stage_22 = run_dir / "stage-22"
+        stage_13.mkdir(parents=True)
+        stage_19.mkdir()
+        stage_22.mkdir()
+        (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
+        (stage_13 / "experiment_final.py").write_text("import numpy\ndef broken(:\n", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+            result = _review_publish._execute_export_publish(
+                stage_22, run_dir, rc_config, adapters, llm=None
+            )
+
+        assert result.status is StageStatus.DONE
+        assert (stage_22 / "code" / "requirements.txt").exists()
+        assert "Failed to parse single-file experiment for dependency detection" in caplog.text
+
+
 # ── P1-1: Topic keyword extraction tests ──
 
 

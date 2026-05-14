@@ -106,7 +106,10 @@ def _collect_experiment_evidence(run_dir: Path) -> str:
                 f"### Refinement Summary\n```json\n{json.dumps(summary, indent=2)}\n```"
             )
         except (json.JSONDecodeError, TypeError):
-            pass
+            logger.debug(
+                "Failed to parse refinement log for experiment evidence",
+                exc_info=True,
+            )
 
     # 4. Count actual number of experiment runs
     actual_run_count = 0
@@ -161,7 +164,11 @@ def _execute_peer_review(
                     + "\n"
                 )
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug(
+                "Failed to read draft quality warnings for peer review: %s",
+                _quality_json_path,
+                exc_info=True,
+            )
 
     if llm is not None:
         _pm = prompts or PromptManager()
@@ -240,6 +247,10 @@ def _execute_paper_revision(
         try:
             _ws_revision = _pm.block("writing_structure")
         except (KeyError, Exception):  # noqa: BLE001
+            logger.debug(
+                "Prompt block unavailable for paper revision: writing_structure",
+                exc_info=True,
+            )
             _ws_revision = ""
         # IMP-20/25/31/24: Load style blocks for revision prompt
         _rev_blocks: dict[str, str] = {}
@@ -248,6 +259,11 @@ def _execute_paper_revision(
             try:
                 _rev_blocks[_bname] = _pm.block(_bname)
             except (KeyError, Exception):  # noqa: BLE001
+                logger.debug(
+                    "Prompt block unavailable for paper revision: %s",
+                    _bname,
+                    exc_info=True,
+                )
                 _rev_blocks[_bname] = ""
         # Load draft quality directives from Stage 17
         _quality_prefix = ""
@@ -263,7 +279,11 @@ def _execute_paper_revision(
                         + "\n\n"
                     )
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug(
+                    "Failed to read draft quality directives for paper revision: %s",
+                    _quality_json_path,
+                    exc_info=True,
+                )
 
         _overlay = _get_evolution_overlay(run_dir, "paper_revision")
         sp = _pm.for_stage(
@@ -397,7 +417,12 @@ def _execute_quality_gate(
                 _best_richness = _richness
                 _exp_summary = _es_data
                 _exp_summary_text = _es_text
-        except OSError:
+        except (OSError, UnicodeDecodeError):
+            logger.debug(
+                "Failed to read experiment summary for quality gate: %s",
+                _es_path,
+                exc_info=True,
+            )
             continue
     # Also check experiment_summary_best.json at run root
     _root_best = run_dir / "experiment_summary_best.json"
@@ -410,8 +435,12 @@ def _execute_quality_gate(
                 if _rb_rich > _best_richness:
                     _exp_summary = _rb_data
                     _exp_summary_text = _rb_text
-        except OSError:
-            pass
+        except (OSError, UnicodeDecodeError):
+            logger.debug(
+                "Failed to read root best experiment summary for quality gate: %s",
+                _root_best,
+                exc_info=True,
+            )
     # Fallback to _read_prior_artifact if nothing found above
     if not _exp_summary:
         _exp_summary_text = _read_prior_artifact(run_dir, "experiment_summary.json") or ""
@@ -560,15 +589,22 @@ def _execute_quality_gate(
         try:
             _rl20 = json.loads(_rl20_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            pass
+            logger.debug(
+                "Failed to read refinement log for quality gate fabrication checks: %s",
+                _rl20_path,
+                exc_info=True,
+            )
     try:
         from researchclaw.pipeline.verified_registry import VerifiedRegistry as _VR20
         _vr20 = _VR20.from_run_dir(run_dir, metric_direction=config.experiment.metric_direction, best_only=True) if isinstance(_exp_summary, dict) else None
         if _vr20:
             _fabrication_info["verified_values_count"] = len(_vr20.values)
             _fabrication_info["verified_conditions"] = sorted(_vr20.condition_names)
-    except Exception:
-        pass
+    except Exception:  # noqa: BLE001
+        logger.debug(
+            "Verified registry quality gate enrichment failed",
+            exc_info=True,
+        )
     (stage_dir / "fabrication_flags.json").write_text(
         json.dumps(_fabrication_info, indent=2), encoding="utf-8"
     )
@@ -2372,7 +2408,10 @@ def _execute_export_publish(
                     if top in known_packages:
                         detected.add(known_packages[top])
         except SyntaxError:
-            pass
+            logger.debug(
+                "Failed to parse packaged experiment files for dependency detection",
+                exc_info=True,
+            )
 
         requirements = sorted(detected)
         (code_dir / "requirements.txt").write_text(
@@ -2440,7 +2479,10 @@ def _execute_export_publish(
                         if top in known_packages_single:
                             detected_single.add(known_packages_single[top])
             except SyntaxError:
-                pass
+                logger.debug(
+                    "Failed to parse single-file experiment for dependency detection",
+                    exc_info=True,
+                )
 
             requirements = sorted(detected_single)
             (code_dir / "requirements.txt").write_text(
