@@ -581,6 +581,18 @@ class TestConfig:
 class TestBaseAgent:
     """Test the base agent class."""
 
+    def test_base_agent_requires_execute_implementation(self) -> None:
+        from researchclaw.agents.base import BaseAgent
+
+        with pytest.raises(TypeError):
+            BaseAgent(FakeLLM())
+
+    def test_base_orchestrator_requires_orchestrate_implementation(self) -> None:
+        from researchclaw.agents.base import AgentOrchestrator
+
+        with pytest.raises(TypeError):
+            AgentOrchestrator(FakeLLM())
+
     def test_parse_json_direct(self) -> None:
         from researchclaw.agents.base import BaseAgent
         result = BaseAgent._parse_json('{"key": "value"}')

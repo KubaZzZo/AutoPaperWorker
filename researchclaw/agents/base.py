@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -62,7 +63,7 @@ class AgentStepResult:
 # ---------------------------------------------------------------------------
 
 
-class BaseAgent:
+class BaseAgent(ABC):
     """Base class for all sub-agents in a multi-agent system.
 
     Subclasses must implement ``execute(context) -> AgentStepResult``.
@@ -160,6 +161,7 @@ class BaseAgent:
 
     # -- Subclass API ------------------------------------------------------
 
+    @abstractmethod
     def execute(self, context: dict[str, Any]) -> AgentStepResult:
         """Execute the agent's task.  Must be overridden."""
         raise NotImplementedError
@@ -186,7 +188,7 @@ class BaseAgent:
 # ---------------------------------------------------------------------------
 
 
-class AgentOrchestrator:
+class AgentOrchestrator(ABC):
     """Coordinates a sequence of agents with optional retry loops.
 
     Subclasses implement ``orchestrate(context) -> dict`` which defines the
@@ -205,6 +207,7 @@ class AgentOrchestrator:
         self.total_llm_calls += result.llm_calls
         self.total_tokens += result.token_usage
 
+    @abstractmethod
     def orchestrate(self, context: dict[str, Any]) -> dict[str, Any]:
         """Run the multi-agent workflow.  Must be overridden."""
         raise NotImplementedError

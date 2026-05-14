@@ -207,6 +207,8 @@
 - **建议:** CLI 入口可保留 print，库代码改用 logging。
 
 #### 18. 抽象方法未实现
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `BaseAgent` and `AgentOrchestrator` now inherit from `ABC`, and their required `execute()` / `orchestrate()` methods are decorated with `@abstractmethod`. Regression coverage verifies incomplete base implementations cannot be instantiated while static JSON helpers remain usable.</span>
+
 - **文件:** `researchclaw/agents/base.py:165,210`
 - **问题:** 两个 `raise NotImplementedError` 在抽象基类中，但调用方未检查。
 - **建议:** 确认所有子类正确覆盖了这些方法。
