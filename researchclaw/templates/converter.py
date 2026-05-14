@@ -21,11 +21,23 @@ import threading
 import unicodedata
 from dataclasses import dataclass, field
 
+from researchclaw.templates.codeblocks import (
+    _UNICODE_TO_ASCII,
+    _escape_algo_line as _escape_algo_line_impl,
+    _render_code_block as _render_code_block_impl,
+)
+from researchclaw.templates.completeness import check_paper_completeness
 from researchclaw.templates.conference import ConferenceTemplate
 from researchclaw.templates.inline import (
     _UNICODE_GREEK_TO_LATEX,
     _convert_inline,
     _escape_latex,
+)
+from researchclaw.templates.tables import (
+    _collect_table,
+    _parse_alignments,
+    _parse_table_row,
+    _render_table as _render_table_impl,
 )
 
 _render_counters = threading.local()
@@ -1134,292 +1146,27 @@ def _render_enumerate(items: list[str]) -> str:
     return f"\\begin{{enumerate}}\n{inner}\n\\end{{enumerate}}"
 
 
-# ---------------------------------------------------------------------------
-# Table handling
-# ---------------------------------------------------------------------------
-
-
-def _collect_table(lines: list[str], start: int) -> tuple[list[str], int]:
-    """Collect table lines (header + separator + body rows)."""
-    table: list[str] = []
-    i = start
-    while i < len(lines) and lines[i].strip().startswith("|"):
-        table.append(lines[i])
-        i += 1
-    return table, i
 
 
 def _render_table(table_lines: list[str], caption: str = "") -> str:
-    """Render a Markdown table as a LaTeX tabular inside a table environment.
-
-    IMP-23: Auto-wraps in ``\\resizebox`` when columns > 5 or any cell
-    text exceeds 25 characters, preventing overflow in conference formats.
-    IMP-32: Generates descriptive captions from header columns when the
-    caption is empty or just 'Table N'.
-    """
-    if len(table_lines) < 2:
-        return ""
-
-    header = _parse_table_row(table_lines[0])
-    # Skip separator (line 1)
-    body_rows = [_parse_table_row(line) for line in table_lines[2:] if line.strip()]
-    ncols = len(header)
-
-    # Determine alignment from separator
-    alignments = _parse_alignments(table_lines[1], ncols)
-    col_spec = "".join(alignments)
-
-    table_num = _next_table_num()
-
-    # IMP-23: Detect wide tables that need resizebox
-    max_cell_len = max(
-        (len(c) for row in [header] + body_rows for c in row),
-        default=0,
+    return _render_table_impl(
+        table_lines,
+        caption,
+        inline_converter=_convert_inline,
+        next_table_num=_next_table_num,
     )
-    needs_resize = ncols > 5 or max_cell_len > 25
-
-    lines_out: list[str] = []
-    lines_out.append("\\begin{table}[ht]")
-    lines_out.append("\\centering")
-
-    # Caption ABOVE table (standard academic convention)
-    if caption:
-        cap_text = re.sub(r"^Table\s+\d+[.:]\s*", "", caption).strip()
-        if cap_text:
-            lines_out.append(f"\\caption{{{_convert_inline(cap_text)}}}")
-        else:
-            auto_cap = _auto_table_caption(header, table_num)
-            lines_out.append(f"\\caption{{{auto_cap}}}")
-    else:
-        auto_cap = _auto_table_caption(header, table_num)
-        lines_out.append(f"\\caption{{{auto_cap}}}")
-    lines_out.append(f"\\label{{tab:{table_num}}}")
-
-    if needs_resize:
-        # BUG-109b fix: Use \columnwidth (works in both 1-col and 2-col layouts)
-        # \textwidth in 2-column formats (ICML) is full page width, causing
-        # floats wider than a column to be "lost" by LaTeX.
-        lines_out.append("\\resizebox{\\columnwidth}{!}{%")
-    lines_out.append(f"\\begin{{tabular}}{{{col_spec}}}")
-    lines_out.append("\\toprule")
-    lines_out.append(
-        " & ".join(f"\\textbf{{{_convert_inline(c)}}}" for c in header) + " \\\\"
-    )
-    lines_out.append("\\midrule")
-    for row in body_rows:
-        # Pad row to match header length
-        padded = row + [""] * (ncols - len(row))
-        lines_out.append(
-            " & ".join(_convert_inline(c) for c in padded[:ncols]) + " \\\\"
-        )
-    lines_out.append("\\bottomrule")
-    lines_out.append("\\end{tabular}")
-    if needs_resize:
-        lines_out.append("}")  # close resizebox
-    lines_out.append("\\end{table}")
-
-    return "\n".join(lines_out)
-
-
-def _auto_table_caption(header: list[str], table_num: int) -> str:
-    """IMP-32: Generate a descriptive caption from table header columns."""
-    if len(header) <= 1:
-        return f"Table {table_num}"
-    cols = [c.strip() for c in header if c.strip()]
-    if len(cols) < 2:
-        return f"Table {table_num}"
-    col0 = cols[0].lower()
-    rest = [_convert_inline(c) for c in cols[1:min(5, len(cols))]]
-    # Detect common table types by first-column header
-    _HP_HINTS = {"hyperparameter", "parameter", "param", "hp", "setting", "config"}
-    _ABL_HINTS = {"component", "variant", "ablation", "configuration", "module"}
-    _MODEL_HINTS = {"model", "method", "approach", "algorithm", "baseline"}
-    if any(h in col0 for h in _HP_HINTS):
-        return f"Hyperparameter settings"
-    if any(h in col0 for h in _ABL_HINTS):
-        return f"Ablation study results across {', '.join(rest)}"
-    if any(h in col0 for h in _MODEL_HINTS):
-        return f"Performance comparison of different methods on {', '.join(rest)}"
-    return f"Comparison of {_convert_inline(cols[0])} across {', '.join(rest)}"
-
-
-def _parse_table_row(line: str) -> list[str]:
-    """Parse ``| a | b | c |`` into ``['a', 'b', 'c']``."""
-    line = line.strip()
-    if line.startswith("|"):
-        line = line[1:]
-    if line.endswith("|"):
-        line = line[:-1]
-    return [cell.strip() for cell in line.split("|")]
-
-
-def _parse_alignments(sep_line: str, ncols: int) -> list[str]:
-    """Parse alignment indicators from separator line."""
-    cells = _parse_table_row(sep_line)
-    aligns: list[str] = []
-    for cell in cells:
-        raw = cell.strip()
-        left = raw.startswith(":")
-        right = raw.endswith(":")
-        if left and right:
-            aligns.append("c")
-        elif right:
-            aligns.append("r")
-        else:
-            aligns.append("l")
-    # Pad to ncols
-    while len(aligns) < ncols:
-        aligns.append("l")
-    return aligns[:ncols]
-
-
-# ---------------------------------------------------------------------------
-# Code block rendering
-# ---------------------------------------------------------------------------
-
-
-_UNICODE_TO_ASCII: dict[str, str] = {
-    "\u2190": "<-",   "\u2192": "->",   "\u21d0": "<=",   "\u21d2": "=>",
-    "\u2264": "<=",   "\u2265": ">=",   "\u2260": "!=",   "\u2248": "~=",
-    "\u2208": " in ", "\u2209": " not in ",
-    "\u2200": "forall ", "\u2203": "exists ",
-    "\u2207": "nabla", "\u221e": "inf",  "\u00b1": "+/-",
-    "\u00d7": "x",    "\u00b7": "*",    "\u2026": "...",
-    "\u03b1": "alpha", "\u03b2": "beta", "\u03b3": "gamma",
-    "\u03b4": "delta", "\u03b5": "epsilon", "\u03b6": "zeta",
-    "\u03b7": "eta",   "\u03b8": "theta", "\u03b9": "iota",
-    "\u03ba": "kappa", "\u03bb": "lambda", "\u03bc": "mu",
-    "\u03bd": "nu",    "\u03be": "xi",    "\u03c0": "pi",
-    "\u03c1": "rho",   "\u03c3": "sigma",  "\u03c4": "tau",
-    "\u03c5": "upsilon", "\u03c6": "phi", "\u03c7": "chi",
-    "\u03c8": "psi",   "\u03c9": "omega",
-    "\u0394": "Delta", "\u0398": "Theta", "\u039b": "Lambda",
-    "\u03a3": "Sigma", "\u03a6": "Phi",   "\u03a8": "Psi",
-    "\u03a9": "Omega",
-    "\u2113": "ell",   "\u2202": "d",     "\u222b": "int",
-}
-
-
-_ALGO_KEYWORDS = re.compile(
-    r"\b(Input|Output|Return|While|For|If|Else|Repeat|Until|Function|Procedure|Algorithm)\b",
-    re.IGNORECASE,
-)
 
 
 def _escape_algo_line(line: str) -> str:
-    """Escape LaTeX special characters in an algorithmic pseudocode line.
-
-    BUG-177: Raw pseudocode lines contain Python/math syntax that breaks
-    pdflatex: ``#`` (comment char), ``_`` (subscript), ``%`` (comment),
-    ``&`` (alignment), ``{}``, ``~``, ``^``.
-
-    Strategy:
-    1. Convert ``# comment`` at end of line → ``\\COMMENT{comment}``
-    2. Protect existing LaTeX commands and math delimiters
-    3. Escape remaining special characters
-    """
-    # Step 1: Convert Python-style end-of-line comments → \COMMENT{...}
-    # Match `# comment` that isn't at the start of the line (those are full-line comments)
-    _comment_match = re.search(r"(?<=\s)#\s*(.+)$", line)
-    comment_suffix = ""
-    if _comment_match:
-        comment_text = _comment_match.group(1).strip()
-        line = line[: _comment_match.start()].rstrip()
-        comment_suffix = f" \\COMMENT{{{comment_text}}}"
-    elif line.strip().startswith("#"):
-        # Full-line comment
-        comment_text = line.strip().lstrip("#").strip()
-        return f"\\COMMENT{{{comment_text}}}"
-
-    # Step 2: Protect existing LaTeX commands and math mode from escaping
-    protected: list[str] = []
-
-    def _protect(m: re.Match[str]) -> str:
-        idx = len(protected)
-        protected.append(m.group(0))
-        return f"\x00ALG{idx}\x00"
-
-    # Protect: \command{...}, $...$, \(...\)
-    line = re.sub(r"\\[a-zA-Z]+\{[^}]*\}", _protect, line)
-    line = re.sub(r"\$[^$]+\$", _protect, line)
-    line = re.sub(r"\\\(.+?\\\)", _protect, line)
-
-    # Step 3: Escape special characters
-    line = line.replace("&", "\\&")
-    line = line.replace("%", "\\%")
-    line = line.replace("#", "\\#")
-    line = line.replace("_", "\\_")
-    line = line.replace("{", "\\{")
-    line = line.replace("}", "\\}")
-    line = line.replace("~", "\\textasciitilde{}")
-    line = line.replace("^", "\\textasciicircum{}")
-
-    # Step 4: Restore protected regions
-    for idx, val in enumerate(protected):
-        line = line.replace(f"\x00ALG{idx}\x00", val)
-
-    return line + comment_suffix
+    return _escape_algo_line_impl(line)
 
 
 def _render_code_block(lang: str, code: str) -> str:
-    """Render a fenced code block as a LaTeX environment.
-
-    IMP-28: Detects pseudocode blocks (language hint 'algorithm' /
-    'pseudocode', or 3+ algorithm keywords) and renders them inside an
-    ``algorithm`` + ``algorithmic`` environment instead of verbatim.
-
-    Replaces Unicode characters (Greek letters, arrows, math symbols)
-    with ASCII equivalents so pdflatex can compile the block.
-    """
-    import unicodedata
-
-    escaped = code.rstrip("\n")
-    for uni, ascii_eq in _UNICODE_TO_ASCII.items():
-        escaped = escaped.replace(uni, ascii_eq)
-    # Strip combining characters (tildes, hats, etc.) that break pdflatex
-    escaped = "".join(
-        c for c in escaped if not unicodedata.combining(c)
+    return _render_code_block_impl(
+        lang,
+        code,
+        inline_converter=_convert_inline,
     )
-
-    # IMP-28: Detect pseudocode and use algorithm environment
-    lang_lower = lang.lower().strip()
-    is_algo = lang_lower in ("algorithm", "pseudocode", "algo")
-    if not is_algo:
-        # Heuristic: ≥3 algorithm keywords → treat as pseudocode
-        is_algo = len(_ALGO_KEYWORDS.findall(escaped)) >= 3
-
-    if is_algo:
-        # Extract caption from first comment line if present
-        algo_lines = escaped.split("\n")
-        caption = "Algorithm"
-        if algo_lines and algo_lines[0].strip().startswith("//"):
-            caption = algo_lines[0].strip().lstrip("/ ").strip()
-            algo_lines = algo_lines[1:]
-        # Wrap raw lines in \STATE unless they already use algorithmic commands
-        _algo_cmds = {"\\STATE", "\\IF", "\\ELSE", "\\ELSIF", "\\ENDIF",
-                       "\\FOR", "\\ENDFOR", "\\WHILE", "\\ENDWHILE",
-                       "\\REPEAT", "\\UNTIL", "\\RETURN", "\\REQUIRE", "\\ENSURE"}
-        wrapped_lines = []
-        for al in algo_lines:
-            stripped = al.strip()
-            if not stripped:
-                continue
-            if any(stripped.startswith(cmd) for cmd in _algo_cmds):
-                wrapped_lines.append(stripped)
-            else:
-                # BUG-177: Escape LaTeX special chars in pseudocode lines
-                wrapped_lines.append(f"\\STATE {_escape_algo_line(stripped)}")
-        body = "\n".join(wrapped_lines)
-        return (
-            "\\begin{algorithm}[ht]\n"
-            f"\\caption{{{_convert_inline(caption)}}}\n"
-            "\\begin{algorithmic}[1]\n"
-            f"{body}\n"
-            "\\end{algorithmic}\n"
-            "\\end{algorithm}"
-        )
-
-    return f"\\begin{{verbatim}}\n{escaped}\n\\end{{verbatim}}"
 
 
 # ---------------------------------------------------------------------------
@@ -1443,211 +1190,3 @@ def _render_figure(caption: str, path: str) -> str:
         f"\\label{{fig:{label_key}}}\n"
         "\\end{figure}"
     )
-
-
-# ---------------------------------------------------------------------------
-# Completeness checking (R10-Fix5)
-# ---------------------------------------------------------------------------
-
-_EXPECTED_SECTIONS = {
-    "introduction",
-    "related work",
-    "method",
-    "experiment",
-    "result",
-    "discussion",
-    "conclusion",
-}
-
-_SECTION_ALIASES: dict[str, str] = {
-    "methodology": "method",
-    "methods": "method",
-    "proposed method": "method",
-    "approach": "method",
-    "experiments": "experiment",
-    "experimental setup": "experiment",
-    "experimental results": "result",
-    "results": "result",
-    "results and discussion": "result",
-    "results and analysis": "result",
-    "discussion and results": "result",
-    "conclusions": "conclusion",
-    "conclusion and future work": "conclusion",
-    "summary": "conclusion",
-    "background": "related work",
-    "literature review": "related work",
-    "prior work": "related work",
-}
-
-
-def check_paper_completeness(sections: list[_Section]) -> list[str]:
-    """Check whether a paper contains all expected sections.
-
-    Returns a list of warning strings.  Empty list means the paper
-    structure looks complete.
-    """
-    warnings: list[str] = []
-
-    # Check for valid title — look for any H1/H2 heading that could be a title
-    _has_title = any(
-        sec.level in (1, 2) and sec.heading_lower not in ("abstract", "introduction",
-            "related work", "method", "methods", "methodology", "experiments",
-            "results", "discussion", "conclusion", "limitations", "references")
-        for sec in sections
-    )
-    if not _has_title:
-        warnings.append(
-            "No valid title found in paper. The output may lack proper heading structure."
-        )
-
-    found_sections: set[str] = set()
-    section_headings: list[str] = []
-    for sec in sections:
-        if sec.level in (1, 2) and sec.heading:
-            heading_lower = sec.heading.strip().lower()
-            section_headings.append(heading_lower)
-            if heading_lower in _EXPECTED_SECTIONS:
-                found_sections.add(heading_lower)
-            elif heading_lower in _SECTION_ALIASES:
-                found_sections.add(_SECTION_ALIASES[heading_lower])
-            else:
-                for expected in _EXPECTED_SECTIONS:
-                    if expected in heading_lower:
-                        found_sections.add(expected)
-                        break
-
-    missing = _EXPECTED_SECTIONS - found_sections
-    if missing:
-        warnings.append(
-            f"Missing sections: {', '.join(sorted(missing))}. "
-            f"Found: {', '.join(section_headings)}"
-        )
-
-    # T2.5: Check for required conference sections (NeurIPS/ICLR mandate Limitations)
-    _required_extras = {"limitations"}
-    _extra_aliases = {
-        "limitation": "limitations",
-        "limitations and future work": "limitations",
-        "limitations and broader impact": "limitations",
-    }
-    found_extras: set[str] = set()
-    for sec in sections:
-        if sec.level in (1, 2) and sec.heading:
-            hl = sec.heading.strip().lower()
-            if hl in _required_extras:
-                found_extras.add(hl)
-            elif hl in _extra_aliases:
-                found_extras.add(_extra_aliases[hl])
-            elif "limitation" in hl:
-                found_extras.add("limitations")
-    missing_extras = _required_extras - found_extras
-    if missing_extras:
-        warnings.append(
-            f"Missing required sections for NeurIPS/ICLR: "
-            f"{', '.join(sorted(missing_extras))}."
-        )
-
-    # T1.5: Abstract length and quality checks
-    abstract_text = ""
-    for sec in sections:
-        if sec.heading_lower == "abstract":
-            abstract_text = sec.body
-            break
-    if abstract_text:
-        word_count = len(abstract_text.split())
-        if word_count > 300:
-            warnings.append(
-                f"Abstract is {word_count} words (conference limit: 150-250). "
-                f"Must be shortened."
-            )
-        elif word_count < 150:
-            warnings.append(
-                f"Abstract is only {word_count} words (expected 150-250 for conferences)."
-            )
-        # Detect raw variable names / metric key dumps
-        raw_vars = re.findall(r"\b\w+_\w+/\w+(?:_\w+)*\s*=", abstract_text)
-        if raw_vars:
-            warnings.append(
-                f"Abstract contains raw variable names: {raw_vars[:3]}. "
-                f"Replace with human-readable descriptions."
-            )
-
-    # Detect truncation markers
-    all_body = " ".join(sec.body for sec in sections)
-    truncation_markers = [
-        "further sections continue",
-        "remaining sections unchanged",
-        "sections continue unchanged",
-        "content continues",
-        "[to be continued]",
-        "[remaining content]",
-    ]
-    for marker in truncation_markers:
-        if marker in all_body.lower():
-            warnings.append(
-                f"Truncation marker detected: '{marker}'. "
-                f"Paper content may be incomplete."
-            )
-
-    # Word count check
-    total_words = sum(len(sec.body.split()) for sec in sections)
-    if total_words < 2000:
-        warnings.append(
-            f"Paper body is only {total_words} words "
-            f"(expected 5,000-6,500 for conference paper). "
-            f"Content may be severely truncated."
-        )
-
-
-    # Per-section word count check (safety net during LaTeX conversion)
-    from researchclaw.prompts import SECTION_WORD_TARGETS, _SECTION_TARGET_ALIASES
-
-    for sec in sections:
-        if sec.level not in (1, 2) or not sec.heading:
-            continue
-        canon = sec.heading_lower
-        if canon not in SECTION_WORD_TARGETS:
-            canon = _SECTION_TARGET_ALIASES.get(sec.heading_lower, "")
-        if not canon or canon not in SECTION_WORD_TARGETS:
-            continue
-        lo, hi = SECTION_WORD_TARGETS[canon]
-        wc = len(sec.body.split())
-        if wc < int(lo * 0.6):
-            warnings.append(
-                f"Section '{sec.heading}' is only {wc} words "
-                f"(expected {lo}-{hi}). Content may be severely truncated."
-            )
-        elif wc > int(hi * 1.5):
-            warnings.append(
-                f"Section '{sec.heading}' is {wc} words "
-                f"(expected {lo}-{hi}). Consider trimming."
-            )
-
-    # Bullet density check for body sections
-    _bullet_re_cc = re.compile(r"^\s*[-*]\s+", re.MULTILINE)
-    _numbered_re_cc = re.compile(r"^\s*\d+\.\s+", re.MULTILINE)
-    _bullet_ok_sections = {"introduction", "limitations", "limitation", "abstract"}
-    for sec in sections:
-        if sec.level not in (1, 2) or not sec.heading:
-            continue
-        hl = sec.heading_lower
-        if hl in _bullet_ok_sections:
-            continue
-        if not sec.body:
-            continue
-        total_lines = len([ln for ln in sec.body.splitlines() if ln.strip()])
-        if total_lines < 4:
-            continue
-        bullet_count = (
-            len(_bullet_re_cc.findall(sec.body))
-            + len(_numbered_re_cc.findall(sec.body))
-        )
-        density = bullet_count / total_lines
-        if density > 0.30:
-            warnings.append(
-                f"Section '{sec.heading}' has high bullet-point density "
-                f"({bullet_count}/{total_lines} lines = {density:.0%}). "
-                f"Conference papers should use flowing prose."
-            )
-
-    return warnings

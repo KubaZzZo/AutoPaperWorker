@@ -21,7 +21,7 @@ the phase explicitly says otherwise.
      `researchclaw/prompts.py`; move default data into focused modules under
      `researchclaw/prompt_defaults/`.
 
-2. **Template converter decomposition** - in progress
+2. **Template converter decomposition** - implemented 2026-05-15
    - Target: `researchclaw/templates/converter.py`
    - Why second: it remains large and format-sensitive, but it needs narrower
      behavior tests before structural movement.
@@ -96,7 +96,7 @@ Run these commands after implementation:
 
 ## Phase 2.2: Template Converter Decomposition
 
-Status: In progress. First slice implemented 2026-05-15.
+Status: Implemented 2026-05-15.
 
 ### Planned Direction
 
@@ -110,12 +110,24 @@ small package. This phase should not start until Phase 2.1 is committed.
   `researchclaw/templates/converter.py` into `researchclaw/templates/inline.py`.
   Legacy imports from `researchclaw.templates.converter` are preserved by
   re-exporting `_convert_inline`, `_escape_latex`, and Unicode replacement data.
+- 2026-05-15: moved table parsing/rendering helpers into
+  `researchclaw/templates/tables.py`, with converter compatibility wrappers for
+  `_render_table`, `_parse_table_row`, and `_parse_alignments`.
+- 2026-05-15: moved code block and algorithm rendering helpers into
+  `researchclaw/templates/codeblocks.py`, with converter compatibility wrappers
+  for `_render_code_block` and `_escape_algo_line`.
+- 2026-05-15: moved paper completeness checks into
+  `researchclaw/templates/completeness.py`, while preserving
+  `check_paper_completeness` from `researchclaw.templates.converter`.
 
-### Remaining Slices
+### Acceptance Criteria
 
-- Move table parsing/rendering helpers into a focused table module.
-- Move code block rendering helpers into a focused code block module.
-- Move completeness checking into a focused paper quality module.
+- [x] Existing `markdown_to_latex` behavior remains compatible.
+- [x] Legacy converter helper imports used by tests remain available.
+- [x] Table rendering, code block rendering, inline conversion, figure
+  rendering, and completeness checks have targeted regression coverage.
+- [x] `researchclaw/templates/converter.py` is materially smaller after the
+  split.
 
 ## Phase 2.3: Run-State Backend Interface
 

@@ -78,6 +78,12 @@ and this active optimization plan.
      `researchclaw/templates/converter.py` into
      `researchclaw/templates/inline.py`, while legacy converter imports remain
      compatible.
+   - 2026-05-15 slice: table rendering, code block rendering, and paper
+     completeness checks moved from `researchclaw/templates/converter.py` into
+     `researchclaw/templates/tables.py`,
+     `researchclaw/templates/codeblocks.py`, and
+     `researchclaw/templates/completeness.py`, with legacy converter imports
+     preserved.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
