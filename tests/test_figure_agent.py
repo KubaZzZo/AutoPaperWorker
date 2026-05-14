@@ -253,6 +253,40 @@ class TestPlannerAgent:
         assert result.success
         assert len(result.data["figures"]) >= 2
 
+    def test_execute_normalizes_malformed_llm_figure_specs(self):
+        from researchclaw.agents.figure_agent.planner import PlannerAgent
+        llm = _FakeLLM(json.dumps({
+            "figures": [
+                "not-a-spec",
+                {
+                    "figure_id": ["main"],
+                    "chart_type": ["bar_comparison"],
+                    "title": 123,
+                    "caption": None,
+                    "data_source": "condition_comparison",
+                    "width": None,
+                },
+            ]
+        }))
+        agent = PlannerAgent(llm, min_figures=1)
+        result = agent.execute({
+            "experiment_results": {},
+            "topic": "Image classification",
+            "metric_key": "primary_metric",
+            "conditions": list(_SAMPLE_CONDITIONS.keys()),
+            "metrics_summary": _SAMPLE_METRICS_SUMMARY,
+            "condition_summaries": _SAMPLE_CONDITIONS,
+        })
+        assert result.success
+        figures = result.data["figures"]
+        assert len(figures) == 1
+        assert figures[0]["figure_id"] == "fig_2"
+        assert figures[0]["chart_type"] == "bar_comparison"
+        assert figures[0]["title"] == "123"
+        assert figures[0]["caption"] == ""
+        assert figures[0]["data_source"] == {"type": "condition_comparison"}
+        assert figures[0]["width"] == "single_column"
+
 
 # =========================================================================
 # CodeGen Agent tests
@@ -368,6 +402,35 @@ class TestCodeGenAgent:
         from researchclaw.agents.figure_agent.codegen import CodeGenAgent
         code = "```python\nprint('hello')\n```"
         assert CodeGenAgent._strip_fences(code) == "print('hello')"
+
+    def test_execute_normalizes_malformed_figure_specs(self):
+        from researchclaw.agents.figure_agent.codegen import CodeGenAgent
+        agent = CodeGenAgent(_FakeLLM())
+        result = agent.execute({
+            "figures": [
+                "not-a-spec",
+                {
+                    "figure_id": ["main"],
+                    "chart_type": ["bar_comparison"],
+                    "title": 123,
+                    "caption": None,
+                    "data_source": "condition_comparison",
+                    "width": None,
+                },
+            ],
+            "condition_summaries": _SAMPLE_CONDITIONS,
+            "metrics_summary": _SAMPLE_METRICS_SUMMARY,
+            "metric_key": "primary_metric",
+            "output_dir": "charts",
+        })
+        assert result.success
+        scripts = result.data["scripts"]
+        assert len(scripts) == 1
+        assert scripts[0]["figure_id"] == "fig_2"
+        assert scripts[0]["chart_type"] == "bar_comparison"
+        assert scripts[0]["title"] == "123"
+        assert scripts[0]["caption"] == ""
+        assert scripts[0]["output_filename"] == "fig_2.png"
 
     def test_strip_fences_no_fences(self):
         from researchclaw.agents.figure_agent.codegen import CodeGenAgent

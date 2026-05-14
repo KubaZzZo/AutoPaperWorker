@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.figure_agent.schema import normalize_figure_specs
 
 logger = logging.getLogger(__name__)
 
@@ -291,7 +292,7 @@ class PlannerAgent(BaseAgent):
 
         result = self._chat_json(system_prompt, user_prompt, max_tokens=4096)
 
-        figures = result.get("figures", [])
+        figures = normalize_figure_specs(result.get("figures", []))
         if not figures:
             # Fallback: generate a basic plan from domain matrix
             self.logger.warning("LLM returned no figures, using domain-based fallback")
@@ -305,18 +306,7 @@ class PlannerAgent(BaseAgent):
             )
             figures = self._augment_plan(figures, data_analysis, metric_key, conditions)
 
-        # Cap at max
-        figures = figures[:self._max_figures]
-
-        # BUG-36: LLM may return figures as list of strings instead of dicts
-        figures = [f for f in figures if isinstance(f, dict)]
-
-        # Assign IDs if missing
-        for i, fig in enumerate(figures):
-            if not fig.get("figure_id"):
-                fig["figure_id"] = f"fig_{i + 1}"
-
-        return figures
+        return normalize_figure_specs(figures)[:self._max_figures]
 
     # ------------------------------------------------------------------
     # Fallback plan (no LLM needed)
@@ -412,7 +402,6 @@ class PlannerAgent(BaseAgent):
         conditions: list[str],
     ) -> list[dict[str, Any]]:
         """Add default figures to meet minimum count."""
-        # BUG-37: chart_type may be non-hashable (list) — force str
         existing_types = {
             f.get("chart_type") for f in existing
             if isinstance(f.get("chart_type"), str)

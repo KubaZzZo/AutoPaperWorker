@@ -291,6 +291,8 @@
 - **建议:** 使用 `asyncio.sleep` 在异步上下文中。
 
 #### 29. figure_agent 中 LLM 返回值类型不安全
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Added a shared FigureAgent schema normalization layer that drops non-object figure specs, coerces scalar text fields, sanitizes figure IDs, normalizes string `data_source` values, and clamps invalid priorities. Planner and CodeGen now both pass LLM-derived figure specs through this layer, replacing ad hoc BUG-36/37 guards. Regression coverage verifies malformed string/list/scalar responses are normalized before downstream processing.</span>
+
 - **文件:** `researchclaw/agents/figure_agent/planner.py:311,415`, `codegen.py:447,518`
 - **问题:** LLM 返回值可能返回字符串而非预期字典，代码有防御性检查但注释为 "BUG-36/37/38"。这些 bug 已知但仅标记未系统修复。
 - **建议:** 添加 schema 验证层包装 LLM 响应。

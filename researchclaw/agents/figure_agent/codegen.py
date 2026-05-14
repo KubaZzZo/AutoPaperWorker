@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.figure_agent.schema import normalize_figure_spec, normalize_figure_specs
 from researchclaw.agents.figure_agent.style_config import get_style_preamble
 from researchclaw.utils.sanitize import sanitize_figure_id
 from researchclaw.utils.thinking_tags import strip_thinking_tags
@@ -433,7 +434,7 @@ class CodeGenAgent(BaseAgent):
             critic_feedback (list[dict], optional): Previous Critic feedback
         """
         try:
-            figures = context.get("figures", [])
+            figures = normalize_figure_specs(context.get("figures", []))
             experiment_results = context.get("experiment_results", {})
             condition_summaries = context.get("condition_summaries", {})
             metrics_summary = context.get("metrics_summary", {})
@@ -444,10 +445,6 @@ class CodeGenAgent(BaseAgent):
             scripts: list[dict[str, Any]] = []
 
             for fig_spec in figures:
-                # BUG-36: skip non-dict entries (LLM may return strings)
-                if not isinstance(fig_spec, dict):
-                    self.logger.warning("Skipping non-dict fig_spec: %s", type(fig_spec))
-                    continue
                 figure_id = fig_spec.get("figure_id", "unknown")
                 chart_type = fig_spec.get("chart_type", "bar_comparison")
 
@@ -503,6 +500,7 @@ class CodeGenAgent(BaseAgent):
         critic_feedback: dict[str, Any] | None,
     ) -> str:
         """Generate a plotting script for a single figure."""
+        fig_spec = normalize_figure_spec(fig_spec) or {}
         figure_id = sanitize_figure_id(fig_spec.get("figure_id", "figure"))
         # BUG-20: Use absolute path to avoid CWD-relative savefig errors
         # BUG-60: When running in Docker, use container path directly so
