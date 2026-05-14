@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import cast
 
 from researchclaw.pipeline.executor import StageResult
+from researchclaw.pipeline.checkpoint import write_checkpoint
 from researchclaw.pipeline.runner import (
     _build_pipeline_summary,
     _collect_content_metrics,
-    _write_checkpoint,
     read_checkpoint,
     resume_from_checkpoint,
 )
@@ -25,7 +25,7 @@ from researchclaw.pipeline.stages import (
 
 class TestCheckpoint:
     def test_write_checkpoint(self, tmp_path: Path):
-        _write_checkpoint(tmp_path, Stage.LITERATURE_COLLECT, "test-run")
+        write_checkpoint(tmp_path, Stage.LITERATURE_COLLECT, "test-run")
         cp = json.loads((tmp_path / "checkpoint.json").read_text())
         assert cp["last_completed_stage"] == 4
         assert cp["last_completed_name"] == "LITERATURE_COLLECT"
@@ -33,7 +33,7 @@ class TestCheckpoint:
         assert "timestamp" in cp
 
     def test_read_checkpoint_returns_next_stage(self, tmp_path: Path):
-        _write_checkpoint(tmp_path, Stage.LITERATURE_COLLECT, "test-run")
+        write_checkpoint(tmp_path, Stage.LITERATURE_COLLECT, "test-run")
         next_stage = read_checkpoint(tmp_path)
         assert next_stage == Stage.LITERATURE_SCREEN
 
@@ -41,7 +41,7 @@ class TestCheckpoint:
         assert read_checkpoint(tmp_path) is None
 
     def test_read_checkpoint_last_stage(self, tmp_path: Path):
-        _write_checkpoint(tmp_path, Stage.CITATION_VERIFY, "test-run")
+        write_checkpoint(tmp_path, Stage.CITATION_VERIFY, "test-run")
         assert read_checkpoint(tmp_path) is None
 
     def test_read_checkpoint_corrupted(self, tmp_path: Path):
@@ -58,7 +58,7 @@ class TestCheckpoint:
         assert resume_from_checkpoint(tmp_path) == Stage.TOPIC_INIT
 
     def test_resume_from_checkpoint_uses_next_stage(self, tmp_path: Path):
-        _write_checkpoint(tmp_path, Stage.SEARCH_STRATEGY, "run-x")
+        write_checkpoint(tmp_path, Stage.SEARCH_STRATEGY, "run-x")
         assert resume_from_checkpoint(tmp_path) == Stage.LITERATURE_COLLECT
 
 

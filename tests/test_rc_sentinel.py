@@ -14,6 +14,15 @@ from researchclaw.pipeline import runner as rc_runner
 from researchclaw.pipeline.stages import Stage
 
 
+def _bash_available() -> bool:
+    result = subprocess.run(
+        ["bash", "--version"],
+        capture_output=True,
+        text=False,
+    )
+    return result.returncode == 0
+
+
 # ── Heartbeat writing tests ──
 
 
@@ -63,7 +72,6 @@ class TestHeartbeatInPipeline:
                 "provider": "openai-compatible",
                 "base_url": "http://localhost/v1",
                 "api_key_env": "K",
-                "api_key": "k",
             },
         }
         config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
@@ -103,13 +111,16 @@ class TestSentinelScript:
         assert script.exists()
 
     def test_sentinel_script_is_valid_bash(self) -> None:
+        if not _bash_available():
+            pytest.skip("bash is not available in this environment")
         script = Path(__file__).parent.parent / "sentinel.sh"
         result = subprocess.run(
             ["bash", "-n", str(script)],
             capture_output=True,
-            text=True,
+            text=False,
         )
-        assert result.returncode == 0, f"Bash syntax error: {result.stderr}"
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        assert result.returncode == 0, f"Bash syntax error: {stderr}"
 
     def test_sentinel_script_is_executable(self) -> None:
         script = Path(__file__).parent.parent / "sentinel.sh"
@@ -121,11 +132,13 @@ class TestSentinelScript:
         assert first_line.startswith("#!/")
 
     def test_sentinel_prints_usage_on_no_args(self) -> None:
+        if not _bash_available():
+            pytest.skip("bash is not available in this environment")
         script = Path(__file__).parent.parent / "sentinel.sh"
         result = subprocess.run(
             ["bash", str(script)],
             capture_output=True,
-            text=True,
+            text=False,
         )
         # Should fail because no run_dir argument provided
         assert result.returncode != 0
