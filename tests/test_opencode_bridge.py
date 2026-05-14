@@ -348,7 +348,12 @@ class TestOpenCodeBridge:
 
         def fake_invoke(workspace, prompt):
             # Write main.py into the workspace to simulate OpenCode output
-            (workspace / "main.py").write_text("print('acc: 0.95')")
+            (workspace / "main.py").write_text(
+                "def main():\n"
+                "    print('acc: 0.95')\n\n"
+                "if __name__ == \"__main__\":\n"
+                "    main()\n"
+            )
             (workspace / "requirements.txt").write_text("torch")
             return True, "success", 5.0
 
@@ -514,25 +519,23 @@ class TestEnsureMainEntryPoint:
         assert '__main__' in result["main.py"]
         assert "run_experiment()" in result["main.py"]
 
-    def test_no_known_entry_function_warns(self):
-        """When no known entry function exists, return unchanged with warning."""
+    def test_no_known_entry_function_fails_fast(self):
+        """When no known entry function exists, fail before sandbox execution."""
         code = "class Config:\n    x = 1\n\nclass Trainer:\n    pass\n"
         files = {"main.py": code}
-        result = OpenCodeBridge._ensure_main_entry_point(files)
-        # Should return unchanged since no entry function found
-        assert result["main.py"] == code
+        with pytest.raises(ValueError, match="no executable entry point"):
+            OpenCodeBridge._ensure_main_entry_point(files)
 
     def test_non_py_files_not_checked(self):
-        """requirements.txt and setup.py should not be checked for __main__."""
+        """Non-Python files are ignored but main.py still needs an entry point."""
         lib_code = "class Model:\n    pass\n"
         files = {
             "main.py": lib_code,
             "requirements.txt": "torch>=2.0\n",
             "setup.py": "# setup\n",
         }
-        result = OpenCodeBridge._ensure_main_entry_point(files)
-        # No swap should occur — only .py files are checked
-        assert result["main.py"] == lib_code
+        with pytest.raises(ValueError, match="no executable entry point"):
+            OpenCodeBridge._ensure_main_entry_point(files)
 
     def test_swap_preserves_other_files(self):
         """Swapping should not lose any files from the dict."""

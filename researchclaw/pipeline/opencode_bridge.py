@@ -595,8 +595,8 @@ class OpenCodeBridge:
         2. Find the first other ``.py`` file that **does** have the guard.
         3. Swap: rename that file to ``main.py`` and the old ``main.py`` to a
            helper module (its original basename, or ``_lib.py``).
-        4. If no file has a guard, append a minimal stub to ``main.py`` that
-           calls the most likely entry function (``main()``, ``run()``, etc.).
+        4. If no file has a guard, inject a call to a known entry function
+           (``main()``, ``run()``, etc.) or fail fast when no entry exists.
         """
         main_code = files.get("main.py", "")
         if not main_code:
@@ -653,11 +653,11 @@ class OpenCodeBridge:
             )
             return new_files
 
-        logger.warning(
-            "Beast mode: main.py lacks __main__ guard and no known entry "
-            "function found — experiment may exit without producing output",
+        raise ValueError(
+            "Generated main.py has no executable entry point: missing "
+            "`if __name__ == \"__main__\"` guard and no known entry function "
+            "(main, run, run_experiment, train, run_experiments, experiment, run_all)."
         )
-        return files
 
     # -- main entry point ------------------------------------------------------
 

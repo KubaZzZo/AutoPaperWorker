@@ -18,6 +18,7 @@ reproducibility updates were integrated.
 | MCP local client dispatch | Integrated | `MCPClient` now supports a local ResearchClaw server backend for tool discovery and tool calls; MCP transport docstrings reflect the implemented queue-backed SSE semantics |
 | Cloud executor guardrails | Integrated | `CloudExecutor` no longer pretends to launch instances; unsupported provider operations fail explicitly, while `host="dry-run"` returns a deterministic launch/status plan for scheduling previews |
 | Recording adapter clarity | Integrated | Recording web/browser adapters now return explicit recording-only responses instead of success-looking stub content, and docs describe them as side-effect-free recorders |
+| OpenCode entry-point fail-fast | Integrated | Beast Mode code generation now raises a clear error when `main.py` lacks both a `__main__` guard and a known entry function, instead of passing a non-executable project to the sandbox |
 | P4.1 Benchmark discovery | Integrated | `researchclaw/agents/benchmark_agent/`; Stage 9 benchmark plan |
 | P4.1 non-ML benchmark support | Integrated | `researchclaw/data/benchmark_knowledge.yaml`; domain-aware survey/acquire paths |
 | P4.2 reproducibility artifacts | Integrated | `researchclaw/experiment/environment.py`; Stage 12 writes environment metadata and requirements |
