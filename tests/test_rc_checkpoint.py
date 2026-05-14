@@ -9,9 +9,8 @@ from typing import cast
 
 from researchclaw.pipeline.executor import StageResult
 from researchclaw.pipeline.checkpoint import write_checkpoint
+from researchclaw.pipeline.summary import build_pipeline_summary, collect_content_metrics
 from researchclaw.pipeline.runner import (
-    _build_pipeline_summary,
-    _collect_content_metrics,
     read_checkpoint,
     resume_from_checkpoint,
 )
@@ -82,7 +81,7 @@ class TestNoncriticalStages:
 
 class TestContentMetrics:
     def test_metrics_empty_run_dir(self, tmp_path: Path):
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["template_ratio"] is None
         assert metrics["citation_verify_score"] is None
         assert metrics["total_citations"] is None
@@ -95,7 +94,7 @@ class TestContentMetrics:
             "This is a real academic paper about transformers and attention mechanisms. We propose a novel method for improving efficiency.",
             encoding="utf-8",
         )
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["template_ratio"] is not None
         assert cast(float, metrics["template_ratio"]) < 0.5
 
@@ -118,13 +117,13 @@ class TestContentMetrics:
             ),
             encoding="utf-8",
         )
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["total_citations"] == 10
         assert metrics["verified_citations"] == 8
         assert metrics["citation_verify_score"] == 0.8
 
     def test_metrics_no_stage23(self, tmp_path: Path):
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["citation_verify_score"] is None
 
     def test_metrics_with_non_dict_summary(self, tmp_path: Path):
@@ -135,7 +134,7 @@ class TestContentMetrics:
             json.dumps({"summary": "unexpected string"}),
             encoding="utf-8",
         )
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["total_citations"] is None
         assert metrics["verified_citations"] is None
         assert metrics["citation_verify_score"] is None
@@ -148,7 +147,7 @@ class TestContentMetrics:
             json.dumps({"summary": {"notes": "incomplete"}}),
             encoding="utf-8",
         )
-        metrics = _collect_content_metrics(tmp_path)
+        metrics = collect_content_metrics(tmp_path)
         assert metrics["total_citations"] == 0
         assert metrics["verified_citations"] == 0
         assert metrics["citation_verify_score"] is None
@@ -161,8 +160,8 @@ class TestContentMetrics:
         verify_dir.mkdir()
         (verify_dir / "verification_report.json").write_text("{bad json", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
-            metrics = _collect_content_metrics(tmp_path)
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.summary"):
+            metrics = collect_content_metrics(tmp_path)
 
         assert metrics["template_ratio"] is None
         assert metrics["citation_verify_score"] is None
@@ -177,7 +176,7 @@ class TestContentMetrics:
                 artifacts=("topic.json",),
             ),
         ]
-        summary = _build_pipeline_summary(
+        summary = build_pipeline_summary(
             run_id="test",
             results=results,
             from_stage=Stage.TOPIC_INIT,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import importlib
 import logging
 import math
 import os
@@ -26,9 +25,24 @@ from researchclaw.pipeline.experiment_workflow import (
     run_experiment_diagnosis,
     run_experiment_repair,
 )
+from researchclaw.pipeline.parallel_branches import (
+    branch_stage_range,
+    copy_branch_context,
+    execute_parallel_hypothesis_branches,
+    metric_from_mapping,
+    prepare_parallel_hypothesis_branches,
+    promote_branch_outputs,
+    read_branch_selection_score,
+)
+from researchclaw.pipeline.deliverables import package_deliverables
 from researchclaw.pipeline.progress import (
     utcnow_iso as _utcnow_iso,
     write_progress_snapshot,
+)
+from researchclaw.pipeline.summary import (
+    build_pipeline_summary,
+    collect_content_metrics,
+    write_pipeline_summary,
 )
 from researchclaw.pipeline.stages import (
     DECISION_ROLLBACK,
@@ -41,6 +55,8 @@ from researchclaw.pipeline.stages import (
 
 
 ProgressReporter = Callable[[str], None]
+
+logger = logging.getLogger(__name__)
 
 
 def _report_progress(reporter: ProgressReporter | None, message: str) -> None:
@@ -67,206 +83,41 @@ def _build_pipeline_summary(
     from_stage: Stage,
     run_dir: Path | None = None,
 ) -> dict[str, object]:
-    summary: dict[str, object] = {
-        "run_id": run_id,
-        "stages_executed": len(results),
-        "stages_done": sum(1 for item in results if item.status == StageStatus.DONE),
-        "stages_paused": sum(
-            1 for item in results if item.status == StageStatus.PAUSED
-        ),
-        "stages_blocked": sum(
-            1 for item in results if item.status == StageStatus.BLOCKED_APPROVAL
-        ),
-        "stages_failed": sum(
-            1 for item in results if item.status == StageStatus.FAILED
-        ),
-        "degraded": any(r.decision == "degraded" for r in results),
-        "from_stage": int(from_stage),
-        "final_stage": int(results[-1].stage) if results else int(from_stage),
-        "final_status": results[-1].status.value if results else "no_stages",
-        "generated": _utcnow_iso(),
-        "content_metrics": _collect_content_metrics(run_dir),
-    }
-    return summary
+    return build_pipeline_summary(
+        run_id=run_id,
+        results=results,
+        from_stage=from_stage,
+        run_dir=run_dir,
+    )
 
 
 def _write_pipeline_summary(run_dir: Path, summary: dict[str, object]) -> None:
-    (run_dir / "pipeline_summary.json").write_text(
-        json.dumps(summary, indent=2),
-        encoding="utf-8",
-    )
+    write_pipeline_summary(run_dir, summary)
 
 
 
 def _prepare_parallel_hypothesis_branches(run_dir: Path) -> Path | None:
-    """Create branch input directories from Stage 8 hypothesis branch plan."""
-    plan_path = run_dir / "stage-08" / "hypothesis_branches.json"
-    if not plan_path.exists():
-        return None
-    try:
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
-    if not isinstance(plan, dict) or not plan.get("enabled"):
-        return None
-
-    branches = plan.get("branches")
-    if not isinstance(branches, list) or not branches:
-        return None
-
-    branches_root = run_dir / "branches"
-    branches_root.mkdir(parents=True, exist_ok=True)
-    manifest: dict[str, object] = {
-        "selection_metric": plan.get("selection_metric", "primary_metric"),
-        "status": "prepared",
-        "branches": [],
-    }
-    manifest_branches: list[dict[str, object]] = []
-    for item in branches:
-        if not isinstance(item, dict):
-            continue
-        branch_id = str(item.get("branch_id", "")).strip()
-        hypothesis = str(item.get("hypothesis", "")).strip()
-        if not branch_id or not hypothesis:
-            continue
-        branch_dir = branches_root / branch_id
-        branch_stage_dir = branch_dir / "stage-08"
-        branch_stage_dir.mkdir(parents=True, exist_ok=True)
-        (branch_stage_dir / "hypotheses.md").write_text(
-            hypothesis + "\n",
-            encoding="utf-8",
-        )
-        branch_meta = {
-            "branch_id": branch_id,
-            "rank": item.get("rank"),
-            "hypothesis": hypothesis,
-            "status": "prepared",
-            "stage_range": [9, 15],
-        }
-        (branch_dir / "branch.json").write_text(
-            json.dumps(branch_meta, indent=2),
-            encoding="utf-8",
-        )
-        manifest_branches.append(branch_meta)
-
-    if not manifest_branches:
-        return None
-    manifest["branches"] = manifest_branches
-    manifest_path = branches_root / "branch_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    return manifest_path
+    return prepare_parallel_hypothesis_branches(run_dir)
 
 
 def _branch_stage_range() -> tuple[Stage, ...]:
-    return tuple(
-        stage
-        for stage in STAGE_SEQUENCE
-        if Stage.EXPERIMENT_DESIGN <= stage <= Stage.RESEARCH_DECISION
-    )
+    return branch_stage_range()
 
 
 def _copy_branch_context(run_dir: Path, branch_dir: Path) -> None:
-    """Copy main run context needed before branch-local experiment stages."""
-    for path in run_dir.iterdir():
-        if path.name == "branches":
-            continue
-        if not path.name.startswith("stage-"):
-            continue
-        try:
-            stage_num = int(path.name.split("-", 1)[1])
-        except (IndexError, ValueError):
-            continue
-        if stage_num >= int(Stage.EXPERIMENT_DESIGN):
-            continue
-        target = branch_dir / path.name
-        if target.exists():
-            continue
-        if path.is_dir():
-            shutil.copytree(path, target)
-        elif path.is_file():
-            shutil.copy2(path, target)
+    copy_branch_context(run_dir, branch_dir)
 
 
 def _metric_from_mapping(data: object, metric_key: str) -> float | None:
-    if not isinstance(data, dict):
-        return None
-    direct = data.get(metric_key)
-    if isinstance(direct, int | float):
-        return float(direct)
-    if isinstance(direct, dict):
-        for key in ("mean", "max", "min", "value"):
-            value = direct.get(key)
-            if isinstance(value, int | float):
-                return float(value)
-    metrics_summary = data.get("metrics_summary")
-    if isinstance(metrics_summary, dict):
-        metric_data = metrics_summary.get(metric_key)
-        if isinstance(metric_data, int | float):
-            return float(metric_data)
-        if isinstance(metric_data, dict):
-            for key in ("mean", "max", "min", "value"):
-                value = metric_data.get(key)
-                if isinstance(value, int | float):
-                    return float(value)
-    condition_summaries = data.get("condition_summaries")
-    if isinstance(condition_summaries, dict):
-        values: list[float] = []
-        for summary in condition_summaries.values():
-            if not isinstance(summary, dict):
-                continue
-            metrics = summary.get("metrics")
-            if isinstance(metrics, dict):
-                value = metrics.get(metric_key)
-                if isinstance(value, int | float):
-                    values.append(float(value))
-        if values:
-            return sum(values) / len(values)
-    return None
+    return metric_from_mapping(data, metric_key)
 
 
 def _read_branch_selection_score(branch_dir: Path, metric_key: str) -> float | None:
-    for path in (
-        branch_dir / "results.json",
-        branch_dir / f"stage-{int(Stage.RESULT_ANALYSIS):02d}" / "experiment_summary.json",
-    ):
-        if not path.exists():
-            continue
-        try:
-            score = _metric_from_mapping(
-                json.loads(path.read_text(encoding="utf-8")),
-                metric_key,
-            )
-        except (json.JSONDecodeError, OSError):
-            continue
-        if score is not None:
-            return score
-    return None
+    return read_branch_selection_score(branch_dir, metric_key)
 
 
 def _promote_branch_outputs(branch_dir: Path, run_dir: Path) -> None:
-    """Promote branch-local experiment outputs for downstream paper stages."""
-    for stage in _branch_stage_range():
-        src = branch_dir / f"stage-{int(stage):02d}"
-        if not src.exists():
-            continue
-        dst = run_dir / src.name
-        if dst.exists():
-            if dst.is_dir():
-                shutil.rmtree(dst)
-            else:
-                dst.unlink()
-        if src.is_dir():
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
-    for name in (
-        "results.json",
-        "experiment_summary.json",
-        "verified_registry.json",
-    ):
-        src = branch_dir / name
-        if src.exists() and src.is_file():
-            shutil.copy2(src, run_dir / name)
+    promote_branch_outputs(branch_dir, run_dir)
 
 
 def _execute_parallel_hypothesis_branches(
@@ -278,92 +129,15 @@ def _execute_parallel_hypothesis_branches(
     auto_approve_gates: bool,
     cancel_event: "threading.Event | None",
 ) -> Path | None:
-    """Run Stage 9-15 for prepared hypothesis branches and promote the best."""
-    manifest_path = run_dir / "branches" / "branch_manifest.json"
-    if not manifest_path.exists():
-        return None
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
-    branches = manifest.get("branches")
-    if not isinstance(branches, list) or len(branches) < 2:
-        return None
-
-    metric_key = str(
-        manifest.get("selection_metric")
-        or getattr(config.experiment, "metric_key", "primary_metric")
-        or "primary_metric"
+    return execute_parallel_hypothesis_branches(
+        run_dir=run_dir,
+        run_id=run_id,
+        config=config,
+        adapters=adapters,
+        auto_approve_gates=auto_approve_gates,
+        cancel_event=cancel_event,
+        execute_stage=execute_stage,
     )
-    metric_direction = getattr(config.experiment, "metric_direction", "maximize")
-    maximize = metric_direction != "minimize"
-    completed: list[dict[str, object]] = []
-
-    for branch in branches:
-        if cancel_event is not None and cancel_event.is_set():
-            break
-        if not isinstance(branch, dict):
-            continue
-        branch_id = str(branch.get("branch_id", "")).strip()
-        if not branch_id:
-            continue
-        branch_dir = run_dir / "branches" / branch_id
-        if not branch_dir.is_dir():
-            continue
-        _copy_branch_context(run_dir, branch_dir)
-        branch["status"] = "running"
-        branch_results: list[dict[str, object]] = []
-        for stage in _branch_stage_range():
-            result = execute_stage(
-                stage,
-                run_dir=branch_dir,
-                run_id=f"{run_id}:{branch_id}",
-                config=config,
-                adapters=adapters,
-                auto_approve_gates=auto_approve_gates,
-                cancel_event=cancel_event,
-            )
-            branch_results.append({
-                "stage": int(stage),
-                "name": stage.name,
-                "status": result.status.value,
-                "artifacts": list(result.artifacts),
-                "error": result.error,
-            })
-            if result.status != StageStatus.DONE:
-                branch["status"] = result.status.value
-                break
-        else:
-            branch["status"] = "completed"
-
-        score = _read_branch_selection_score(branch_dir, metric_key)
-        branch["selection_score"] = score
-        branch["stage_results"] = branch_results
-        (branch_dir / "branch.json").write_text(
-            json.dumps(branch, indent=2),
-            encoding="utf-8",
-        )
-        if branch.get("status") == "completed" and score is not None:
-            completed.append(branch)
-
-    if not completed:
-        manifest["status"] = "completed_no_selection"
-        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        return None
-
-    best = sorted(
-        completed,
-        key=lambda item: float(item.get("selection_score", 0.0)),
-        reverse=maximize,
-    )[0]
-    best_branch_id = str(best["branch_id"])
-    manifest["status"] = "completed"
-    manifest["best_branch_id"] = best_branch_id
-    manifest["selection_metric"] = metric_key
-    manifest["metric_direction"] = metric_direction
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    _promote_branch_outputs(run_dir / "branches" / best_branch_id, run_dir)
-    return manifest_path
 
 
 def _write_checkpoint(
@@ -388,68 +162,8 @@ def resume_from_checkpoint(
 
 
 def _collect_content_metrics(run_dir: Path | None) -> dict[str, object]:
-    """Collect content authenticity metrics from stage outputs."""
-    metrics: dict[str, object] = {
-        "template_ratio": None,
-        "citation_verify_score": None,
-        "total_citations": None,
-        "verified_citations": None,
-        "degraded_sources": [],
-    }
-    if run_dir is None:
-        return metrics
+    return collect_content_metrics(run_dir)
 
-    draft_path = run_dir / "stage-17" / "paper_draft.md"
-    if draft_path.exists():
-        try:
-            quality_module = importlib.import_module("researchclaw.quality")
-            compute_template_ratio = quality_module.compute_template_ratio
-            text = draft_path.read_text(encoding="utf-8")
-            metrics["template_ratio"] = round(compute_template_ratio(text), 4)
-        except (
-            AttributeError,
-            ModuleNotFoundError,
-            UnicodeDecodeError,
-            OSError,
-            ValueError,
-            TypeError,
-        ) as exc:
-            logger.debug(
-                "Failed to collect template ratio from %s: %s",
-                draft_path,
-                exc,
-                exc_info=True,
-            )
-
-    verify_path = run_dir / "stage-23" / "verification_report.json"
-    if verify_path.exists():
-        try:
-            vdata = json.loads(verify_path.read_text(encoding="utf-8"))
-            if isinstance(vdata, dict):
-                summary = vdata.get("summary", vdata)
-                total = summary.get("total", 0) if isinstance(summary, dict) else None
-                verified = summary.get("verified", 0) if isinstance(summary, dict) else None
-                if isinstance(total, int | float) and isinstance(verified, int | float):
-                    total_num = int(total)
-                    verified_num = int(verified)
-                    metrics["total_citations"] = total_num
-                    metrics["verified_citations"] = verified_num
-                    if total_num > 0:
-                        metrics["citation_verify_score"] = round(
-                            verified_num / total_num, 4
-                        )
-        except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
-            logger.debug(
-                "Failed to collect citation verification metrics from %s: %s",
-                verify_path,
-                exc,
-                exc_info=True,
-            )
-
-    return metrics
-
-
-logger = logging.getLogger(__name__)
 
 
 def _run_experiment_diagnosis(
@@ -1031,292 +745,8 @@ def _package_deliverables(
     run_id: str,
     config: RCConfig,
 ) -> Path | None:
-    """Collect all final user-facing deliverables into a single ``deliverables/`` folder.
+    return package_deliverables(run_dir, run_id, config)
 
-    Returns the deliverables directory path, or None if nothing was packaged.
-
-    Packaged artifacts (best-available version selected automatically):
-    - paper_final.md          — Final paper (Markdown)
-    - paper.tex               — Conference-ready LaTeX
-    - references.bib          — BibTeX bibliography
-    - code/                   — Experiment code package
-    - verification_report.json — Citation verification report (if available)
-    """
-    dest = run_dir / "deliverables"
-    dest.mkdir(parents=True, exist_ok=True)
-
-    packaged: list[str] = []
-
-    # --- 1. Final paper (Markdown) ---
-    # Prefer verified version (stage 23) over base version (stage 22)
-    paper_md = None
-    for candidate in [
-        run_dir / "stage-23" / "paper_final_verified.md",
-        run_dir / "stage-22" / "paper_final.md",
-    ]:
-        if candidate.exists() and candidate.stat().st_size > 0:
-            paper_md = candidate
-            break
-    if paper_md is not None:
-        shutil.copy2(paper_md, dest / "paper_final.md")
-        packaged.append("paper_final.md")
-
-    # --- 2. LaTeX paper ---
-    # BUG-183: Stage 22's paper.tex has been sanitized (fabricated numbers
-    # replaced with ---).  Regenerating from Markdown would undo this because
-    # the Markdown was never sanitized.  Prefer Stage-22 paper.tex when a
-    # sanitization report exists.  Only regenerate from verified Markdown if
-    # no sanitization was performed (i.e., the run was clean).
-    tex_regenerated = False
-    _sanitization_report = run_dir / "stage-22" / "sanitization_report.json"
-    _was_sanitized = _sanitization_report.exists()
-    verified_md = run_dir / "stage-23" / "paper_final_verified.md"
-    if (
-        not _was_sanitized
-        and paper_md is not None
-        and paper_md == verified_md
-        and verified_md.exists()
-        and verified_md.stat().st_size > 0
-    ):
-        try:
-            from researchclaw.templates import get_template, markdown_to_latex
-            from researchclaw.pipeline.executor import _extract_paper_title
-
-            tpl = get_template(config.export.target_conference)
-            v_text = verified_md.read_text(encoding="utf-8")
-            tex_content = markdown_to_latex(
-                v_text,
-                tpl,
-                title=_extract_paper_title(v_text),
-                authors=config.export.authors,
-                bib_file=config.export.bib_file,
-            )
-            # IMP-17: Quality check — ensure regenerated LaTeX has
-            # proper structure (abstract, multiple sections)
-            _has_abstract = (
-                "\\begin{abstract}" in tex_content
-                and tex_content.split("\\begin{abstract}")[1]
-                .split("\\end{abstract}")[0]
-                .strip()
-            )
-            _section_count = tex_content.count("\\section{")
-            if _has_abstract and _section_count >= 3:
-                (dest / "paper.tex").write_text(tex_content, encoding="utf-8")
-                packaged.append("paper.tex")
-                tex_regenerated = True
-                logger.info(
-                    "Deliverables: regenerated paper.tex from verified markdown"
-                )
-            else:
-                logger.warning(
-                    "Regenerated paper.tex has poor structure "
-                    "(abstract=%s, sections=%d) — using Stage 22 version",
-                    bool(_has_abstract),
-                    _section_count,
-                )
-        except Exception:  # noqa: BLE001
-            logger.debug("paper.tex regeneration from verified md failed")
-    elif _was_sanitized:
-        logger.info(
-            "Deliverables: using Stage 22 paper.tex (sanitized) — "
-            "skipping markdown regeneration to preserve sanitization"
-        )
-
-    if not tex_regenerated:
-        tex_src = run_dir / "stage-22" / "paper.tex"
-        if tex_src.exists() and tex_src.stat().st_size > 0:
-            shutil.copy2(tex_src, dest / "paper.tex")
-            packaged.append("paper.tex")
-
-    # --- 3. References (BibTeX) ---
-    # Prefer verified bib (stage 23) over base bib (stage 22)
-    bib_src = None
-    for candidate in [
-        run_dir / "stage-23" / "references_verified.bib",
-        run_dir / "stage-22" / "references.bib",
-    ]:
-        if candidate.exists() and candidate.stat().st_size > 0:
-            bib_src = candidate
-            break
-    if bib_src is not None:
-        shutil.copy2(bib_src, dest / "references.bib")
-        packaged.append("references.bib")
-
-    # --- 4. Experiment code package ---
-    code_src = run_dir / "stage-22" / "code"
-    if code_src.is_dir():
-        code_dest = dest / "code"
-        if code_dest.exists():
-            shutil.rmtree(code_dest)
-        shutil.copytree(code_src, code_dest)
-        packaged.append("code/")
-
-    # --- 5. Verification report (optional) ---
-    verify_src = run_dir / "stage-23" / "verification_report.json"
-    if verify_src.exists() and verify_src.stat().st_size > 0:
-        shutil.copy2(verify_src, dest / "verification_report.json")
-        packaged.append("verification_report.json")
-
-    # --- 5b. Sanitization report (degraded mode) ---
-    san_src = run_dir / "stage-22" / "sanitization_report.json"
-    if san_src.exists() and san_src.stat().st_size > 0:
-        shutil.copy2(san_src, dest / "sanitization_report.json")
-        packaged.append("sanitization_report.json")
-
-    # --- 6. Charts (optional) ---
-    charts_src = run_dir / "stage-22" / "charts"
-    if charts_src.is_dir() and any(charts_src.iterdir()):
-        charts_dest = dest / "charts"
-        if charts_dest.exists():
-            shutil.rmtree(charts_dest)
-        shutil.copytree(charts_src, charts_dest)
-        packaged.append("charts/")
-
-    # --- 7. Conference style files (.sty, .bst) ---
-    try:
-        from researchclaw.templates import get_template
-
-        tpl = get_template(config.export.target_conference)
-        style_files = tpl.get_style_files()
-        for sf in style_files:
-            shutil.copy2(sf, dest / sf.name)
-            packaged.append(sf.name)
-        if style_files:
-            logger.info(
-                "Deliverables: bundled %d style files for %s",
-                len(style_files),
-                tpl.display_name,
-            )
-    except Exception:  # noqa: BLE001
-        logger.debug("Style file bundling skipped (template lookup failed)")
-
-    # --- 8. Verify & repair cite key coverage (IMP-12 + IMP-14) ---
-    tex_path = dest / "paper.tex"
-    bib_path = dest / "references.bib"
-    if tex_path.exists() and bib_path.exists():
-        try:
-            tex_text = tex_path.read_text(encoding="utf-8")
-            bib_text = bib_path.read_text(encoding="utf-8")
-            import re as _re
-
-            # IMP-15: Deduplicate .bib entries
-            _seen_bib_keys: set[str] = set()
-            _deduped_entries: list[str] = []
-            for _bm in _re.finditer(
-                r"(@\w+\{([^,]+),.*?\n\})", bib_text, _re.DOTALL
-            ):
-                _bkey = _bm.group(2).strip()
-                if _bkey not in _seen_bib_keys:
-                    _seen_bib_keys.add(_bkey)
-                    _deduped_entries.append(_bm.group(1))
-            if len(_deduped_entries) < len(
-                list(_re.finditer(r"@\w+\{", bib_text))
-            ):
-                bib_text = "\n\n".join(_deduped_entries) + "\n"
-                bib_path.write_text(bib_text, encoding="utf-8")
-                logger.info(
-                    "Deliverables: deduplicated .bib → %d entries",
-                    len(_deduped_entries),
-                )
-
-            # Collect all cite keys from \cite{key1, key2}
-            all_cite_keys: set[str] = set()
-            for cm in _re.finditer(r"\\cite\{([^}]+)\}", tex_text):
-                all_cite_keys.update(k.strip() for k in cm.group(1).split(","))
-            bib_keys = set(_re.findall(r"@\w+\{([^,]+),", bib_text))
-            missing = all_cite_keys - bib_keys
-
-            # IMP-14: Strip orphaned \cite{key} from paper.tex
-            if missing:
-                logger.warning(
-                    "Deliverables: stripping %d orphaned cite keys from "
-                    "paper.tex: %s",
-                    len(missing),
-                    sorted(missing)[:10],
-                )
-
-                def _filter_cite(m: _re.Match[str]) -> str:
-                    keys = [k.strip() for k in m.group(1).split(",")]
-                    kept = [k for k in keys if k not in missing]
-                    if not kept:
-                        return ""
-                    return "\\cite{" + ", ".join(kept) + "}"
-
-                tex_text = _re.sub(r"\\cite\{([^}]+)\}", _filter_cite, tex_text)
-                # Clean up whitespace artifacts: double spaces, space before period
-                tex_text = _re.sub(r"  +", " ", tex_text)
-                tex_text = _re.sub(r" ([.,;:)])", r"\1", tex_text)
-                tex_path.write_text(tex_text, encoding="utf-8")
-                logger.info(
-                    "Deliverables: paper.tex repaired — all remaining cite "
-                    "keys verified"
-                )
-            else:
-                logger.info(
-                    "Deliverables: all %d cite keys verified in references.bib",
-                    len(all_cite_keys),
-                )
-        except Exception:  # noqa: BLE001
-            logger.debug("Cite key verification/repair skipped")
-
-    # --- 9. IMP-18: Compile LaTeX to verify paper.tex ---
-    if tex_path.exists() and bib_path.exists():
-        try:
-            from researchclaw.templates.compiler import compile_latex
-
-            compile_result = compile_latex(tex_path, max_attempts=3, timeout=120)
-            if compile_result.success:
-                logger.info("IMP-18: paper.tex compiles successfully")
-                # Keep the generated PDF
-                pdf_path = dest / tex_path.stem
-                pdf_file = dest / (tex_path.stem + ".pdf")
-                if pdf_file.exists():
-                    packaged.append(f"{tex_path.stem}.pdf")
-            else:
-                logger.warning(
-                    "IMP-18: paper.tex compilation failed after %d attempts: %s",
-                    compile_result.attempts,
-                    compile_result.errors[:3],
-                )
-            if compile_result.fixes_applied:
-                logger.info(
-                    "IMP-18: Applied %d auto-fixes: %s",
-                    len(compile_result.fixes_applied),
-                    compile_result.fixes_applied,
-                )
-        except Exception:  # noqa: BLE001
-            logger.debug("IMP-18: LaTeX compilation skipped (non-blocking)")
-
-    if not packaged:
-        # Nothing to package — remove empty dir
-        dest.rmdir()
-        return None
-
-    # --- Write manifest ---
-    manifest = {
-        "run_id": run_id,
-        "target_conference": config.export.target_conference,
-        "files": packaged,
-        "generated": _utcnow_iso(),
-        "notes": {
-            "paper_final.md": "Final paper in Markdown format",
-            "paper.tex": f"Conference-ready LaTeX ({config.export.target_conference})",
-            "references.bib": "BibTeX bibliography (verified citations only)",
-            "code/": "Experiment source code with requirements.txt",
-            "verification_report.json": "Citation integrity & relevance verification",
-            "charts/": "Result visualizations",
-        },
-    }
-    (dest / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8"
-    )
-
-    logger.info(
-        "Deliverables packaged: %s (%d items)",
-        dest,
-        len(packaged),
-    )
-    return dest
 
 
 def _version_rollback_stages(

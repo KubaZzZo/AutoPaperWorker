@@ -648,11 +648,13 @@ def test_execute_pipeline_prepares_parallel_hypothesis_branch_contexts(
 
 
 def test_prepare_parallel_hypothesis_branches_ignores_bad_plan(run_dir: Path) -> None:
+    from researchclaw.pipeline.parallel_branches import prepare_parallel_hypothesis_branches
+
     stage_dir = run_dir / "stage-08"
     stage_dir.mkdir(parents=True)
     (stage_dir / "hypothesis_branches.json").write_text("{bad json", encoding="utf-8")
 
-    result = rc_runner._prepare_parallel_hypothesis_branches(run_dir)
+    result = prepare_parallel_hypothesis_branches(run_dir)
 
     assert result is None
     assert not (run_dir / "branches" / "branch_manifest.json").exists()

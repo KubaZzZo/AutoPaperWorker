@@ -62,6 +62,13 @@ and this active optimization plan.
    - 2026-05-14 slice: experiment diagnosis/repair orchestration moved into
      `researchclaw/pipeline/experiment_workflow.py`, further narrowing
      `researchclaw/pipeline/runner.py` to pipeline control flow.
+   - 2026-05-14 slice: parallel hypothesis branch orchestration moved into
+     `researchclaw/pipeline/parallel_branches.py`, and final deliverable
+     packaging moved into `researchclaw/pipeline/deliverables.py`; runner now
+     keeps only compatibility wrappers around those workflows.
+   - 2026-05-14 slice: pipeline summary and content authenticity metrics moved
+     into `researchclaw/pipeline/summary.py`, leaving runner focused on stage
+     scheduling and rollback control.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
