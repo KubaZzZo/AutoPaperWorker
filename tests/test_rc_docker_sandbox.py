@@ -16,7 +16,11 @@ from researchclaw.config import (
     DockerSandboxConfig,
     ExperimentConfig,
 )
-from researchclaw.experiment.docker_sandbox import DockerSandbox, _next_container_name
+from researchclaw.experiment.docker_sandbox import (
+    DockerSandbox,
+    _docker_mount_path,
+    _next_container_name,
+)
 from researchclaw.experiment.factory import create_sandbox
 from researchclaw.experiment.sandbox import SandboxResult
 
@@ -546,6 +550,35 @@ def test_ensure_image_true(mock_run):
 def test_ensure_image_false(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1)
     assert DockerSandbox.ensure_image("nonexistent:latest") is False
+
+
+def test_docker_mount_path_converts_windows_path_for_wsl2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "researchclaw.experiment.docker_sandbox.sys.platform",
+        "win32",
+    )
+    monkeypatch.setenv("WSL_INTEROP", "1")
+
+    assert _docker_mount_path(Path("D:/GitHub/AutoPaperWorker/work")) == (
+        "/mnt/d/GitHub/AutoPaperWorker/work"
+    )
+
+
+def test_docker_mount_path_keeps_windows_path_for_desktop_docker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "researchclaw.experiment.docker_sandbox.sys.platform",
+        "win32",
+    )
+    monkeypatch.delenv("WSL_INTEROP", raising=False)
+    monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
+
+    assert _docker_mount_path(Path("D:/GitHub/AutoPaperWorker/work")) == (
+        "D:\\GitHub\\AutoPaperWorker\\work"
+    )
 
 
 # ── Default config values ────────────────────────────────────────────

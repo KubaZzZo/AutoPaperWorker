@@ -43,6 +43,25 @@ def _next_container_name() -> str:
         _CONTAINER_COUNTER += 1
         return f"rc-exp-{_CONTAINER_COUNTER}-{os.getpid()}"
 
+
+def _docker_mount_path(path: Path) -> str:
+    """Return a Docker bind-mount path suitable for the current Windows mode."""
+
+    raw = str(path)
+    if sys.platform != "win32":
+        return raw
+    if not (os.environ.get("WSL_INTEROP") or os.environ.get("WSL_DISTRO_NAME")):
+        return raw
+
+    resolved = str(Path(raw))
+    drive, tail = os.path.splitdrive(resolved)
+    if not drive:
+        return resolved.replace("\\", "/")
+    drive_letter = drive.rstrip(":").lower()
+    tail = tail.replace("\\", "/").lstrip("/")
+    return f"/mnt/{drive_letter}/{tail}"
+
+
 def _decode_subprocess_output(value: bytes | str | None) -> str:
     """Decode subprocess output while preserving undecodable bytes."""
     if value is None:
@@ -450,7 +469,7 @@ class DockerSandbox:
             "docker", "run",
             "--name", container_name,
             "--rm",
-            "-v", f"{staging_dir}:/workspace",
+            "-v", f"{_docker_mount_path(staging_dir)}:/workspace",
             "-w", "/workspace",
             f"--memory={cfg.memory_limit_mb}m",
             f"--shm-size={cfg.shm_size_mb}m",
@@ -488,13 +507,13 @@ class DockerSandbox:
         datasets_host = Path("/opt/datasets")
         user_datasets = Path.home() / ".cache" / "datasets"
         if datasets_host.is_dir():
-            cmd.extend(["-v", f"{datasets_host}:/workspace/data:ro"])
+            cmd.extend(["-v", f"{_docker_mount_path(datasets_host)}:/workspace/data:ro"])
         elif user_datasets.is_dir():
-            cmd.extend(["-v", f"{user_datasets}:/workspace/data:rw"])
+            cmd.extend(["-v", f"{_docker_mount_path(user_datasets)}:/workspace/data:rw"])
         else:
             # Create user-level cache so containers can download datasets
             user_datasets.mkdir(parents=True, exist_ok=True)
-            cmd.extend(["-v", f"{user_datasets}:/workspace/data:rw"])
+            cmd.extend(["-v", f"{_docker_mount_path(user_datasets)}:/workspace/data:rw"])
 
         # Mount HuggingFace model cache (read-only for model weights).
         # BUG-103 fix: Don't set HF_HOME to the read-only mount — the
@@ -507,13 +526,13 @@ class DockerSandbox:
         if hf_home_env:
             xdg_hf = Path(hf_home_env).resolve()
             if xdg_hf.is_dir():
-                cmd.extend(["-v", f"{xdg_hf}:{_hf_hub_cache}:ro"])
+                cmd.extend(["-v", f"{_docker_mount_path(xdg_hf)}:{_hf_hub_cache}:ro"])
                 cmd.extend(["-e", f"HF_HUB_CACHE={_hf_hub_cache}"])
                 hf_mounted = True
         if not hf_mounted:
             hf_cache_host = Path.home() / ".cache" / "huggingface"
             if hf_cache_host.is_dir():
-                cmd.extend(["-v", f"{hf_cache_host}:{_hf_hub_cache}:ro"])
+                cmd.extend(["-v", f"{_docker_mount_path(hf_cache_host)}:{_hf_hub_cache}:ro"])
                 cmd.extend(["-e", f"HF_HUB_CACHE={_hf_hub_cache}"])
 
         # BUG-107 fix: Set TORCH_HOME to writable location so torchvision

@@ -221,6 +221,8 @@
 - **建议:** 添加对 Windows cp936/cp932 编码的显式处理。
 
 #### 20. Docker 路径在 Windows 上的兼容性
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Docker bind-mount paths now pass through `_docker_mount_path()`, which preserves Docker Desktop Windows paths but converts Windows drive paths to `/mnt/<drive>/...` when WSL2 environment markers are present. Regression tests cover both WSL2 and Docker Desktop path behavior.</span>
+
 - **文件:** `researchclaw/experiment/docker_sandbox.py:452-455`
 - **问题:** `os.getuid()` / `os.getgid()` 在 Windows 上不存在，代码使用 `sys.platform == "win32"` 检查返回空列表。但如果用户在 Windows 上使用 WSL2 Docker，路径映射可能有问题。
 - **建议:** 添加 WSL2 路径转换逻辑。
