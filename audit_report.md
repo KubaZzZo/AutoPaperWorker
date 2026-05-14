@@ -294,6 +294,8 @@
 - **建议:** 至少记录 debug 日志。
 
 #### 32. 不必要的 import 在函数内部
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] The remaining function-local `dataclasses` import in `researchclaw/server/routes/pipeline.py` was moved to module scope; `researchclaw/cli.py` already used a module-level import. A static AST regression test now guards `start_pipeline()` against reintroducing function-local `dataclasses` imports.</span>
+
 - **文件:** `researchclaw/cli.py:177,197,356` 等多处
 - **问题:** 在函数内部 `import dataclasses` 重复导入（如 `cmd_run` 中的第 177,197 行）。
 - **建议:** 将重复的 import 移到函数外部或模块顶部。

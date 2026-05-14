@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import logging
 from pathlib import Path
@@ -71,7 +72,6 @@ async def start_pipeline(req: PipelineStartRequest) -> PipelineStartResponse:
         config = state["config"]
 
         if req.topic:
-            import dataclasses
             new_research = dataclasses.replace(config.research, topic=req.topic)
             config = dataclasses.replace(config, research=new_research)
 

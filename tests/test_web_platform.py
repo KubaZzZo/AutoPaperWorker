@@ -22,6 +22,24 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
+def test_pipeline_route_has_no_function_local_dataclasses_import() -> None:
+    import ast
+
+    source = Path("researchclaw/server/routes/pipeline.py").read_text(encoding="utf-8")
+    module = ast.parse(source)
+    start_pipeline = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "start_pipeline"
+    )
+
+    assert not any(
+        isinstance(node, ast.Import)
+        and any(alias.name == "dataclasses" for alias in node.names)
+        for node in ast.walk(start_pipeline)
+    )
+
+
 class TestServerConfig:
     """Test ServerConfig and DashboardConfig in config.py."""
 
