@@ -8,9 +8,12 @@ enabling automated repair via LLM re-generation.
 from __future__ import annotations
 
 import ast
+import logging
 import sys
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -462,8 +465,11 @@ def check_code_complexity(code: str) -> list[str]:
                 "Code has no function definitions — research experiments "
                 "should be structured with reusable functions"
             )
-    except SyntaxError:
-        pass
+    except SyntaxError as exc:
+        logger.debug(
+            "Could not parse code while checking complexity: %s",
+            exc,
+        )
 
     # Check for hardcoded metrics (a common LLM failure mode)
     import re

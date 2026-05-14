@@ -154,6 +154,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Daily digest LLM-summary parsing now logs malformed relevance scores before falling back to the default relevance value. `researchclaw/trends/daily_digest.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Experiment code complexity validation now logs syntax parse failures with debug context before returning style warnings. `researchclaw/experiment/validator.py` no longer contains pure `except: pass` handlers.</span>
+
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Context7 MCP subprocess shutdown now logs both failed terminate/wait cleanup and failed kill fallback with debug exception context, so stuck documentation helper processes are no longer silently ignored.</span>
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Stage 23 citation verification now logs `paper.tex` read failures while collecting LaTeX `\cite{}` keys, instead of silently ignoring unreadable export artifacts and then pruning references without diagnostic context.</span>

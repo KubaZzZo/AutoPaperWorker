@@ -10,6 +10,7 @@ from researchclaw.experiment.validator import (
     CodeValidation,
     ValidationIssue,
     check_capacity_fairness,
+    check_code_complexity,
     check_data_split_overlap,
     check_filename_collisions,
     check_loss_direction,
@@ -29,6 +30,13 @@ def _call_source(name: str) -> str:
         lines.append(f"import {top}")
     lines.append(f"{name}()")
     return "\n".join(lines)
+
+
+def test_check_code_complexity_logs_syntax_parse_failure(caplog):
+    with caplog.at_level("DEBUG", logger="researchclaw.experiment.validator"):
+        warnings = check_code_complexity("def broken(:\n    pass")
+    assert any("likely too simple" in warning for warning in warnings)
+    assert "Could not parse code while checking complexity" in caplog.text
 
 
 def test_validate_syntax_accepts_valid_code():
