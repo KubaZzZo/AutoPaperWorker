@@ -219,7 +219,12 @@ class CodeSearchAgent:
                     snippet.content = content
                     code_snippets.append(content)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to fetch code snippet content: %s/%s",
+                    snippet.repo_full_name,
+                    snippet.file_path,
+                    exc_info=True,
+                )
 
         # 6. Extract patterns
         if code_snippets:

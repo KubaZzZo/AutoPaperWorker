@@ -394,3 +394,29 @@ class TestCodeSearchAgent:
         result = agent.search("test topic", profile)
         # Should not crash
         assert isinstance(result, CodeSearchResult)
+
+    def test_search_logs_code_snippet_content_fetch_failure(self, tmp_path, caplog):
+        mock_github = MagicMock(spec=GitHubClient)
+        mock_github.search_repos.return_value = []
+        mock_github.search_code.return_value = [
+            CodeSnippet(repo_full_name="user/repo", file_path="main.py", score=10.0),
+        ]
+        mock_github.get_file_content.side_effect = Exception("file unavailable")
+        mock_github.request_count = 1
+
+        cache = SearchCache(cache_dir=tmp_path)
+        agent = CodeSearchAgent(cache=cache)
+        agent._github = mock_github
+
+        profile = DomainProfile(
+            domain_id="test",
+            display_name="Test",
+            core_libraries=["numpy"],
+        )
+
+        with caplog.at_level("WARNING", logger="researchclaw.agents.code_searcher.agent"):
+            result = agent.search("test topic", profile)
+
+        assert isinstance(result, CodeSearchResult)
+        assert len(result.snippets_found) >= 1
+        assert "Failed to fetch code snippet content" in caplog.text

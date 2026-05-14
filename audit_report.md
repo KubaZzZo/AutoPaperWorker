@@ -168,6 +168,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Code search cache statistics now logs malformed or unreadable cache JSON entries with debug exception context while preserving resilient aggregate counts. `researchclaw/agents/code_searcher/cache.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Code search snippet content retrieval now logs GitHub file fetch failures with repository/path context while preserving graceful degradation. AST scanning now reports no pure `except: pass` handlers under `researchclaw/agents/code_searcher`.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。
