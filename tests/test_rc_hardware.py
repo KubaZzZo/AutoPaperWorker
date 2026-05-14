@@ -131,6 +131,22 @@ class TestDetectMPS:
         ):
             assert _detect_mps() is None
 
+    def test_sysctl_failure_logs_and_uses_generic_name(self, caplog):
+        with (
+            patch("researchclaw.hardware.platform.system", return_value="Darwin"),
+            patch("researchclaw.hardware.platform.machine", return_value="arm64"),
+            patch(
+                "researchclaw.hardware.subprocess.run",
+                side_effect=subprocess.TimeoutExpired("sysctl", 5),
+            ),
+            caplog.at_level("DEBUG", logger="researchclaw.hardware"),
+        ):
+            profile = _detect_mps()
+
+        assert profile is not None
+        assert profile.gpu_name == "Apple Silicon GPU"
+        assert "Failed to read Apple Silicon CPU brand" in caplog.text
+
 
 # ---------------------------------------------------------------------------
 # detect_hardware (integration)

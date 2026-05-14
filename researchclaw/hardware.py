@@ -226,8 +226,12 @@ def _detect_mps() -> HardwareProfile | None:
         )
         if result.returncode == 0 and result.stdout.strip():
             gpu_name = result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug(
+            "Failed to read Apple Silicon CPU brand via sysctl: %s",
+            exc,
+            exc_info=True,
+        )
 
     return HardwareProfile(
         has_gpu=True,

@@ -146,6 +146,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Wizard environment detection now logs optional Docker version, torch GPU, and psutil memory probe failures with debug context while keeping setup recommendations resilient. `researchclaw/wizard/validator.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Apple Silicon hardware detection now logs failed `sysctl` brand probes with debug exception context while falling back to the generic `Apple Silicon GPU` profile. `researchclaw/hardware.py` no longer contains pure `except: pass` handlers.</span>
+
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Context7 MCP subprocess shutdown now logs both failed terminate/wait cleanup and failed kill fallback with debug exception context, so stuck documentation helper processes are no longer silently ignored.</span>
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Stage 23 citation verification now logs `paper.tex` read failures while collecting LaTeX `\cite{}` keys, instead of silently ignoring unreadable export artifacts and then pruning references without diagnostic context.</span>
