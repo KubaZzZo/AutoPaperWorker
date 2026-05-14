@@ -392,6 +392,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         stop_on_gate=stop_on_gate,
         skip_noncritical=skip_noncritical,
         kb_root=kb_root_path,
+        progress_reporter=print,
     )
 
     done = sum(1 for r in results if r.status.value == "done")

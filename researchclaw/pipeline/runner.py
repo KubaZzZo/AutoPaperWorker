@@ -10,6 +10,7 @@ import tempfile
 import threading
 import time as _time
 from pathlib import Path
+from typing import Callable
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
@@ -24,6 +25,14 @@ from researchclaw.pipeline.stages import (
     Stage,
     StageStatus,
 )
+
+
+ProgressReporter = Callable[[str], None]
+
+
+def _report_progress(reporter: ProgressReporter | None, message: str) -> None:
+    if reporter is not None:
+        reporter(message)
 
 
 def _utcnow_iso() -> str:
@@ -626,7 +635,13 @@ def _collect_content_metrics(run_dir: Path | None) -> dict[str, object]:
 logger = logging.getLogger(__name__)
 
 
-def _run_experiment_diagnosis(run_dir: Path, config: RCConfig, run_id: str) -> None:
+def _run_experiment_diagnosis(
+    run_dir: Path,
+    config: RCConfig,
+    run_id: str,
+    *,
+    progress_reporter: ProgressReporter | None = None,
+) -> None:
     """Run experiment diagnosis after Stage 14 and save reports.
 
     Produces:
@@ -767,22 +782,32 @@ def _run_experiment_diagnosis(run_dir: Path, config: RCConfig, run_id: str) -> N
                 "[%s] Experiment diagnosis: mode=%s, deficiencies=%d — repair prompt saved",
                 run_id, qa.mode.value, len(diag.deficiencies),
             )
-            print(
+            _report_progress(
+                progress_reporter,
                 f"[{run_id}] Experiment diagnosis: {qa.mode.value} "
-                f"({len(diag.deficiencies)} issues found, repair needed)"
+                f"({len(diag.deficiencies)} issues found, repair needed)",
             )
         else:
             logger.info(
                 "[%s] Experiment diagnosis: mode=%s, sufficient=True — quality OK",
                 run_id, qa.mode.value,
             )
-            print(f"[{run_id}] Experiment diagnosis: {qa.mode.value} — quality OK")
+            _report_progress(
+                progress_reporter,
+                f"[{run_id}] Experiment diagnosis: {qa.mode.value} — quality OK",
+            )
 
     except Exception as exc:
         logger.warning("Experiment diagnosis failed: %s", exc)
 
 
-def _run_experiment_repair(run_dir: Path, config: RCConfig, run_id: str) -> None:
+def _run_experiment_repair(
+    run_dir: Path,
+    config: RCConfig,
+    run_id: str,
+    *,
+    progress_reporter: ProgressReporter | None = None,
+) -> None:
     """Execute the experiment repair loop when diagnosis finds quality issues.
 
     Calls the repair loop from ``experiment_repair.py`` which:
@@ -799,6 +824,7 @@ def _run_experiment_repair(run_dir: Path, config: RCConfig, run_id: str) -> None
             run_dir=run_dir,
             config=config,
             run_id=run_id,
+            progress_reporter=progress_reporter,
         )
 
         # Save repair result
@@ -859,7 +885,12 @@ def _run_experiment_repair(run_dir: Path, config: RCConfig, run_id: str) -> None
 
         if repair_result.success:
             # Re-run diagnosis with updated results
-            _run_experiment_diagnosis(run_dir, config, run_id)
+            _run_experiment_diagnosis(
+                run_dir,
+                config,
+                run_id,
+                progress_reporter=progress_reporter,
+            )
         else:
             logger.info(
                 "[%s] Repair loop completed without reaching full_paper quality "
@@ -869,7 +900,10 @@ def _run_experiment_repair(run_dir: Path, config: RCConfig, run_id: str) -> None
 
     except Exception as exc:
         logger.warning("[%s] Experiment repair failed: %s", run_id, exc)
-        print(f"[{run_id}] Experiment repair failed: {exc}")
+        _report_progress(
+            progress_reporter,
+            f"[{run_id}] Experiment repair failed: {exc}",
+        )
 
 
 def execute_pipeline(
@@ -885,6 +919,7 @@ def execute_pipeline(
     skip_noncritical: bool = False,
     kb_root: Path | None = None,
     cancel_event: "threading.Event | None" = None,
+    progress_reporter: ProgressReporter | None = None,
     _pivot_depth: int = 0,
 ) -> list[StageResult]:
     """Execute pipeline stages sequentially from *from_stage* to *to_stage* (inclusive)."""
@@ -927,12 +962,12 @@ def execute_pipeline(
         # ── Check for cancellation before each stage ──
         if cancel_event is not None and cancel_event.is_set():
             logger.info("[%s] Pipeline cancelled before stage %s", run_id, stage.name)
-            print(f"[{run_id}] Pipeline cancelled by user.")
+            _report_progress(progress_reporter, f"[{run_id}] Pipeline cancelled by user.")
             break
 
         stage_num = int(stage)
         prefix = f"[{run_id}] Stage {stage_num:02d}/{total_stages}"
-        print(f"{prefix} {stage.name} — running...")
+        _report_progress(progress_reporter, f"{prefix} {stage.name} — running...")
 
         # ── Event log: stage start ──
         if event_log:
@@ -949,7 +984,10 @@ def execute_pipeline(
                 from researchclaw.cost_tracker import get_global_tracker
                 if not get_global_tracker().check_budget(cost_budget):
                     logger.warning("Cost budget $%.2f exceeded — pausing pipeline", cost_budget)
-                    print(f"{prefix} BUDGET EXCEEDED ($%.2f) — stopping" % cost_budget)
+                    _report_progress(
+                        progress_reporter,
+                        f"{prefix} BUDGET EXCEEDED (${cost_budget:.2f}) — stopping",
+                    )
                     break
             except Exception:
                 logger.warning("Cost budget check failed", exc_info=True)
@@ -1089,20 +1127,33 @@ def execute_pipeline(
         if result.status == StageStatus.DONE:
             arts = ", ".join(result.artifacts) if result.artifacts else "none"
             if result.decision == "degraded":
-                print(
+                _report_progress(
+                    progress_reporter,
                     f"{prefix} {stage.name} — DEGRADED ({elapsed:.1f}s) "
-                    f"— continuing with sanitization → {arts}"
+                    f"— continuing with sanitization → {arts}",
                 )
             else:
-                print(f"{prefix} {stage.name} — done ({elapsed:.1f}s) → {arts}")
+                _report_progress(
+                    progress_reporter,
+                    f"{prefix} {stage.name} — done ({elapsed:.1f}s) → {arts}",
+                )
         elif result.status == StageStatus.FAILED:
             err = result.error or "unknown error"
-            print(f"{prefix} {stage.name} — FAILED ({elapsed:.1f}s) — {err}")
+            _report_progress(
+                progress_reporter,
+                f"{prefix} {stage.name} — FAILED ({elapsed:.1f}s) — {err}",
+            )
         elif result.status == StageStatus.BLOCKED_APPROVAL:
-            print(f"{prefix} {stage.name} — blocked (awaiting approval)")
+            _report_progress(
+                progress_reporter,
+                f"{prefix} {stage.name} — blocked (awaiting approval)",
+            )
         elif result.status == StageStatus.PAUSED:
             err = result.error or "paused"
-            print(f"{prefix} {stage.name} -- PAUSED ({elapsed:.1f}s) -- {err}")
+            _report_progress(
+                progress_reporter,
+                f"{prefix} {stage.name} -- PAUSED ({elapsed:.1f}s) -- {err}",
+            )
         results.append(result)
         _write_progress_snapshot(
             run_dir=run_dir,
@@ -1136,7 +1187,10 @@ def execute_pipeline(
         # ── Stop after to_stage if specified ──
         if to_stage is not None and stage == to_stage:
             logger.info("[%s] Reached --to-stage %s, stopping.", run_id, stage.name)
-            print(f"[{run_id}] Reached --to-stage {stage.name}, stopping pipeline.")
+            _report_progress(
+                progress_reporter,
+                f"[{run_id}] Reached --to-stage {stage.name}, stopping pipeline.",
+            )
             break
 
         # --- Experiment diagnosis + repair after Stage 14 (result_analysis) ---
@@ -1145,7 +1199,12 @@ def execute_pipeline(
             and result.status == StageStatus.DONE
             and config.experiment.repair.enabled
         ):
-            _run_experiment_diagnosis(run_dir, config, run_id)
+            _run_experiment_diagnosis(
+                run_dir,
+                config,
+                run_id,
+                progress_reporter=progress_reporter,
+            )
 
             # Check if repair loop should run
             _diag_path = run_dir / "experiment_diagnosis.json"
@@ -1153,7 +1212,12 @@ def execute_pipeline(
                 try:
                     _diag_data = json.loads(_diag_path.read_text(encoding="utf-8"))
                     if _diag_data.get("repair_needed"):
-                        _run_experiment_repair(run_dir, config, run_id)
+                        _run_experiment_repair(
+                            run_dir,
+                            config,
+                            run_id,
+                            progress_reporter=progress_reporter,
+                        )
                 except (json.JSONDecodeError, OSError):
                     logger.warning(
                         "[%s] Experiment diagnosis report could not be read",
@@ -1177,7 +1241,8 @@ def execute_pipeline(
                 logger.warning(
                     "Consecutive REFINE cycles produced empty metrics — forcing PROCEED"
                 )
-                print(
+                _report_progress(
+                    progress_reporter,
                     f"[{run_id}] Consecutive empty metrics across REFINE cycles — forcing PROCEED"
                 )
                 # BUG-211: Promote best stage-14 before proceeding with
@@ -1198,10 +1263,11 @@ def execute_pipeline(
                     pivot_count + 1,
                     MAX_DECISION_PIVOTS,
                 )
-                print(
+                _report_progress(
+                    progress_reporter,
                     f"[{run_id}] Decision: {result.decision.upper()} → "
                     f"rollback to {rollback_target.name} "
-                    f"(attempt {pivot_count + 1}/{MAX_DECISION_PIVOTS})"
+                    f"(attempt {pivot_count + 1}/{MAX_DECISION_PIVOTS})",
                 )
                 # Version existing stage directories before overwriting
                 _version_rollback_stages(
@@ -1219,6 +1285,7 @@ def execute_pipeline(
                     skip_noncritical=skip_noncritical,
                     kb_root=kb_root,
                     cancel_event=cancel_event,
+                    progress_reporter=progress_reporter,
                     _pivot_depth=_pivot_depth + 1,
                 )
                 results.extend(pivot_results)
@@ -1239,8 +1306,9 @@ def execute_pipeline(
                         MAX_DECISION_PIVOTS,
                         _quality_msg,
                     )
-                    print(
-                        f"[{run_id}] QUALITY WARNING: {_quality_msg}"
+                    _report_progress(
+                        progress_reporter,
+                        f"[{run_id}] QUALITY WARNING: {_quality_msg}",
                     )
                     # Write quality warning to run directory
                     _qw_path = run_dir / "quality_warning.txt"
@@ -1255,8 +1323,9 @@ def execute_pipeline(
                         "Max pivot attempts (%d) reached — forcing PROCEED",
                         MAX_DECISION_PIVOTS,
                     )
-                print(
-                    f"[{run_id}] Max pivot attempts reached — forcing PROCEED"
+                _report_progress(
+                    progress_reporter,
+                    f"[{run_id}] Max pivot attempts reached — forcing PROCEED",
                 )
 
                 # BUG-205: After forced PROCEED, promote the BEST stage-14
@@ -1266,7 +1335,7 @@ def execute_pipeline(
         # --- HITL: Handle abort decision ---
         if result.decision == "abort":
             logger.info("[%s] Pipeline aborted by user at stage %s", run_id, stage.name)
-            print(f"[{run_id}] Pipeline aborted by user at {stage.name}")
+            _report_progress(progress_reporter, f"[{run_id}] Pipeline aborted by user at {stage.name}")
             break
 
         if result.status == StageStatus.FAILED:
@@ -1290,7 +1359,7 @@ def execute_pipeline(
                 "[%s] Stage %s rejected by reviewer — pipeline stopped",
                 run_id, stage.name,
             )
-            print(f"[{run_id}] Stage {stage.name} rejected — pipeline stopped")
+            _report_progress(progress_reporter, f"[{run_id}] Stage {stage.name} rejected — pipeline stopped")
             break
 
         if result.status == StageStatus.BLOCKED_APPROVAL and stop_on_gate:
@@ -1352,7 +1421,10 @@ def execute_pipeline(
     try:
         deliverables_dir = _package_deliverables(run_dir, run_id, config)
         if deliverables_dir is not None:
-            print(f"[{run_id}] Deliverables packaged → {deliverables_dir}")
+            _report_progress(
+                progress_reporter,
+                f"[{run_id}] Deliverables packaged → {deliverables_dir}",
+            )
     except Exception:  # noqa: BLE001
         logger.warning("Deliverables packaging failed (non-blocking)", exc_info=True)
 
@@ -2157,7 +2229,7 @@ def execute_iterative_pipeline(
     try:
         deliverables_dir = _package_deliverables(run_dir, run_id, config)
         if deliverables_dir is not None:
-            print(f"[{run_id}] Deliverables packaged →{deliverables_dir}")
+            logger.info("[%s] Deliverables packaged -> %s", run_id, deliverables_dir)
     except Exception:  # noqa: BLE001
         logger.warning("Deliverables packaging failed (non-blocking)")
 

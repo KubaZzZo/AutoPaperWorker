@@ -223,6 +223,57 @@ def test_execute_pipeline_writes_structured_progress_snapshot(
     assert cost_summary["total_cost_usd"] == 0.02
 
 
+def test_execute_pipeline_does_not_print_progress_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        return _done(stage)
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+
+    rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-quiet",
+        config=rc_config,
+        adapters=adapters,
+        to_stage=Stage.PROBLEM_DECOMPOSE,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+
+
+def test_execute_pipeline_reports_progress_to_injected_reporter(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs) -> StageResult:
+        _ = kwargs
+        return _done(stage)
+
+    messages: list[str] = []
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+
+    rc_runner.execute_pipeline(
+        run_dir=run_dir,
+        run_id="run-reported",
+        config=rc_config,
+        adapters=adapters,
+        to_stage=Stage.PROBLEM_DECOMPOSE,
+        progress_reporter=messages.append,
+    )
+
+    assert any("TOPIC_INIT" in message and "running" in message for message in messages)
+    assert any("PROBLEM_DECOMPOSE" in message and "done" in message for message in messages)
+
+
 def test_execute_pipeline_stops_on_gate_when_stop_on_gate_enabled(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,
@@ -758,7 +809,6 @@ def test_pipeline_prints_stage_progress(
     run_dir: Path,
     rc_config: RCConfig,
     adapters: AdapterBundle,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     mock_results = [
         StageResult(
@@ -789,18 +839,20 @@ def test_pipeline_prints_stage_progress(
     monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
     monkeypatch.setattr(rc_runner, "write_stage_to_kb", lambda *args, **kwargs: [])
 
+    messages: list[str] = []
     _ = rc_runner.execute_pipeline(
         run_dir=run_dir,
         run_id="rc-test-001",
         config=rc_config,
         adapters=adapters,
+        progress_reporter=messages.append,
     )
 
-    captured = capsys.readouterr()
-    assert "TOPIC_INIT — running..." in captured.out
-    assert "TOPIC_INIT — done" in captured.out
-    assert "SEARCH_STRATEGY — FAILED" in captured.out
-    assert "LLM timeout" in captured.out
+    output = "\n".join(messages)
+    assert "TOPIC_INIT — running..." in output
+    assert "TOPIC_INIT — done" in output
+    assert "SEARCH_STRATEGY — FAILED" in output
+    assert "LLM timeout" in output
 
 
 def test_pipeline_prints_elapsed_time(
@@ -808,7 +860,6 @@ def test_pipeline_prints_elapsed_time(
     run_dir: Path,
     rc_config: RCConfig,
     adapters: AdapterBundle,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     mock_result = StageResult(
         stage=Stage.TOPIC_INIT,
@@ -828,18 +879,20 @@ def test_pipeline_prints_elapsed_time(
     )
     monkeypatch.setattr(rc_runner, "write_stage_to_kb", lambda *args, **kwargs: [])
 
+    messages: list[str] = []
     _ = rc_runner.execute_pipeline(
         run_dir=run_dir,
         run_id="rc-test-002",
         config=rc_config,
         adapters=adapters,
+        progress_reporter=messages.append,
     )
 
-    captured = capsys.readouterr()
     import re
 
-    assert re.search(r"\d+\.\d+s\)", captured.out), (
-        f"No elapsed time found in: {captured.out}"
+    output = "\n".join(messages)
+    assert re.search(r"\d+\.\d+s\)", output), (
+        f"No elapsed time found in: {output}"
     )
 
 
@@ -1271,7 +1324,6 @@ def test_degraded_quality_gate_continues_pipeline(
     run_dir: Path,
     rc_config: RCConfig,
     adapters: AdapterBundle,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """When quality gate returns decision='degraded', pipeline continues to completion."""
     seen: list[Stage] = []
@@ -1284,11 +1336,13 @@ def test_degraded_quality_gate_continues_pipeline(
         return _done(stage)
 
     monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+    messages: list[str] = []
     results = rc_runner.execute_pipeline(
         run_dir=run_dir,
         run_id="run-degraded",
         config=rc_config,
         adapters=adapters,
+        progress_reporter=messages.append,
     )
     # All 23 stages should execute (not stopped at quality gate)
     assert len(results) == 23
@@ -1300,9 +1354,8 @@ def test_degraded_quality_gate_continues_pipeline(
     # Pipeline summary should have degraded=True
     summary = json.loads((run_dir / "pipeline_summary.json").read_text())
     assert summary["degraded"] is True
-    # Output should show DEGRADED message
-    captured = capsys.readouterr()
-    assert "DEGRADED" in captured.out
+    # Reporter output should show DEGRADED message
+    assert any("DEGRADED" in message for message in messages)
 
 
 def test_package_deliverables_called_after_pipeline(
@@ -1310,7 +1363,6 @@ def test_package_deliverables_called_after_pipeline(
     run_dir: Path,
     rc_config: RCConfig,
     adapters: AdapterBundle,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Deliverables packaging is called at end of execute_pipeline."""
     _setup_stage_artifacts(run_dir)
@@ -1319,14 +1371,15 @@ def test_package_deliverables_called_after_pipeline(
         return _done(stage)
 
     monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+    messages: list[str] = []
     rc_runner.execute_pipeline(
         run_dir=run_dir,
         run_id="run-with-deliverables",
         config=rc_config,
         adapters=adapters,
+        progress_reporter=messages.append,
     )
-    captured = capsys.readouterr()
-    assert "Deliverables packaged" in captured.out
+    assert any("Deliverables packaged" in message for message in messages)
     assert (run_dir / "deliverables" / "manifest.json").exists()
 
 
