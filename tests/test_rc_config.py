@@ -112,6 +112,24 @@ def test_validate_config_with_valid_data_returns_ok_true(tmp_path: Path):
     assert result.errors == ()
 
 
+def test_rcconfig_with_research_overrides_returns_updated_copy(tmp_path: Path):
+    config = RCConfig.from_dict(
+        _valid_config_data(), project_root=tmp_path, check_paths=False
+    )
+
+    updated = config.with_research_overrides(
+        topic="Updated topic",
+        graceful_degradation=False,
+    )
+
+    assert updated is not config
+    assert updated.research.topic == "Updated topic"
+    assert updated.research.graceful_degradation is False
+    assert updated.research.domains == config.research.domains
+    assert config.research.topic == "Test topic"
+    assert config.research.graceful_degradation is True
+
+
 def test_validate_config_rejects_inline_llm_api_key(tmp_path: Path):
     data = _valid_config_data()
     data["llm"]["api_key"] = "sk-inline-secret"

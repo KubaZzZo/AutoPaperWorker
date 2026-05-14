@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -787,6 +787,10 @@ class RCConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def with_research_overrides(self, **overrides: Any) -> RCConfig:
+        """Return a copy with selected research config fields replaced."""
+        return replace(self, research=replace(self.research, **overrides))
 
     @classmethod
     def from_dict(

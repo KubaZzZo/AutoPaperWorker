@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import hashlib
 import os
 import shutil
@@ -182,8 +181,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     # Override graceful_degradation if CLI flag is set
     if no_graceful_degradation:
-        new_research = dataclasses.replace(config.research, graceful_degradation=False)
-        config = dataclasses.replace(config, research=new_research)
+        config = config.with_research_overrides(graceful_degradation=False)
 
     # Derive gate behavior from project.mode (CLI --auto-approve overrides)
     mode = config.project.mode.lower()
@@ -198,8 +196,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         stop_on_gate = True
 
     if topic:
-        new_research = dataclasses.replace(config.research, topic=topic)
-        config = dataclasses.replace(config, research=new_research)
+        config = config.with_research_overrides(topic=topic)
 
     # --- LLM Preflight ---
     if not skip_preflight:

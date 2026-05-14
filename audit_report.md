@@ -401,6 +401,8 @@
 ### 中 (MEDIUM)
 
 #### 44. 多处重复使用 `dataclasses.replace`
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] `RCConfig` now exposes `with_research_overrides(**overrides)` for immutable research config updates. CLI run overrides and the pipeline start API now call this helper instead of duplicating nested `dataclasses.replace(config.research, ...)` patterns. Regression coverage verifies the helper returns an updated copy without mutating the original config.</span>
+
 - **文件:** `researchclaw/cli.py:177-180`, `cli.py:197-198`, `server/routes/pipeline.py:74-76`
 - **问题:** 相同的 `dataclasses.replace(config.research, topic=...)` 模式重复出现。
 - **建议:** 添加 `config.with_topic(topic)` 方法。
