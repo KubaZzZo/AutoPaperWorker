@@ -556,6 +556,50 @@ class TestHelpers:
         result = CodeAgent._parse_json("not json at all")
         assert result is None
 
+    def test_parse_json_logs_failed_candidates(self, caplog) -> None:
+        text = 'prefix\n```json\n{bad}\n```\n{"bad": }\nsuffix'
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.code_agent"):
+            result = CodeAgent._parse_json(text)
+
+        assert result is None
+        assert "Failed to parse code-agent JSON directly" in caplog.text
+        assert "Failed to parse code-agent fenced JSON" in caplog.text
+        assert "Failed to parse code-agent embedded JSON" in caplog.text
+
+    def test_build_code_summary_logs_unparseable_imports(self, caplog, monkeypatch) -> None:
+        original_unparse = __import__("ast").unparse
+
+        def fail_import_unparse(node: Any) -> str:
+            if node.__class__.__name__ in {"Import", "ImportFrom"}:
+                raise ValueError("cannot unparse import")
+            return original_unparse(node)
+
+        monkeypatch.setattr("researchclaw.pipeline.code_agent.ast.unparse", fail_import_unparse)
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.code_agent"):
+            summary = CodeAgent._build_code_summary("main.py", "import os\n\ndef run():\n    pass\n")
+
+        assert summary["imports"] == []
+        assert summary["functions"] == [{"name": "run", "args": []}]
+        assert "Failed to summarize import node in main.py" in caplog.text
+
+    def test_hard_validate_logs_main_guard_parse_failure(
+        self, stage_dir: Path, pm: PromptManager, caplog
+    ) -> None:
+        agent = CodeAgent(
+            llm=FakeLLM(),
+            prompts=pm,
+            config=CodeAgentConfig(hard_validation=True),
+            stage_dir=stage_dir,
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.code_agent"):
+            critical, _warnings = agent._hard_validate({"main.py": "def broken(:\n    pass"})
+
+        assert any("Syntax error" in issue for issue in critical)
+        assert "Skipping main guard validation because main.py failed to parse" in caplog.text
+
     def test_simple_result_defaults(self) -> None:
         r = _SimpleResult()
         assert r.returncode == 1

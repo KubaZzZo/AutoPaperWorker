@@ -186,6 +186,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Pipeline API run listing, run detail, and metrics endpoints now log malformed optional checkpoint/results JSON files while preserving resilient responses. `researchclaw/server/routes/pipeline.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Advanced pipeline code agent now logs AST import summarization failures, main-guard validation skips after syntax errors, and all JSON parsing fallback failures with debug exception context. `researchclaw/pipeline/code_agent.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

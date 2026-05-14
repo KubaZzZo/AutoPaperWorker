@@ -647,8 +647,13 @@ class CodeAgent:
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 try:
                     summary["imports"].append(ast.unparse(node))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(
+                        "Failed to summarize import node in %s: %s",
+                        filename,
+                        exc,
+                        exc_info=True,
+                    )
 
         return summary
 
@@ -864,8 +869,12 @@ class CodeAgent:
                         "training. Add a main guard that calls the experiment entry "
                         "point."
                     )
-            except SyntaxError:
-                pass  # Already caught by syntax check above
+            except SyntaxError as exc:
+                logger.debug(
+                    "Skipping main guard validation because main.py failed to parse: %s",
+                    exc,
+                    exc_info=True,
+                )
 
         return critical, warnings
 
@@ -1464,15 +1473,23 @@ class CodeAgent:
         # Direct parse
         try:
             return _as_dict(json.loads(text))
-        except (json.JSONDecodeError, ValueError):
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.debug(
+                "Failed to parse code-agent JSON directly: %s",
+                exc,
+                exc_info=True,
+            )
         # ```json``` fenced block
         m = re.search(r"```json\s*\n(.*?)```", text, re.DOTALL)
         if m:
             try:
                 return _as_dict(json.loads(m.group(1)))
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug(
+                    "Failed to parse code-agent fenced JSON: %s",
+                    exc,
+                    exc_info=True,
+                )
         # First {...} object (supports up to 2 levels of nesting)
         m = re.search(
             r"\{[^{}]*(?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}[^{}]*)*\}",
@@ -1481,8 +1498,12 @@ class CodeAgent:
         if m:
             try:
                 return _as_dict(json.loads(m.group(0)))
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug(
+                    "Failed to parse code-agent embedded JSON: %s",
+                    exc,
+                    exc_info=True,
+                )
         return None
 
     def _log_event(self, msg: str) -> None:
