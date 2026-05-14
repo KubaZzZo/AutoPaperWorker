@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -101,6 +102,65 @@ trailing [bad]
     assert "Failed to parse bracketed JSON candidate" in caplog.text
 
 
+def test_get_evolution_overlay_logs_store_failures(tmp_path: Path, caplog, monkeypatch) -> None:
+    import researchclaw.evolution as evolution
+
+    class BrokenEvolutionStore:
+        def __init__(self, _path: Path) -> None:
+            pass
+
+        def build_overlay(self, *_args, **_kwargs) -> str:
+            raise RuntimeError("overlay failed")
+
+    monkeypatch.setattr(evolution, "EvolutionStore", BrokenEvolutionStore)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        overlay = _helpers._get_evolution_overlay(tmp_path, "stage-test")
+
+    assert overlay == ""
+    assert "Failed to build evolution lesson overlay" in caplog.text
+
+
+def test_get_evolution_overlay_logs_skill_registry_failures(caplog, monkeypatch) -> None:
+    def broken_registry(_config=None):
+        raise RuntimeError("registry failed")
+
+    monkeypatch.setattr(_helpers, "_get_skill_registry", broken_registry)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        overlay = _helpers._get_evolution_overlay(None, "stage-test", topic="topic")
+
+    assert overlay == ""
+    assert "Failed to build matched skill overlay" in caplog.text
+
+
+def test_build_context_preamble_logs_unreadable_hitl_guidance(
+    tmp_path: Path, caplog, monkeypatch
+) -> None:
+    rc_config = SimpleNamespace(
+        research=SimpleNamespace(topic="test-driven science", domains=[]),
+    )
+    run_dir = tmp_path
+    guidance = run_dir / "stage-99" / "hitl_guidance.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_text("human guidance", encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def fail_guidance_read(self: Path, *args, **kwargs):
+        if self == guidance:
+            raise OSError("guidance unavailable")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_guidance_read)
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        text = _helpers._build_context_preamble(rc_config, run_dir)
+
+    assert "## Research Context" in text
+    assert "Failed to read HITL guidance" in caplog.text
+
+
 def test_collect_experiment_results_summarizes_and_selects_best(
     tmp_path: Path,
 ) -> None:
@@ -125,6 +185,42 @@ def test_collect_experiment_results_summarizes_and_selects_best(
     assert result["metrics_summary"]["accuracy"]["count"] == 2
     assert result["best_run"]["metrics"]["accuracy"] == pytest.approx(0.9)
     assert "accuracy & 0.8000 & 0.9000 & 0.8500 & 2" in result["latex_table"]
+
+
+def test_collect_experiment_results_logs_malformed_structured_results(
+    tmp_path: Path, caplog
+) -> None:
+    runs_dir = tmp_path / "stage-14" / "runs"
+    runs_dir.mkdir(parents=True)
+    (runs_dir / "results.json").write_text("{bad json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        result = _helpers._collect_experiment_results(tmp_path)
+
+    assert result["runs"] == []
+    assert "Failed to load structured experiment results" in caplog.text
+
+
+def test_collect_experiment_results_logs_non_numeric_metric_values(
+    tmp_path: Path, caplog
+) -> None:
+    runs_dir = tmp_path / "stage-14" / "runs"
+    runs_dir.mkdir(parents=True)
+    (runs_dir / "a.json").write_text(
+        json.dumps({"metrics": {"accuracy": "n/a", "loss": "bad"}}),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+        result = _helpers._collect_experiment_results(
+            tmp_path,
+            metric_key="accuracy",
+        )
+
+    assert result["metrics_summary"] == {}
+    assert result["best_run"]["metrics"]["accuracy"] == "n/a"
+    assert "Skipping non-numeric experiment metric" in caplog.text
+    assert "Skipping non-numeric primary experiment metric" in caplog.text
 
 
 def test_extract_paper_title_strips_outer_fence_and_title_prefix() -> None:

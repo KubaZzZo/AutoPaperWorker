@@ -777,8 +777,13 @@ def _get_evolution_overlay(
             )
             if evo_overlay:
                 parts.append(evo_overlay)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "Failed to build evolution lesson overlay for stage %s: %s",
+                stage_name,
+                exc,
+                exc_info=True,
+            )
 
     # --- Section 2: Matched skills from SkillRegistry ---
     try:
@@ -789,8 +794,13 @@ def _get_evolution_overlay(
             skills_text = registry.export_for_prompt(matched, max_chars=4000)
             if skills_text:
                 parts.append(f"\n## Matched Domain Skills\n{skills_text}")
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(
+            "Failed to build matched skill overlay for stage %s: %s",
+            stage_name,
+            exc,
+            exc_info=True,
+        )
 
     return "\n".join(parts)
 
@@ -856,8 +866,13 @@ def _collect_experiment_results(
                 structured_results = json.loads(
                     results_json.read_text(encoding="utf-8")
                 )
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug(
+                    "Failed to load structured experiment results from %s: %s",
+                    results_json,
+                    exc,
+                    exc_info=True,
+                )
 
         for run_file in sorted(stage_subdir.glob("*.json")):
             if run_file.name == "results.json":
@@ -896,8 +911,14 @@ def _collect_experiment_results(
                     _fv = float(m[key])
                     if _fv == _fv and abs(_fv) != float("inf"):  # filter NaN/Inf
                         values.append(_fv)
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as exc:
+                    logger.debug(
+                        "Skipping non-numeric experiment metric %s=%r: %s",
+                        key,
+                        m[key],
+                        exc,
+                        exc_info=True,
+                    )
         if values:
             metrics_summary[key] = {
                 "min": round(min(values), 6),
@@ -917,14 +938,25 @@ def _collect_experiment_results(
                 if metric_key and metric_key in m:
                     try:
                         return float(m[metric_key])
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as exc:
+                        logger.debug(
+                            "Skipping non-numeric primary experiment metric %s=%r: %s",
+                            metric_key,
+                            m[metric_key],
+                            exc,
+                            exc_info=True,
+                        )
                 # Fallback to first metric
                 for v in m.values():
                     try:
                         return float(v)
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as exc:
+                        logger.debug(
+                            "Skipping non-numeric fallback experiment metric value %r: %s",
+                            v,
+                            exc,
+                            exc_info=True,
+                        )
             return 0.0
 
         _cmp = min if metric_direction == "minimize" else max
@@ -1050,8 +1082,13 @@ def _build_context_preamble(
                 parts.append(
                     f"\n### Human Guidance ({stage_name})\n{guidance[:1000]}"
                 )
-        except (OSError, UnicodeDecodeError):
-            pass
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.debug(
+                "Failed to read HITL guidance from %s: %s",
+                stage_dir,
+                exc,
+                exc_info=True,
+            )
     return "\n".join(parts)
 
 
@@ -1136,8 +1173,14 @@ def _detect_runtime_issues(sandbox_result: Any) -> str:
                 issues.append(f"METRIC NaN: '{key}' returned NaN — likely a division by zero or invalid computation in code")
             elif math.isinf(fval):
                 issues.append(f"METRIC Inf: '{key}' returned Infinity — likely overflow or unbounded computation")
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as exc:
+            logger.debug(
+                "Skipping non-numeric sandbox metric while detecting runtime issues %s=%r: %s",
+                key,
+                val,
+                exc,
+                exc_info=True,
+            )
 
     # Check stdout for NaN values (word boundary to avoid matching "Nanotechnology" etc.)
     stdout = getattr(sandbox_result, "stdout", "") or ""
@@ -1198,7 +1241,14 @@ def _detect_runtime_issues(sandbox_result: Any) -> str:
                 continue
             try:
                 fval = float(parts[1].strip())
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as exc:
+                logger.debug(
+                    "Skipping non-numeric stdout metric while detecting dummy metrics %s=%r: %s",
+                    parts[0].strip(),
+                    parts[1].strip(),
+                    exc,
+                    exc_info=True,
+                )
                 continue
             # Extract metric suffix (e.g. "convergence_rate" from "UCB (Stochastic) convergence_rate")
             name = parts[0].strip()
@@ -1225,8 +1275,14 @@ def _detect_runtime_issues(sandbox_result: Any) -> str:
                     f"diverging. Reduce learning rate, check gradient computation, "
                     f"or add gradient clipping."
                 )
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as exc:
+            logger.debug(
+                "Skipping non-numeric loss metric while detecting divergence %s=%r: %s",
+                key,
+                val,
+                exc,
+                exc_info=True,
+            )
 
     if not issues:
         return ""

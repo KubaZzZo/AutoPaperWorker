@@ -180,6 +180,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Shared pipeline helpers now log failed direct/fenced/bracketed JSON parse attempts and non-numeric stdout metric skips at debug level while preserving fallback parsing behavior.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Shared pipeline helper overlays, experiment result aggregation, HITL guidance injection, and runtime issue detection now log overlay failures, malformed structured results, non-numeric metrics, unreadable guidance, and runtime parsing skips with debug exception context. `researchclaw/pipeline/_helpers.py` no longer contains pure `except: pass` handlers.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

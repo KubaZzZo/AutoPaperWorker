@@ -1682,6 +1682,20 @@ class TestDetectRuntimeIssues:
         result = rc_executor._detect_runtime_issues(r)
         assert "DUMMY" not in result
 
+    def test_logs_non_numeric_runtime_issue_metrics(self, caplog) -> None:
+        r = self._make_sandbox_result(
+            metrics={"loss": "not-a-number"},
+            stdout="accuracy: not-a-number\nloss: not-a-number\n",
+        )
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline._helpers"):
+            result = rc_executor._detect_runtime_issues(r)
+
+        assert result == ""
+        assert "Skipping non-numeric sandbox metric while detecting runtime issues" in caplog.text
+        assert "Skipping non-numeric stdout metric while detecting dummy metrics" in caplog.text
+        assert "Skipping non-numeric loss metric while detecting divergence" in caplog.text
+
 
 class TestRemoveBibtexEntries:
     """Tests for _remove_bibtex_entries() helper."""
