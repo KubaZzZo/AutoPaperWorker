@@ -336,6 +336,26 @@ def test_docker_run_success(mock_run, tmp_path: Path):
 
 
 @patch("subprocess.run")
+def test_docker_run_preserves_undecodable_output_bytes(mock_run, tmp_path: Path):
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["docker", "run"],
+        returncode=0,
+        stdout=b"metric: 0.5\nraw:\xff\n",
+        stderr=b"warn:\xfe\n",
+    )
+    cfg = DockerSandboxConfig(network_policy="none")
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    result = sandbox.run("print('hello')", timeout_sec=60)
+
+    assert "\ufffd" not in result.stdout
+    assert "\ufffd" not in result.stderr
+    assert "\udcff" in result.stdout
+    assert "\udcfe" in result.stderr
+    assert result.metrics.get("metric") == 0.5
+
+
+@patch("subprocess.run")
 def test_docker_run_timeout(mock_run, tmp_path: Path):
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="docker run", timeout=10)
     cfg = DockerSandboxConfig(network_policy="none")
@@ -347,6 +367,26 @@ def test_docker_run_timeout(mock_run, tmp_path: Path):
 
 
 # ── Dep detection ─────────────────────────────────────────────────────
+
+
+@patch("subprocess.run")
+def test_docker_timeout_preserves_undecodable_output_bytes(mock_run, tmp_path: Path):
+    mock_run.side_effect = subprocess.TimeoutExpired(
+        cmd="docker run",
+        timeout=10,
+        output=b"partial:\xff\n",
+        stderr=b"warning:\xfe\n",
+    )
+    cfg = DockerSandboxConfig(network_policy="none")
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    result = sandbox.run("import time; time.sleep(999)", timeout_sec=10)
+
+    assert result.timed_out is True
+    assert "\ufffd" not in result.stdout
+    assert "\ufffd" not in result.stderr
+    assert "\udcff" in result.stdout
+    assert "\udcfe" in result.stderr
 
 
 def test_detect_pip_packages(tmp_path: Path):

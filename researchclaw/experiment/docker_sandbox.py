@@ -43,6 +43,14 @@ def _next_container_name() -> str:
         _CONTAINER_COUNTER += 1
         return f"rc-exp-{_CONTAINER_COUNTER}-{os.getpid()}"
 
+def _decode_subprocess_output(value: bytes | str | None) -> str:
+    """Decode subprocess output while preserving undecodable bytes."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="surrogateescape")
+    return value
+
 
 # Packages already in the Docker image — skip during auto-detect.
 _BUILTIN_PACKAGES = {
@@ -351,24 +359,17 @@ class DockerSandbox:
             completed = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
                 timeout=timeout_sec,
                 check=False,
             )
-            stdout = completed.stdout
-            stderr = completed.stderr
+            stdout = _decode_subprocess_output(completed.stdout)
+            stderr = _decode_subprocess_output(completed.stderr)
             returncode = completed.returncode
             elapsed = time.monotonic() - start
         except subprocess.TimeoutExpired as exc:
             timed_out = True
-            stdout = exc.stdout or ""
-            stderr = exc.stderr or ""
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode("utf-8", errors="replace")
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode("utf-8", errors="replace")
+            stdout = _decode_subprocess_output(exc.stdout)
+            stderr = _decode_subprocess_output(exc.stderr)
             returncode = -1
             # Force-kill the container on timeout
             self._kill_container(container_name)

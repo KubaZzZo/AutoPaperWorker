@@ -339,6 +339,8 @@
 - **建议:** 在 LLM 输出后立即进行 Unicode 规范化 (NFKC)。
 
 #### 38. subprocess 编码错误处理
+<span style="color: green; font-weight: 700;">[FIXED 2026-05-14] Docker sandbox execution now captures subprocess output as bytes and decodes stdout/stderr with UTF-8 `surrogateescape`, preserving undecodable experiment output instead of replacing it with U+FFFD. Timeout output uses the same decoder. Regression tests cover normal completion and timeout paths with invalid UTF-8 bytes while still parsing metrics.</span>
+
 - **文件:** `researchclaw/experiment/docker_sandbox.py:352-354`
 - **问题:** `subprocess.run` 使用 `encoding="utf-8", errors="replace"` 但 stdout/stderr 可能包含混合编码（实验脚本可能打印非 UTF-8 内容）。
 - **建议:** 使用 `surrogateescape` 错误处理器保留原始字节。
