@@ -1014,6 +1014,15 @@ def test_read_pivot_count_returns_zero_for_no_history(run_dir: Path) -> None:
     assert rc_runner._read_pivot_count(run_dir) == 0
 
 
+def test_read_pivot_count_logs_malformed_history(run_dir: Path, caplog) -> None:
+    (run_dir / "decision_history.json").write_text("{bad json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+        assert rc_runner._read_pivot_count(run_dir) == 0
+
+    assert "Failed to read decision history pivot count" in caplog.text
+
+
 def test_record_decision_history_appends(run_dir: Path) -> None:
     rc_runner._record_decision_history(run_dir, "pivot", Stage.HYPOTHESIS_GEN, 1)
     rc_runner._record_decision_history(run_dir, "refine", Stage.ITERATIVE_REFINE, 2)
@@ -1021,6 +1030,28 @@ def test_record_decision_history_appends(run_dir: Path) -> None:
     assert len(history) == 2
     assert history[0]["decision"] == "pivot"
     assert history[1]["decision"] == "refine"
+
+
+def test_record_decision_history_logs_and_resets_malformed_history(run_dir: Path, caplog) -> None:
+    (run_dir / "decision_history.json").write_text("{bad json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+        rc_runner._record_decision_history(run_dir, "pivot", Stage.HYPOTHESIS_GEN, 1)
+
+    history = json.loads((run_dir / "decision_history.json").read_text())
+    assert len(history) == 1
+    assert "Failed to read existing decision history from" in caplog.text
+
+
+def test_read_quality_score_logs_malformed_report(run_dir: Path, caplog) -> None:
+    stage_dir = run_dir / "stage-20"
+    stage_dir.mkdir()
+    (stage_dir / "quality_report.json").write_text("{bad json", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+        assert rc_runner._read_quality_score(run_dir) is None
+
+    assert "Failed to read quality score from" in caplog.text
 
 
 # ── Deliverables packaging tests ──

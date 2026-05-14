@@ -153,6 +153,22 @@ class TestContentMetrics:
         assert metrics["verified_citations"] == 0
         assert metrics["citation_verify_score"] is None
 
+    def test_logs_unreadable_draft_and_malformed_verification(self, tmp_path: Path, caplog):
+        draft_dir = tmp_path / "stage-17"
+        draft_dir.mkdir()
+        (draft_dir / "paper_draft.md").write_bytes(b"\xff")
+        verify_dir = tmp_path / "stage-23"
+        verify_dir.mkdir()
+        (verify_dir / "verification_report.json").write_text("{bad json", encoding="utf-8")
+
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.runner"):
+            metrics = _collect_content_metrics(tmp_path)
+
+        assert metrics["template_ratio"] is None
+        assert metrics["citation_verify_score"] is None
+        assert "Failed to collect template ratio from" in caplog.text
+        assert "Failed to collect citation verification metrics from" in caplog.text
+
     def test_summary_includes_content_metrics(self, tmp_path: Path):
         results = [
             StageResult(

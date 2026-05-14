@@ -194,6 +194,8 @@
 
 <span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] OpenCode bridge entry-point repair and historical failure counting now log generated `main.py` syntax parse failures plus malformed or unreadable beast-mode, stage-health, and validation-history artifacts. `researchclaw/pipeline/opencode_bridge.py` no longer contains pure `except: pass` handlers.</span>
 
+<span style="color: green; font-weight: 700;">[PARTIAL FIX 2026-05-14] Pipeline runner content metrics, pivot-history reads, decision-history appends, and quality-score reads now log malformed or unreadable optional artifacts with debug exception context while preserving fallback behavior.</span>
+
 - **文件:** 约 50+ 处 (搜索 `# noqa: BLE001`)
 - **问题:** 静默吞下异常可能隐藏安全关键错误。
 - **建议:** 审查每个实例，至少记录日志，缩小异常类型。

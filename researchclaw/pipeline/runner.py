@@ -525,8 +525,13 @@ def _collect_content_metrics(run_dir: Path | None) -> dict[str, object]:
             OSError,
             ValueError,
             TypeError,
-        ):
-            pass
+        ) as exc:
+            logger.debug(
+                "Failed to collect template ratio from %s: %s",
+                draft_path,
+                exc,
+                exc_info=True,
+            )
 
     verify_path = run_dir / "stage-23" / "verification_report.json"
     if verify_path.exists():
@@ -545,8 +550,13 @@ def _collect_content_metrics(run_dir: Path | None) -> dict[str, object]:
                         metrics["citation_verify_score"] = round(
                             verified_num / total_num, 4
                         )
-        except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            pass
+        except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
+            logger.debug(
+                "Failed to collect citation verification metrics from %s: %s",
+                verify_path,
+                exc,
+                exc_info=True,
+            )
 
     return metrics
 
@@ -1849,8 +1859,13 @@ def _read_pivot_count(run_dir: Path) -> int:
         data = json.loads(history_path.read_text(encoding="utf-8"))
         if isinstance(data, list):
             return len(data)
-    except (json.JSONDecodeError, OSError):
-        pass
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.debug(
+            "Failed to read decision history pivot count from %s: %s",
+            history_path,
+            exc,
+            exc_info=True,
+        )
     return 0
 
 
@@ -1865,8 +1880,13 @@ def _record_decision_history(
             data = json.loads(history_path.read_text(encoding="utf-8"))
             if isinstance(data, list):
                 history = data
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug(
+                "Failed to read existing decision history from %s: %s",
+                history_path,
+                exc,
+                exc_info=True,
+            )
     history.append({
         "decision": decision,
         "rollback_target": rollback_target.name,
@@ -1892,8 +1912,13 @@ def _read_quality_score(run_dir: Path) -> float | None:
             for key in ("score_1_to_10", "score", "quality_score", "overall_score"):
                 if key in data:
                     return float(data[key])
-    except (json.JSONDecodeError, ValueError, TypeError):
-        pass
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        logger.debug(
+            "Failed to read quality score from %s: %s",
+            report_path,
+            exc,
+            exc_info=True,
+        )
     return None
 
 
