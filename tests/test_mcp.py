@@ -81,6 +81,32 @@ class TestMCPServer:
         result = asyncio.run(server.handle_tool_call("run_pipeline", {"topic": "GNN"}))
         assert result["success"] is True
         assert "GNN" in result["message"]
+        assert not result["run_id"].startswith("mcp-stub-")
+
+    def test_handle_run_pipeline_creates_trackable_run(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+
+        server = ResearchClawMCPServer()
+        result = asyncio.run(
+            server.handle_tool_call("run_pipeline", {"topic": "Graph Neural Networks"})
+        )
+
+        run_dir = tmp_path / "artifacts" / result["run_id"]
+        checkpoint = json.loads((run_dir / "checkpoint.json").read_text(encoding="utf-8"))
+        progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+
+        assert result["success"] is True
+        assert result["status"] == "queued"
+        assert result["output_dir"] == str(run_dir)
+        assert checkpoint["topic"] == "Graph Neural Networks"
+        assert checkpoint["status"] == "queued"
+        assert progress["run_id"] == result["run_id"]
+
+        status = asyncio.run(
+            server.handle_tool_call("get_pipeline_status", {"run_id": result["run_id"]})
+        )
+        assert status["success"] is True
+        assert status["checkpoint"]["status"] == "queued"
 
     def test_handle_get_status_missing_run(self) -> None:
         server = ResearchClawMCPServer()

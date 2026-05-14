@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -81,13 +83,53 @@ class ResearchClawMCPServer:
             return {"error": str(exc), "success": False}
 
     async def _handle_run_pipeline(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Start a pipeline run."""
-        topic = args["topic"]
-        # In production, this would invoke the full pipeline asynchronously
+        """Create a trackable pipeline run request."""
+        topic = str(args["topic"]).strip()
+        if not topic:
+            return {"success": False, "error": "Topic must not be empty"}
+        now = datetime.now(timezone.utc)
+        topic_hash = sha256(topic.encode("utf-8")).hexdigest()[:6]
+        run_id = f"rc-{now.strftime('%Y%m%d-%H%M%S')}-{topic_hash}"
+        run_dir = _validated_run_dir(run_id)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint = {
+            "run_id": run_id,
+            "topic": topic,
+            "status": "queued",
+            "stage": 0,
+            "stage_name": "MCP_REQUEST_QUEUED",
+            "start_time": now.isoformat(),
+            "config_path": args.get("config_path", ""),
+            "auto_approve": bool(args.get("auto_approve", False)),
+        }
+        progress = {
+            "run_id": run_id,
+            "status": "queued",
+            "current_stage": 0,
+            "current_stage_name": "MCP_REQUEST_QUEUED",
+            "total_stages": 23,
+            "elapsed_sec": 0.0,
+            "stages_done": 0,
+            "stages_failed": 0,
+            "stages_paused": 0,
+            "stages_blocked": 0,
+            "cost_usd": 0.0,
+            "updated_at": now.isoformat(),
+        }
+        (run_dir / "checkpoint.json").write_text(
+            json.dumps(checkpoint, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        (run_dir / "progress.json").write_text(
+            json.dumps(progress, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
         return {
             "success": True,
-            "message": f"Pipeline started for topic: {topic}",
-            "run_id": f"mcp-stub-{topic[:20]}",
+            "message": f"Pipeline request queued for topic: {topic}",
+            "run_id": run_id,
+            "status": "queued",
+            "output_dir": str(run_dir.resolve()),
         }
 
     async def _handle_get_status(self, args: dict[str, Any]) -> dict[str, Any]:
