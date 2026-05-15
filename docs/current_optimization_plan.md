@@ -81,6 +81,14 @@ The second optimization round is complete. The implemented slices are:
      aggregation moved from pipeline `_helpers.py` into
      `researchclaw/pipeline/experiment_results.py` while preserving legacy
      helper wrappers and diagnostics.
+   - Phase 3.15 planned: extract a cohesive execution repair workflow from
+     `researchclaw/pipeline/stage_impls/_execution.py`.
+   - Phase 3.16 planned: extract one review/publish quality, citation, or
+     packaging workflow from
+     `researchclaw/pipeline/stage_impls/_review_publish.py`.
+   - Phase 3.17 planned: extract one well-covered writing or code-generation
+     workflow from `_paper_writing.py` or `_code_generation.py`.
+   - Tracking plan: `docs/stage_impls_refactor_plan.md`.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
