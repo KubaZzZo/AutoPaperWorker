@@ -20,6 +20,12 @@ from researchclaw.pipeline.code_blocks import (
     extract_code_block as _extract_code_block_impl,
     extract_multi_file_blocks as _extract_multi_file_blocks_impl,
 )
+from researchclaw.pipeline.parsing import (
+    extract_yaml_block as _extract_yaml_block_impl,
+    parse_jsonl_rows as _parse_jsonl_rows_impl,
+    safe_json_loads as _safe_json_loads_impl,
+    write_jsonl as _write_jsonl_impl,
+)
 from researchclaw.pipeline.stages import (
     NEXT_STAGE,
     Stage,
@@ -381,52 +387,7 @@ def _extract_yaml_block(text: str) -> str:
     Strips [thinking] blocks, insight blocks, and other ACP artifacts
     before looking for YAML in markdown fences or raw text.
     """
-    # Strip ACP noise: [thinking]..., insight blocks, [plan]...
-    cleaned = re.sub(
-        r"\[thinking\].*?(?=\n```|\n[A-Z]|\Z)",
-        "", text, flags=re.DOTALL,
-    )
-    cleaned = re.sub(r"\[plan\].*?\n\n", "", cleaned, flags=re.DOTALL)
-
-    # Try markdown fences first (most reliable) — on cleaned text
-    if "```yaml" in cleaned:
-        return cleaned.split("```yaml", 1)[1].split("```", 1)[0].strip()
-    if "```yml" in cleaned:
-        return cleaned.split("```yml", 1)[1].split("```", 1)[0].strip()
-    if "```" in cleaned:
-        block = cleaned.split("```", 1)[1].split("```", 1)[0].strip()
-        if block:
-            return block
-
-    # Try the original text too (in case cleaning removed too much)
-    if "```yaml" in text:
-        return text.split("```yaml", 1)[1].split("```", 1)[0].strip()
-    if "```yml" in text:
-        return text.split("```yml", 1)[1].split("```", 1)[0].strip()
-    if "```" in text:
-        block = text.split("```", 1)[1].split("```", 1)[0].strip()
-        if block:
-            return block
-
-    # Last resort: try to find YAML-like content (lines starting with key:)
-    yaml_lines: list[str] = []
-    in_yaml = False
-    for line in cleaned.splitlines():
-        stripped = line.strip()
-        if not in_yaml and re.match(r"^[a-z_]+:", stripped):
-            in_yaml = True
-        if in_yaml:
-            if stripped and not stripped.startswith("#"):
-                yaml_lines.append(line)
-            elif not stripped and yaml_lines:
-                yaml_lines.append(line)
-    if yaml_lines:
-        return "\n".join(yaml_lines).strip()
-
-    return text.strip()
-
-
-_JSON_FENCE_PATTERN = re.compile(r"```(?:json)?\s*\n(.*?)```", re.DOTALL)
+    return _extract_yaml_block_impl(text)
 
 
 def _safe_json_loads(text: str, default: Any) -> Any:
@@ -435,81 +396,7 @@ def _safe_json_loads(text: str, default: Any) -> Any:
     Tries multiple strategies: direct parse, markdown fence extraction,
     balanced brace matching (largest dict wins), and array brackets.
     """
-    if not text or not text.strip():
-        return default
-
-    # Strategy 1: Direct parse
-    try:
-        return json.loads(text)
-    except (json.JSONDecodeError, ValueError, RecursionError) as exc:
-        logger.debug(
-            "Failed to parse JSON directly from LLM text: %s",
-            exc,
-            exc_info=True,
-        )
-
-    # Strategy 2: Find JSON in markdown code fences
-    for match in _JSON_FENCE_PATTERN.finditer(text):
-        candidate = match.group(1).strip()
-        try:
-            return json.loads(candidate)
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.debug(
-                "Failed to parse fenced JSON candidate: %s",
-                exc,
-                exc_info=True,
-            )
-            continue
-
-    # Strategy 3: Find outermost balanced braces
-    brace_depth = 0
-    start = -1
-    candidates: list[str] = []
-    for i, ch in enumerate(text):
-        if ch == "{":
-            if brace_depth == 0:
-                start = i
-            brace_depth += 1
-        elif ch == "}":
-            brace_depth -= 1
-            if brace_depth == 0 and start >= 0:
-                candidates.append(text[start : i + 1])
-                start = -1
-
-    # Try candidates from largest to smallest
-    candidates.sort(key=len, reverse=True)
-    for candidate in candidates:
-        try:
-            parsed = json.loads(candidate)
-            if isinstance(parsed, dict):
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            continue
-
-    # Strategy 4: Same for array [ ]
-    bracket_depth = 0
-    start = -1
-    for i, ch in enumerate(text):
-        if ch == "[":
-            if bracket_depth == 0:
-                start = i
-            bracket_depth += 1
-        elif ch == "]":
-            bracket_depth -= 1
-            if bracket_depth == 0 and start >= 0:
-                try:
-                    parsed = json.loads(text[start : i + 1])
-                    if isinstance(parsed, list):
-                        return parsed
-                except (json.JSONDecodeError, ValueError) as exc:
-                    logger.debug(
-                        "Failed to parse bracketed JSON candidate: %s",
-                        exc,
-                        exc_info=True,
-                    )
-                start = -1
-
-    return default
+    return _safe_json_loads_impl(text, default)
 
 
 def _extract_code_block(content: str) -> str:
@@ -540,27 +427,18 @@ def _extract_multi_file_blocks(content: str) -> dict[str, str]:
     Falls back to treating the entire code block as ``main.py`` if no
     ``filename:`` markers are found.
 
-    Returns a dict mapping filename → code content.
+    Returns a dict mapping filename to code content.
     """
     return _extract_multi_file_blocks_impl(content)
 
 
 def _parse_jsonl_rows(text: str) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parsed = _safe_json_loads(line, {})
-        if isinstance(parsed, dict):
-            rows.append(parsed)
-    return rows
+    return _parse_jsonl_rows_impl(text)
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    _write_jsonl_impl(path, rows)
+
 
 
 # BUG-173: regex for condition=name metric=value format

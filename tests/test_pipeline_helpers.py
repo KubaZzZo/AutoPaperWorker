@@ -12,6 +12,11 @@ from researchclaw.pipeline.code_blocks import (
     extract_code_block,
     extract_multi_file_blocks,
 )
+from researchclaw.pipeline.parsing import (
+    extract_yaml_block,
+    parse_jsonl_rows,
+    safe_json_loads,
+)
 
 
 def test_extract_code_block_prefers_fenced_python() -> None:
@@ -123,6 +128,16 @@ trailing [bad]
     assert "Failed to parse JSON directly from LLM text" in caplog.text
     assert "Failed to parse fenced JSON candidate" in caplog.text
     assert "Failed to parse bracketed JSON candidate" in caplog.text
+
+
+def test_parsing_module_matches_legacy_helper_exports() -> None:
+    noisy_yaml = "before\n```yaml\na: 1\n```\nafter"
+    noisy_json = "prefix\n```json\n{\"ok\": true}\n```"
+    jsonl = '{"a": 1}\nnot json\n{"b": 2}\n'
+
+    assert extract_yaml_block(noisy_yaml) == _helpers._extract_yaml_block(noisy_yaml)
+    assert safe_json_loads(noisy_json, {}) == _helpers._safe_json_loads(noisy_json, {})
+    assert parse_jsonl_rows(jsonl) == _helpers._parse_jsonl_rows(jsonl)
 
 
 def test_get_evolution_overlay_logs_store_failures(tmp_path: Path, caplog, monkeypatch) -> None:

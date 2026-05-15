@@ -65,6 +65,9 @@ The second optimization round is complete. The implemented slices are:
    - Phase 3.9 marker: LLM code block extraction moved from pipeline
      `_helpers.py` into `researchclaw/pipeline/code_blocks.py` while keeping
      legacy helper exports compatible.
+   - Phase 3.10 marker: YAML, noisy JSON, and JSONL parsing helpers moved from
+     pipeline `_helpers.py` into `researchclaw/pipeline/parsing.py` while
+     preserving legacy helper wrappers.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
@@ -191,6 +194,11 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/code_blocks.py`, with `_helpers` keeping legacy
      private helper wrappers for existing stage callers.
      Marker: Phase 3.9 implemented.
+   - 2026-05-15 slice: YAML block extraction, noisy JSON parsing, and JSONL
+     row I/O moved from `researchclaw/pipeline/_helpers.py` into
+     `researchclaw/pipeline/parsing.py`, while `_helpers` keeps compatible
+     private wrappers and the historical logger name for parse diagnostics.
+     Marker: Phase 3.10 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
