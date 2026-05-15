@@ -17,6 +17,7 @@ from researchclaw.pipeline.parsing import (
     parse_jsonl_rows,
     safe_json_loads,
 )
+from researchclaw.pipeline.runtime_issues import detect_runtime_issues
 from researchclaw.pipeline.topic_utils import (
     build_fallback_queries,
     extract_topic_keywords,
@@ -154,6 +155,18 @@ def test_topic_utils_module_matches_legacy_helper_exports() -> None:
         domains=("ml",),
     )
     assert topic_constraint_block(topic) == _helpers._topic_constraint_block(topic)
+
+
+def test_runtime_issues_module_matches_legacy_helper_exports() -> None:
+    sandbox_result = SimpleNamespace(
+        metrics={"loss": float("nan")},
+        stdout="accuracy: nan\n",
+        stderr="RuntimeWarning: invalid value encountered in divide\n",
+    )
+
+    assert detect_runtime_issues(sandbox_result) == _helpers._detect_runtime_issues(
+        sandbox_result
+    )
 
 
 def test_get_evolution_overlay_logs_store_failures(tmp_path: Path, caplog, monkeypatch) -> None:
