@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -19,6 +20,30 @@ def test_event_log_roundtrip(tmp_path: Path) -> None:
     assert payload["type"] == "pipeline_start"
     assert payload["run_id"] == "run-1"
     assert payload["stages"] == 23
+
+
+def test_pipeline_and_experiment_library_paths_do_not_call_print_directly() -> None:
+    """Library execution paths should use logging or injectable output hooks."""
+    roots = [
+        Path("researchclaw/pipeline"),
+        Path("researchclaw/experiment"),
+    ]
+
+    offenders: list[str] = []
+    for root in roots:
+        for path in sorted(root.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "print"
+                ):
+                    offenders.append(f"{path}:{node.lineno}")
+
+    assert offenders == []
 
 
 def test_cost_tracker_budget_check_and_logging(tmp_path: Path) -> None:

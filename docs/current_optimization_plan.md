@@ -39,7 +39,8 @@ The second optimization round is complete. The implemented slices are:
 
 1. **Template converter extraction**
    - `researchclaw/templates/converter.py` is down from its previous size but
-     still owns document assembly and legacy compatibility exports.
+     now mainly owns the public compatibility entry point and legacy helper
+     exports.
    - Continue extracting narrow helpers only when legacy behavior can be pinned
      with tests.
    - Phase 3.1 marker: figure rendering extraction implemented 2026-05-15.
@@ -63,11 +64,12 @@ The second optimization round is complete. The implemented slices are:
      extracting isolated pass-through helpers.
 
 3. **Runtime noise cleanup**
-   - Remaining `print()` usage in pipeline and experiment modules is mostly
-     intentional generated-code guidance, sandbox metric output, or worker
-     template status output.
-   - Future slices should keep CLI-visible behavior explicit while making
-     library and worker paths injectable where useful.
+   - Phase 3.8 marker: pipeline and experiment library paths now have an AST
+     guard against direct `print()` calls; the experiment harness keeps metric
+     output explicit through stdout/stderr writer hooks.
+   - Remaining `print()` usage is limited to CLI, HITL/TUI, wizard, health
+     report, tests, or generated code/template strings where terminal-visible
+     behavior is intentional.
 
 4. **Optional backend hardening**
    - SQLite run-state is available as an injectable adapter. Redis or other
@@ -104,6 +106,11 @@ The second optimization round is complete. The implemented slices are:
    - 2026-05-14 slice: experiment harness metric/warning output can now be
      injected for quieter library tests while preserving default stdout/stderr
      sandbox behavior.
+   - 2026-05-15 slice: experiment harness default metric/warning output now
+     uses explicit stdout/stderr writer hooks instead of direct `print()`, and
+     an AST regression guard prevents direct `print()` calls from returning to
+     pipeline and experiment library paths.
+     Marker: Phase 3.8 implemented.
 
 3. **Large-module reduction**
    - `researchclaw/pipeline/runner.py` and

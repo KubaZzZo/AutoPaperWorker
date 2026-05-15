@@ -21,6 +21,14 @@ from collections.abc import Callable
 TextOutput = Callable[[str], None]
 
 
+def _write_stdout(message: str) -> None:
+    sys.stdout.write(f"{message}\n")
+
+
+def _write_stderr(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
+
+
 class ExperimentHarness:
     """Immutable experiment infrastructure for time and metric management."""
 
@@ -37,10 +45,8 @@ class ExperimentHarness:
         self._partial_results: list[dict[str, object]] = []
         self._step_count = 0
         self._nan_count = 0
-        self._output = output or print
-        self._error_output = error_output or (
-            lambda message: print(message, file=sys.stderr)
-        )
+        self._output = output or _write_stdout
+        self._error_output = error_output or _write_stderr
 
     @property
     def elapsed(self) -> float:
