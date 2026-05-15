@@ -26,6 +26,11 @@ from researchclaw.pipeline.parsing import (
     safe_json_loads as _safe_json_loads_impl,
     write_jsonl as _write_jsonl_impl,
 )
+from researchclaw.pipeline.topic_utils import (
+    build_fallback_queries as _build_fallback_queries_impl,
+    extract_topic_keywords as _extract_topic_keywords_impl,
+    topic_constraint_block as _topic_constraint_block_impl,
+)
 from researchclaw.pipeline.stages import (
     NEXT_STAGE,
     Stage,
@@ -158,67 +163,7 @@ def _build_fallback_queries(topic: str) -> list[str]:
     and returns garbage from search engines), extract noun phrases and
     domain keywords. Returns 5-10 targeted queries.
     """
-    # Split on common delimiters and extract meaningful chunks
-    chunks = re.split(r"[,:;()\[\]]+", topic)
-    chunks = [c.strip() for c in chunks if len(c.strip()) > 8]
-    cleaned_chunks = []
-    for c in chunks:
-        c = re.sub(
-            r"^(and|or|the|a|an|in|of|for|with|across|multiple|three|various)\s+",
-            "", c, flags=re.IGNORECASE,
-        )
-        c = c.strip()
-        if len(c) > 8:
-            cleaned_chunks.append(c)
-    chunks = cleaned_chunks
-
-    # Extract key terms (words that look like domain terms, not stopwords)
-    _stop = {
-        "the", "and", "for", "with", "from", "that", "this", "into",
-        "over", "across", "multiple", "three", "result", "comprehensive",
-        "using", "based", "between", "various", "different", "several",
-        "parameter", "parameters", "analysis", "approach", "method",
-        "framework", "frameworks",
-    }
-    words = topic.lower().split()
-    key_terms = [w for w in words if len(w) > 3 and w not in _stop]
-
-    queries: list[str] = []
-
-    # Strategy 1: Use meaningful chunks (up to 60 chars each)
-    for chunk in chunks[:4]:
-        if len(chunk) > 60:
-            chunk = " ".join(chunk.split()[:6])
-        if chunk and chunk not in queries:
-            queries.append(chunk)
-
-    # Strategy 2: Bigrams of key terms
-    clean_terms = [t for t in key_terms if re.match(r"^[a-z]", t) and ":" not in t]
-    for i in range(min(len(clean_terms) - 1, 4)):
-        bigram = f"{clean_terms[i]} {clean_terms[i + 1]}"
-        if bigram not in queries:
-            queries.append(bigram)
-
-    # Deduplicate preserving order
-    seen: set[str] = set()
-    unique: list[str] = []
-    for q in queries:
-        q_lower = q.strip().lower()
-        if q_lower and q_lower not in seen:
-            seen.add(q_lower)
-            unique.append(q.strip())
-
-    # Ensure we have at least a few useful queries
-    topic_short = topic[:60].strip()
-    for suffix in ("survey", "review", "benchmark", "state of the art", "recent advances"):
-        if len(unique) >= 5:
-            break
-        candidate = f"{topic_short} {suffix}".strip()
-        if candidate.lower() not in seen:
-            seen.add(candidate.lower())
-            unique.append(candidate)
-
-    return unique[:10]
+    return _build_fallback_queries_impl(topic)
 
 
 # ---------------------------------------------------------------------------
@@ -931,21 +876,7 @@ def _extract_topic_keywords(
     Returns lowercased keyword list (2+ chars, no stop words).
     Used by the domain pre-filter to drop obviously irrelevant papers.
     """
-    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9_-]+", topic.lower())
-    keywords = [t for t in tokens if t not in _STOP_WORDS and len(t) >= 3]
-    # Add domain names as keywords
-    for d in domains:
-        for part in re.findall(r"[a-zA-Z][a-zA-Z0-9_-]+", d.lower()):
-            if part not in _STOP_WORDS and len(part) >= 2:
-                keywords.append(part)
-    # Deduplicate while preserving order
-    seen: set[str] = set()
-    unique: list[str] = []
-    for kw in keywords:
-        if kw not in seen:
-            seen.add(kw)
-            unique.append(kw)
-    return unique
+    return _extract_topic_keywords_impl(topic, domains, stop_words=_STOP_WORDS)
 
 
 # --- P1-2: Topic constraint block for paper generation stages ---
@@ -955,23 +886,7 @@ def _topic_constraint_block(topic: str) -> str:
     Prevents the common LLM failure mode of drifting off-topic or
     presenting environmental/infrastructure issues as research contributions.
     """
-    return (
-        "\n\n=== HARD TOPIC CONSTRAINT ===\n"
-        f"The paper MUST be about: {topic}\n"
-        "PROHIBITED content (unless user explicitly specifies case-study mode):\n"
-        "- Do NOT treat environment setup, dependency installation, or infrastructure "
-        "failures as a research contribution.\n"
-        "- Do NOT present debugging logs, system errors, or configuration issues "
-        "as experimental findings.\n"
-        "- Do NOT drift to tangential topics not directly related to the stated topic.\n"
-        "- Every section MUST connect back to the core research question.\n"
-        "- The Abstract and Introduction MUST clearly state the research problem "
-        f"derived from: {topic}\n"
-        "- The Method section MUST describe a technical approach, not a workflow.\n"
-        "- The Results section MUST report quantitative outcomes of experiments, "
-        "not environment status.\n"
-        "=== END CONSTRAINT ===\n"
-    )
+    return _topic_constraint_block_impl(topic)
 
 
 # ---------------------------------------------------------------------------

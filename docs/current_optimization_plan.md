@@ -68,6 +68,9 @@ The second optimization round is complete. The implemented slices are:
    - Phase 3.10 marker: YAML, noisy JSON, and JSONL parsing helpers moved from
      pipeline `_helpers.py` into `researchclaw/pipeline/parsing.py` while
      preserving legacy helper wrappers.
+   - Phase 3.11 marker: fallback query, topic keyword, and topic constraint
+     helpers moved from pipeline `_helpers.py` into
+     `researchclaw/pipeline/topic_utils.py` while preserving legacy wrappers.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
@@ -199,6 +202,12 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/parsing.py`, while `_helpers` keeps compatible
      private wrappers and the historical logger name for parse diagnostics.
      Marker: Phase 3.10 implemented.
+   - 2026-05-15 slice: fallback literature query construction, topic keyword
+     extraction, and hard topic constraint text moved from
+     `researchclaw/pipeline/_helpers.py` into
+     `researchclaw/pipeline/topic_utils.py`, while `_helpers` keeps compatible
+     private wrappers and the shared stop-word identity.
+     Marker: Phase 3.11 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

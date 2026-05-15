@@ -17,6 +17,11 @@ from researchclaw.pipeline.parsing import (
     parse_jsonl_rows,
     safe_json_loads,
 )
+from researchclaw.pipeline.topic_utils import (
+    build_fallback_queries,
+    extract_topic_keywords,
+    topic_constraint_block,
+)
 
 
 def test_extract_code_block_prefers_fenced_python() -> None:
@@ -138,6 +143,17 @@ def test_parsing_module_matches_legacy_helper_exports() -> None:
     assert extract_yaml_block(noisy_yaml) == _helpers._extract_yaml_block(noisy_yaml)
     assert safe_json_loads(noisy_json, {}) == _helpers._safe_json_loads(noisy_json, {})
     assert parse_jsonl_rows(jsonl) == _helpers._parse_jsonl_rows(jsonl)
+
+
+def test_topic_utils_module_matches_legacy_helper_exports() -> None:
+    topic = "Agent-based reinforcement learning for scientific discovery"
+
+    assert build_fallback_queries(topic) == _helpers._build_fallback_queries(topic)
+    assert extract_topic_keywords(topic, domains=("ml",)) == _helpers._extract_topic_keywords(
+        topic,
+        domains=("ml",),
+    )
+    assert topic_constraint_block(topic) == _helpers._topic_constraint_block(topic)
 
 
 def test_get_evolution_overlay_logs_store_failures(tmp_path: Path, caplog, monkeypatch) -> None:
