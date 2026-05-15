@@ -16,12 +16,16 @@ license = {text = "MIT"}
 anthropic = ["httpx>=0.24"]
 web = ["scholarly>=1.7", "crawl4ai>=0.2", "tavily-python>=0.3"]
 pdf = ["PyMuPDF>=1.23"]
+gui = ["customtkinter>=5.2"]
+remote = ["paramiko>=3.4"]
 all = [
     "httpx>=0.24",
     "scholarly>=1.7",
     "crawl4ai>=0.2",
     "tavily-python>=0.3",
     "PyMuPDF>=1.23",
+    "customtkinter>=5.2",
+    "paramiko>=3.4",
     "huggingface-hub>=0.20",
     "matplotlib>=3.7",
     "scipy>=1.10",

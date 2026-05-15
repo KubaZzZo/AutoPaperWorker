@@ -994,6 +994,54 @@ def cmd_skills(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_workbench(args: argparse.Namespace) -> int:
+    """Run lightweight workbench backend commands."""
+    action = cast(str | None, getattr(args, "workbench_action", None))
+    if action == "search":
+        from researchclaw.workbench.search import search_papers_for_workbench
+
+        topic = cast(str, args.topic)
+        limit = cast(int, args.limit)
+        papers = search_papers_for_workbench(topic, limit=limit)
+        for idx, paper in enumerate(papers, start=1):
+            print(f"{idx}. {paper.title}")
+            meta = " | ".join(
+                str(x)
+                for x in (paper.year or "", paper.source, paper.url)
+                if str(x).strip()
+            )
+            if meta:
+                print(f"   {meta}")
+        return 0
+
+    if action == "run":
+        from researchclaw.workbench.run import run_workbench_pipeline
+
+        run_dir = run_workbench_pipeline(
+            topic=cast(str, args.topic),
+            output=cast(str | None, args.output),
+            provider=cast(str, args.provider),
+            model=cast(str, args.model),
+            api_key_env=cast(str, args.api_key_env),
+            base_url=cast(str, args.base_url),
+            model_mode=cast(str, args.model_mode),
+            experiment_mode=cast(str, args.experiment_mode),
+            progress_reporter=print,
+        )
+        print(f"Run directory: {run_dir}")
+        return 0
+
+    print("Usage: researchclaw workbench [search|run]")
+    return 1
+
+
+def cmd_gui(_args: argparse.Namespace) -> int:
+    """Start the desktop workbench GUI."""
+    from researchclaw.gui.app import main as gui_main
+
+    return int(gui_main())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="researchclaw",
@@ -1065,6 +1113,33 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     _ = sub.add_parser("setup", help="Check and install optional tools (OpenCode, etc.)")
+
+    workbench_p = sub.add_parser("workbench", help="Lightweight workbench commands")
+    workbench_sub = workbench_p.add_subparsers(dest="workbench_action")
+    wb_search = workbench_sub.add_parser("search", help="Preview literature search")
+    _ = wb_search.add_argument("--topic", "-t", required=True, help="Research topic")
+    _ = wb_search.add_argument("--limit", type=int, default=10, help="Max results")
+    wb_run = workbench_sub.add_parser("run", help="Run pipeline from workbench options")
+    _ = wb_run.add_argument("--topic", "-t", required=True, help="Research topic")
+    _ = wb_run.add_argument("--output", "-o", default=None, help="Output directory")
+    _ = wb_run.add_argument("--provider", default="openai", help="Cloud provider")
+    _ = wb_run.add_argument("--model", default="", help="Primary model")
+    _ = wb_run.add_argument("--api-key-env", default="", help="API key environment variable")
+    _ = wb_run.add_argument("--base-url", default="", help="OpenAI-compatible base URL")
+    _ = wb_run.add_argument(
+        "--model-mode",
+        choices=["cloud", "local"],
+        default="cloud",
+        help="Use cloud API or local OpenAI-compatible endpoint",
+    )
+    _ = wb_run.add_argument(
+        "--experiment-mode",
+        choices=["simulated", "sandbox", "docker", "ssh_remote"],
+        default="simulated",
+        help="Experiment execution mode",
+    )
+
+    _ = sub.add_parser("gui", help="Start the desktop workbench GUI")
 
     rpt_p = sub.add_parser("report", help="Generate human-readable run report")
     _ = rpt_p.add_argument(
@@ -1179,6 +1254,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_init(args)
     elif command == "setup":
         return cmd_setup(args)
+    elif command == "workbench":
+        return cmd_workbench(args)
+    elif command == "gui":
+        return cmd_gui(args)
     elif command == "report":
         return cmd_report(args)
     elif command == "serve":
