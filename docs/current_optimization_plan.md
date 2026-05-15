@@ -49,6 +49,8 @@ The second optimization round is complete. The implemented slices are:
      implemented 2026-05-15.
    - Phase 3.4 marker: body rendering and block conversion extraction
      implemented 2026-05-15.
+   - Phase 3.5 marker: final LaTeX sanitization extraction implemented
+     2026-05-15.
 
 2. **Pipeline module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/pipeline/_helpers.py`,
@@ -155,6 +157,11 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/templates/body.py`, with converter wrappers preserving
      legacy imports and render counters.
      Marker: Phase 3.4 implemented.
+   - 2026-05-15 slice: final LaTeX sanitization and Unicode normalization moved
+     from `researchclaw/templates/converter.py` into
+     `researchclaw/templates/sanitization.py`, with legacy converter imports
+     preserved by re-exporting the imported helpers.
+     Marker: Phase 3.5 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

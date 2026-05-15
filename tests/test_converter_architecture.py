@@ -12,6 +12,8 @@ from researchclaw.templates.converter import (
     _escape_latex as legacy_escape_latex,
     _parse_sections as legacy_parse_sections,
     _render_figure as legacy_render_figure,
+    _sanitize_latex_output as legacy_sanitize_latex_output,
+    _normalize_latex_unicode as legacy_normalize_latex_unicode,
     _separate_heading_body as legacy_separate_heading_body,
     _parse_alignments as legacy_parse_alignments,
     _parse_table_row as legacy_parse_table_row,
@@ -41,6 +43,10 @@ from researchclaw.templates.sections import (
     _extract_title,
     _parse_sections,
     _separate_heading_body,
+)
+from researchclaw.templates.sanitization import (
+    _normalize_latex_unicode,
+    _sanitize_latex_output,
 )
 from researchclaw.templates.tables import (
     _parse_alignments,
@@ -197,3 +203,25 @@ def test_body_module_matches_legacy_exports() -> None:
     assert _convert_block(block) == legacy_convert_block(block)
     assert _build_body(sections, title="") == legacy_build_body(sections, title="")
     assert _deduplicate_tables("plain body") == legacy_deduplicate_tables("plain body")
+
+
+def test_sanitization_module_matches_legacy_exports() -> None:
+    tex = (
+        "\\title{Untitled Paper}\n"
+        "Raw α and [Smith et al., 2024]\n"
+        "\\begin{tabular}{ll}\n"
+        "A \\& B \\\\\n"
+        "\\end{tabular}\n"
+    )
+    bib_entries = {"Smith et al., 2024": "smith2024"}
+
+    assert _normalize_latex_unicode("Title \ufeffＡ") == legacy_normalize_latex_unicode(
+        "Title \ufeffＡ"
+    )
+    assert _sanitize_latex_output(
+        tex,
+        bib_entries=bib_entries,
+    ) == legacy_sanitize_latex_output(
+        tex,
+        bib_entries=bib_entries,
+    )
