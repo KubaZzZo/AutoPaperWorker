@@ -462,16 +462,16 @@ experiment:
     shm_size_mb: 2048
 ```
 
-The pipeline runs generated code inside a **Docker container** with GPU passthrough, dependency auto-installation, and network isolation. Execution follows a **three-phase model** within a single container:
+The pipeline runs generated code inside **Docker containers** with GPU passthrough, dependency auto-installation, and network isolation. Execution follows a phased model:
 
 1. **Phase 0 (pip install)**: Installs auto-detected dependencies from `requirements.txt` (network enabled)
 2. **Phase 1 (setup.py)**: Runs `setup.py` for dataset downloads and environment preparation (network enabled)
-3. **Phase 2 (experiment)**: Executes the experiment code (network disabled by default via iptables)
+3. **Phase 2 (experiment)**: Executes the experiment code. With `setup_only`, this runs in a second container using Docker `--network none`.
 
 **Network policies**:
 - `none` — No network at all (all phases offline). Requires all deps pre-installed in image.
-- `setup_only` (default) — Network during Phase 0+1, disabled before Phase 2 via iptables (`--cap-add=NET_ADMIN`).
-- `pip_only` — Network only during Phase 0 (pip install), disabled for Phase 1+2.
+- `setup_only` (default) — Network during Phase 0+1, then Phase 2 runs with Docker `--network none`.
+- `pip_only` — Legacy alias for the same staged isolation behavior as `setup_only`.
 - `full` — Network available throughout all phases.
 
 **Pre-cached datasets**: The Docker image includes CIFAR-10/100, MNIST, FashionMNIST, STL-10, and SVHN at `/opt/datasets`, mounted read-only as `/workspace/data`. No download needed for these standard benchmarks.

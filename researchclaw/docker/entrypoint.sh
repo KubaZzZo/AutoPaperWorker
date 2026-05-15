@@ -6,48 +6,51 @@
 # Phase 2: Run the main experiment script
 #
 # Environment variables:
-#   RC_SETUP_ONLY_NETWORK=1  — disable network after Phase 1 (iptables/route)
+#   RC_DOCKER_PHASE          — all | setup | experiment
+#   RC_PERSIST_PIP_TARGET=1  — install requirements into /workspace/.rc_site
 #   RC_ENTRY_POINT           — override entry point (default: first CLI arg or main.py)
 set -e
 
 WORKSPACE="/workspace"
+PHASE="${RC_DOCKER_PHASE:-all}"
 ENTRY_POINT="${RC_ENTRY_POINT:-${1:-main.py}}"
 if [ "${RC_DISTRIBUTED_LAUNCH:-0}" != "1" ] && [ "$#" -gt 0 ]; then
     shift
 fi
 
+if [ "${RC_PERSIST_PIP_TARGET:-0}" = "1" ] || [ -d "$WORKSPACE/.rc_site" ]; then
+    mkdir -p "$WORKSPACE/.rc_site"
+    export PYTHONPATH="$WORKSPACE/.rc_site:${PYTHONPATH:-}"
+fi
+
 # ----------------------------------------------------------------
 # Phase 0: Install additional pip packages
 # ----------------------------------------------------------------
-if [ -f "$WORKSPACE/requirements.txt" ]; then
+if [ "$PHASE" != "experiment" ] && [ -f "$WORKSPACE/requirements.txt" ]; then
     echo "[RC] Phase 0: Installing packages from requirements.txt..."
-    pip install --no-cache-dir --break-system-packages \
-        -r "$WORKSPACE/requirements.txt" 2>&1 | tail -20
+    if [ "${RC_PERSIST_PIP_TARGET:-0}" = "1" ]; then
+        pip install --no-cache-dir --break-system-packages \
+            --target "$WORKSPACE/.rc_site" \
+            -r "$WORKSPACE/requirements.txt" 2>&1 | tail -20
+    else
+        pip install --no-cache-dir --break-system-packages \
+            -r "$WORKSPACE/requirements.txt" 2>&1 | tail -20
+    fi
     echo "[RC] Phase 0: Package installation complete."
 fi
 
 # ----------------------------------------------------------------
 # Phase 1: Run setup script (dataset download / preparation)
 # ----------------------------------------------------------------
-if [ -f "$WORKSPACE/setup.py" ]; then
+if [ "$PHASE" != "experiment" ] && [ -f "$WORKSPACE/setup.py" ]; then
     echo "[RC] Phase 1: Running setup.py (dataset download/preparation)..."
     python3 -u "$WORKSPACE/setup.py"
     echo "[RC] Phase 1: Setup complete."
 fi
 
-# ----------------------------------------------------------------
-# Network cutoff (if setup_only policy)
-# ----------------------------------------------------------------
-if [ "${RC_SETUP_ONLY_NETWORK:-0}" = "1" ]; then
-    echo "[RC] Disabling network for experiment phase..."
-    # Try iptables first (requires NET_ADMIN capability)
-    if iptables -A OUTPUT -j DROP 2>/dev/null; then
-        echo "[RC] Network disabled via iptables."
-    elif ip route del default 2>/dev/null; then
-        echo "[RC] Network disabled via route removal."
-    else
-        echo "[RC] Warning: Could not disable network (no NET_ADMIN cap or ip route). Continuing with network."
-    fi
+if [ "$PHASE" = "setup" ]; then
+    echo "[RC] Setup phase complete."
+    exit 0
 fi
 
 # ----------------------------------------------------------------

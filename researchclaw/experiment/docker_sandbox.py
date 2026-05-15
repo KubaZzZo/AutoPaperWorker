@@ -1,13 +1,13 @@
 """Docker-based sandbox for experiment code execution with GPU passthrough.
 
-Uses a single-container, three-phase execution model:
+Uses a phased Docker execution model:
   Phase 0: pip install from requirements.txt (if present)
   Phase 1: Run setup.py for dataset downloads (if present)
   Phase 2: Run the experiment script (main.py)
 
-All phases run in the same container, so pip-installed packages
-persist into the experiment phase. Network can be disabled after
-setup via iptables (``setup_only`` policy).
+Most policies run in one container. The ``setup_only`` policy uses two
+containers on the same workspace: setup has network access, then the
+experiment container runs with Docker's ``--network none``.
 """
 
 from __future__ import annotations
@@ -70,6 +70,31 @@ def _decode_subprocess_output(value: bytes | str | None) -> str:
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="surrogateescape")
     return value
+
+
+_SENSITIVE_ENV_NAMES = frozenset({
+    "HF_TOKEN",
+    "HUGGING_FACE_HUB_TOKEN",
+})
+
+
+def _mask_secret(value: str) -> str:
+    if len(value) <= 8:
+        return "***"
+    return f"{value[:3]}...{value[-4:]}"
+
+
+def _redact_docker_command(cmd: list[str]) -> list[str]:
+    """Return a log-safe copy of a Docker command."""
+    redacted: list[str] = []
+    for part in cmd:
+        if "=" in part:
+            name, value = part.split("=", 1)
+            if name in _SENSITIVE_ENV_NAMES:
+                redacted.append(f"{name}={_mask_secret(value)}")
+                continue
+        redacted.append(part)
+    return redacted
 
 
 # Packages already in the Docker image — skip during auto-detect.
@@ -167,7 +192,7 @@ class DockerSandbox:
 
     Network policy controls when network is available:
       - ``"none"``:       No network at any point (``--network none``)
-      - ``"setup_only"``: Network during Phase 0+1, disabled via iptables before Phase 2
+      - ``"setup_only"``: Network during Phase 0+1, Docker ``--network none`` for Phase 2
       - ``"pip_only"``:   Network during Phase 0 only (legacy compat, same as setup_only)
       - ``"full"``:       Network available throughout all phases
     """
@@ -381,44 +406,82 @@ class DockerSandbox:
                 exc_info=True,
             )
 
-        # Build the docker run command
-        cmd = self._build_run_command(
-            staging_dir,
-            entry_point=entry_point,
-            container_name=container_name,
-            entry_args=entry_args,
-            env_overrides=env_overrides,
-        )
+        run_steps: list[tuple[str, list[str]]] = []
+        if cfg.network_policy in ("setup_only", "pip_only"):
+            setup_container_name = f"{container_name}-setup"
+            run_steps.append((
+                setup_container_name,
+                self._build_run_command(
+                    staging_dir,
+                    entry_point=entry_point,
+                    container_name=setup_container_name,
+                    env_overrides=env_overrides,
+                    phase="setup",
+                ),
+            ))
+            run_steps.append((
+                container_name,
+                self._build_run_command(
+                    staging_dir,
+                    entry_point=entry_point,
+                    container_name=container_name,
+                    entry_args=entry_args,
+                    env_overrides=env_overrides,
+                    phase="experiment",
+                ),
+            ))
+        else:
+            run_steps.append((
+                container_name,
+                self._build_run_command(
+                    staging_dir,
+                    entry_point=entry_point,
+                    container_name=container_name,
+                    entry_args=entry_args,
+                    env_overrides=env_overrides,
+                ),
+            ))
 
         start = time.monotonic()
         timed_out = False
+        stdout_parts: list[str] = []
+        stderr_parts: list[str] = []
+        returncode = 0
+        active_container_name = container_name
         try:
-            logger.debug("Docker run command: %s", cmd)
-            if cancel_event is None:
-                completed = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    timeout=timeout_sec,
-                    check=False,
-                )
-            else:
-                completed = self._run_cancellable(
-                    cmd,
-                    timeout_sec=timeout_sec,
-                    cancel_event=cancel_event,
-                    container_name=container_name,
-                )
-            stdout = _decode_subprocess_output(completed.stdout)
-            stderr = _decode_subprocess_output(completed.stderr)
-            returncode = completed.returncode
+            for active_container_name, cmd in run_steps:
+                logger.debug("Docker run command: %s", _redact_docker_command(cmd))
+                if cancel_event is None:
+                    completed = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        timeout=timeout_sec,
+                        check=False,
+                    )
+                else:
+                    completed = self._run_cancellable(
+                        cmd,
+                        timeout_sec=timeout_sec,
+                        cancel_event=cancel_event,
+                        container_name=active_container_name,
+                    )
+                stdout_parts.append(_decode_subprocess_output(completed.stdout))
+                stderr_parts.append(_decode_subprocess_output(completed.stderr))
+                returncode = completed.returncode
+                if returncode != 0:
+                    break
+            stdout = "".join(stdout_parts)
+            stderr = "".join(stderr_parts)
             elapsed = time.monotonic() - start
         except subprocess.TimeoutExpired as exc:
             timed_out = True
-            stdout = _decode_subprocess_output(exc.stdout)
-            stderr = _decode_subprocess_output(exc.stderr)
+            stdout_parts.append(_decode_subprocess_output(exc.stdout))
+            stderr_parts.append(_decode_subprocess_output(exc.stderr))
+            stdout = "".join(stdout_parts)
+            stderr = "".join(stderr_parts)
             returncode = -1
             # Force-kill the container on timeout
-            self._kill_container(container_name)
+            self._kill_container(active_container_name)
             elapsed = time.monotonic() - start
         except Exception as exc:  # noqa: BLE001
             elapsed = time.monotonic() - start
@@ -434,7 +497,8 @@ class DockerSandbox:
             # docker rm -f is idempotent: safe even if container was
             # already removed by --rm, already dead, or never created.
             if not cfg.keep_containers:
-                self._remove_container(container_name)
+                for cleanup_container_name, _cmd in run_steps:
+                    self._remove_container(cleanup_container_name)
 
         # Parse metrics from stdout
         metrics = parse_metrics(stdout)
@@ -481,6 +545,7 @@ class DockerSandbox:
         container_name: str,
         entry_args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
+        phase: str = "all",
     ) -> list[str]:
         """Build the ``docker run`` command list.
 
@@ -489,7 +554,8 @@ class DockerSandbox:
           Phase 1: python3 setup.py
           Phase 2: python3 <entry_point>
 
-        Network policy determines --network and RC_SETUP_ONLY_NETWORK env.
+        Network policy determines --network. setup_only uses a setup phase
+        with network and an experiment phase with --network none.
         """
         cfg = self.config
         cmd = [
@@ -512,22 +578,24 @@ class DockerSandbox:
                 return []
             return ["--user", f"{os.getuid()}:{os.getgid()}"]
 
-        if cfg.network_policy == "none":
+        if cfg.network_policy == "none" or phase == "experiment":
             # Fully isolated — no network at any point
             cmd.extend(["--network", "none"])
             cmd.extend(_user_flag())
         elif cfg.network_policy in ("setup_only", "pip_only"):
-            # Network during Phase 0+1, disabled via iptables before Phase 2.
-            # Run as host user so experiment can write results.json to volume.
-            # iptables requires NET_ADMIN but will gracefully degrade if
-            # the user lacks root — network remains available but the code
-            # has already been validated by the pipeline security check.
-            cmd.extend(["-e", "RC_SETUP_ONLY_NETWORK=1"])
+            # Network is available only for setup; experiment uses a second
+            # container with Docker's --network none.
             cmd.extend(_user_flag())
-            cmd.extend(["--cap-add=NET_ADMIN"])
         elif cfg.network_policy == "full":
             # Full network throughout — for development/debugging
             cmd.extend(_user_flag())
+
+        if phase != "all":
+            cmd.extend(["-e", f"RC_DOCKER_PHASE={phase}"])
+        if phase == "setup":
+            cmd.extend(["-e", "RC_PERSIST_PIP_TARGET=1"])
+        if phase == "experiment":
+            cmd.extend(["-e", "PYTHONPATH=/workspace/.rc_site:${PYTHONPATH:-}"])
 
         # Mount pre-cached datasets
         # Priority: /opt/datasets (system) > ~/.cache/datasets (user)

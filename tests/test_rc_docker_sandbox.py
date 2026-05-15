@@ -67,7 +67,7 @@ def test_build_run_command_network_none(tmp_path: Path):
 
 
 def test_build_run_command_setup_only(tmp_path: Path):
-    """Default network_policy='setup_only' → RC_SETUP_ONLY_NETWORK=1, --cap-add."""
+    """Default network_policy='setup_only' does not grant extra capabilities."""
     cfg = DockerSandboxConfig()  # default is setup_only
     sandbox = DockerSandbox(cfg, tmp_path / "work")
     cmd = sandbox._build_run_command(
@@ -75,19 +75,47 @@ def test_build_run_command_setup_only(tmp_path: Path):
         entry_point="main.py",
         container_name="rc-test-setup",
     )
-    # Should set env var for setup-only network
-    assert "-e" in cmd
-    env_idx = [i for i, x in enumerate(cmd) if x == "-e"]
-    env_values = [cmd[i + 1] for i in env_idx]
-    assert "RC_SETUP_ONLY_NETWORK=1" in env_values
-    # Should add NET_ADMIN capability
-    assert "--cap-add=NET_ADMIN" in cmd
-    # Should NOT have --network none (needs network for setup)
-    network_indices = [i for i, x in enumerate(cmd) if x == "--network"]
-    assert len(network_indices) == 0
+    assert "--cap-add=NET_ADMIN" not in cmd
     # Should have --user on POSIX (runs as host user so experiment can write results.json)
     if sys.platform != "win32":
         assert "--user" in cmd
+
+
+def test_build_run_command_setup_only_experiment_phase_has_no_network(tmp_path: Path):
+    cfg = DockerSandboxConfig()
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-exp",
+        phase="experiment",
+    )
+
+    assert "--cap-add=NET_ADMIN" not in cmd
+    network_idx = cmd.index("--network")
+    assert cmd[network_idx + 1] == "none"
+    env_idx = [i for i, x in enumerate(cmd) if x == "-e"]
+    env_values = [cmd[i + 1] for i in env_idx]
+    assert "RC_DOCKER_PHASE=experiment" in env_values
+    assert any(value.startswith("PYTHONPATH=/workspace/.rc_site") for value in env_values)
+
+
+def test_build_run_command_setup_only_setup_phase_persists_pip_target(tmp_path: Path):
+    cfg = DockerSandboxConfig()
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+    cmd = sandbox._build_run_command(
+        tmp_path / "staging",
+        entry_point="main.py",
+        container_name="rc-test-setup",
+        phase="setup",
+    )
+
+    assert "--network" not in cmd
+    assert "--cap-add=NET_ADMIN" not in cmd
+    env_idx = [i for i, x in enumerate(cmd) if x == "-e"]
+    env_values = [cmd[i + 1] for i in env_idx]
+    assert "RC_DOCKER_PHASE=setup" in env_values
+    assert "RC_PERSIST_PIP_TARGET=1" in env_values
 
 
 def test_build_run_command_full_network(tmp_path: Path):
@@ -179,6 +207,57 @@ def test_build_run_command_forwards_hf_token_when_explicitly_enabled(
 
     env_values = [cmd[i + 1] for i, token in enumerate(cmd) if token == "-e"]
     assert "HF_TOKEN=secret-token" in env_values
+
+
+def test_docker_run_command_log_masks_hf_token() -> None:
+    from researchclaw.experiment.docker_sandbox import _redact_docker_command
+
+    cmd = [
+        "docker",
+        "run",
+        "-e",
+        "HF_TOKEN=hf_secret_token_1234567890",
+        "-e",
+        "VISIBLE=value",
+        "image",
+        "main.py",
+    ]
+
+    redacted = _redact_docker_command(cmd)
+
+    assert "HF_TOKEN=hf_secret_token_1234567890" in cmd
+    assert "hf_secret_token_1234567890" not in str(redacted)
+    assert "HF_TOKEN=hf_...7890" in redacted
+    assert "VISIBLE=value" in redacted
+
+
+@patch("subprocess.run")
+def test_docker_run_debug_log_masks_forwarded_hf_token(
+    mock_run,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    secret = "hf_secret_token_1234567890"
+    monkeypatch.setenv("HF_TOKEN", secret)
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["docker", "run"],
+        returncode=0,
+        stdout="",
+        stderr="",
+    )
+    cfg = DockerSandboxConfig(
+        network_policy="none",
+        forward_hf_token=True,
+        keep_containers=True,
+    )
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    with caplog.at_level("DEBUG", logger="researchclaw.experiment.docker_sandbox"):
+        sandbox.run("print('hello')", timeout_sec=60)
+
+    assert secret not in caplog.text
+    assert "HF_TOKEN=hf_...7890" in caplog.text
 
 
 def test_build_run_command_uses_torchrun_when_distributed_enabled(tmp_path: Path):
@@ -357,6 +436,39 @@ def test_docker_run_preserves_undecodable_output_bytes(mock_run, tmp_path: Path)
     assert "\udcff" in result.stdout
     assert "\udcfe" in result.stderr
     assert result.metrics.get("metric") == 0.5
+
+
+@patch("subprocess.run")
+def test_docker_setup_only_runs_setup_then_isolated_experiment(mock_run, tmp_path: Path):
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(
+            args=["docker", "run", "setup"],
+            returncode=0,
+            stdout="setup ok\n",
+            stderr="",
+        ),
+        subprocess.CompletedProcess(
+            args=["docker", "run", "experiment"],
+            returncode=0,
+            stdout="primary_metric: 0.91\n",
+            stderr="",
+        ),
+    ]
+    cfg = DockerSandboxConfig(network_policy="setup_only", keep_containers=True)
+    sandbox = DockerSandbox(cfg, tmp_path / "work")
+
+    result = sandbox.run("print('hello')", timeout_sec=60)
+
+    assert result.returncode == 0
+    assert result.metrics.get("primary_metric") == 0.91
+    assert mock_run.call_count == 2
+    setup_cmd = mock_run.call_args_list[0].args[0]
+    experiment_cmd = mock_run.call_args_list[1].args[0]
+    assert "RC_DOCKER_PHASE=setup" in setup_cmd
+    assert "RC_DOCKER_PHASE=experiment" in experiment_cmd
+    assert "--network" not in setup_cmd
+    network_idx = experiment_cmd.index("--network")
+    assert experiment_cmd[network_idx + 1] == "none"
 
 
 @patch("subprocess.run")

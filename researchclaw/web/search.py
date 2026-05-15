@@ -5,7 +5,8 @@ A DuckDuckGo HTML scrape fallback exists for when no API key is set.
 
 Usage::
 
-    client = WebSearchClient(api_key="tvly-...")
+    # Set TAVILY_API_KEY in the environment to enable Tavily.
+    client = WebSearchClient()
     results = client.search("knowledge distillation survey 2024")
 """
 
