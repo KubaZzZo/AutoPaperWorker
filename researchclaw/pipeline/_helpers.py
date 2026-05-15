@@ -16,6 +16,10 @@ import yaml
 from researchclaw.config import RCConfig
 from researchclaw.hardware import HardwareProfile, is_metric_name
 from researchclaw.llm.client import LLMClient
+from researchclaw.pipeline.code_blocks import (
+    extract_code_block as _extract_code_block_impl,
+    extract_multi_file_blocks as _extract_multi_file_blocks_impl,
+)
 from researchclaw.pipeline.stages import (
     NEXT_STAGE,
     Stage,
@@ -509,34 +513,7 @@ def _safe_json_loads(text: str, default: Any) -> Any:
 
 
 def _extract_code_block(content: str) -> str:
-    match = re.search(r"```(?:python)?\s*(.*?)\s*```", content, flags=re.DOTALL)
-    if match is not None:
-        return match.group(1).strip()
-    return content.strip()
-
-
-_MULTI_FILE_PATTERNS = [
-    # Original: ```filename:xxx.py or ```python filename:xxx.py
-    re.compile(
-        r"```(?:python\s+)?filename:(\S+)\s*\n(.*?)```",
-        flags=re.DOTALL,
-    ),
-    # Variation: ``` filename:xxx.py (space after backticks)
-    re.compile(
-        r"```\s+filename:(\S+)\s*\n(.*?)```",
-        flags=re.DOTALL,
-    ),
-    # Variation: ```python\nfilename:xxx.py (filename on next line)
-    re.compile(
-        r"```(?:python)?\s*\nfilename:(\S+)\s*\n(.*?)```",
-        flags=re.DOTALL,
-    ),
-    # Variation: ```python\n# filename: xxx.py (comment marker)
-    re.compile(
-        r"```(?:python)?\s*\n#\s*(?:FILE|filename)\s*:\s*(\S+\.py)\s*\n(.*?)```",
-        flags=re.DOTALL,
-    ),
-]
+    return _extract_code_block_impl(content)
 
 
 def _extract_multi_file_blocks(content: str) -> dict[str, str]:
@@ -565,36 +542,7 @@ def _extract_multi_file_blocks(content: str) -> dict[str, str]:
 
     Returns a dict mapping filename → code content.
     """
-    # R13-2: Multiple patterns to handle LLM format variations
-    matches: list[tuple[str, str]] = []
-    for pattern in _MULTI_FILE_PATTERNS:
-        matches.extend(pattern.findall(content))
-
-    if matches:
-        files: dict[str, str] = {}
-        for fname, code in matches:
-            fname = fname.strip()
-            # Security: prevent path traversal
-            if ".." in fname or fname.startswith("/"):
-                continue
-            # Normalise to flat filenames (strip leading ./ or subdirs for safety)
-            fname = fname.replace("\\", "/").split("/")[-1]
-            if fname and fname.endswith(".py"):
-                files[fname] = code.strip()
-        if files:
-            # Ensure there is a main.py entry point
-            if "main.py" not in files:
-                # Pick the first file as main.py
-                first_key = next(iter(files))
-                files["main.py"] = files.pop(first_key)
-            return files
-        return {}
-
-    # Fallback: single code block → main.py
-    code = _extract_code_block(content)
-    if code.strip():
-        return {"main.py": code}
-    return {}
+    return _extract_multi_file_blocks_impl(content)
 
 
 def _parse_jsonl_rows(text: str) -> list[dict[str, Any]]:

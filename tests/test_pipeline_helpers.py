@@ -8,6 +8,10 @@ from types import SimpleNamespace
 import pytest
 
 from researchclaw.pipeline import _helpers
+from researchclaw.pipeline.code_blocks import (
+    extract_code_block,
+    extract_multi_file_blocks,
+)
 
 
 def test_extract_code_block_prefers_fenced_python() -> None:
@@ -40,6 +44,25 @@ class Model:
     files = _helpers._extract_multi_file_blocks(content)
 
     assert files == {"main.py": "class Model:\n    pass"}
+
+
+def test_code_blocks_module_matches_legacy_helper_exports() -> None:
+    content = """
+```filename:../evil.py
+print("bad")
+```
+
+```python
+# FILE: src/model.py
+class Model:
+    pass
+```
+"""
+
+    assert extract_code_block(content) == _helpers._extract_code_block(content)
+    assert extract_multi_file_blocks(content) == _helpers._extract_multi_file_blocks(
+        content
+    )
 
 
 def test_parse_metrics_from_stdout_filters_status_lines() -> None:

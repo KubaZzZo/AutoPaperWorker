@@ -62,6 +62,9 @@ The second optimization round is complete. The implemented slices are:
      and selected `stage_impls` modules remain large enough to slow review.
    - Prefer moving cohesive workflows behind small interfaces instead of
      extracting isolated pass-through helpers.
+   - Phase 3.9 marker: LLM code block extraction moved from pipeline
+     `_helpers.py` into `researchclaw/pipeline/code_blocks.py` while keeping
+     legacy helper exports compatible.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
@@ -183,6 +186,11 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/templates/document.py`, with converter keeping the public
      `markdown_to_latex` entry point and legacy helper exports.
      Marker: Phase 3.7 implemented.
+   - 2026-05-15 slice: LLM code block extraction moved from
+     `researchclaw/pipeline/_helpers.py` into
+     `researchclaw/pipeline/code_blocks.py`, with `_helpers` keeping legacy
+     private helper wrappers for existing stage callers.
+     Marker: Phase 3.9 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
