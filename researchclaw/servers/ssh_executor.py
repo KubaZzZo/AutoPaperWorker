@@ -27,7 +27,7 @@ class SSHExecutor:
         logger.info("Uploading %s -> %s", local, remote)
         proc = await asyncio.create_subprocess_exec(
             "rsync", "-az", "--delete",
-            "-e", "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no",
+            "-e", "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new",
             local, remote,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -47,7 +47,7 @@ class SSHExecutor:
         remote_shell_cmd = shlex.quote(full_cmd)
         logger.info("Running on %s: %s", self.host, full_cmd)
         proc = await asyncio.create_subprocess_exec(
-            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
             self.host, "sh", "-lc", remote_shell_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -74,7 +74,7 @@ class SSHExecutor:
         logger.info("Downloading %s -> %s", remote, local)
         proc = await asyncio.create_subprocess_exec(
             "rsync", "-az",
-            "-e", "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no",
+            "-e", "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new",
             remote, local,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -87,7 +87,7 @@ class SSHExecutor:
         """Remove remote experiment directory."""
         logger.info("Cleaning up %s:%s", self.host, remote_dir)
         proc = await asyncio.create_subprocess_exec(
-            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
             self.host, f"rm -rf {shlex.quote(remote_dir)}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

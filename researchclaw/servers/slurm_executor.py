@@ -110,7 +110,7 @@ class SlurmExecutor:
             f"&& sbatch _job.sh"
         )
         proc = await asyncio.create_subprocess_exec(
-            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
             self.host, ssh_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -133,7 +133,7 @@ class SlurmExecutor:
         if not _SAFE_SLURM_JOB_ID.fullmatch(job_id):
             raise ValueError("Invalid Slurm job_id")
         proc = await asyncio.create_subprocess_exec(
-            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
             self.host,
             f"squeue -j {job_id} -h -o '%T' 2>/dev/null || sacct -j {job_id} -n -o State -P 2>/dev/null",
             stdout=asyncio.subprocess.PIPE,
@@ -148,7 +148,7 @@ class SlurmExecutor:
         if not _SAFE_SLURM_JOB_ID.fullmatch(job_id):
             raise ValueError("Invalid Slurm job_id")
         proc = await asyncio.create_subprocess_exec(
-            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
             self.host, f"scancel {job_id}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

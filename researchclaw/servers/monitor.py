@@ -57,7 +57,7 @@ class ServerMonitor:
 async def _ssh_command(host: str, command: str) -> str:
     """Run a command on a remote host via SSH."""
     proc = await asyncio.create_subprocess_exec(
-        "ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no",
+        "ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
         host, command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

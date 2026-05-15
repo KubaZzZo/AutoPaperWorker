@@ -444,7 +444,7 @@ class SshRemoteSandbox:
         cfg = self.config
         target = f"{_ssh_target(cfg)}:{remote_dir}/"
 
-        cmd = ["scp", "-r", "-o", "StrictHostKeyChecking=no"]
+        cmd = ["scp", "-r", "-o", "StrictHostKeyChecking=accept-new"]
         if cfg.port != 22:
             cmd.extend(["-P", str(cfg.port)])
         if cfg.key_path:
@@ -508,7 +508,7 @@ def _build_ssh_base(
     """
     cmd = [
         "ssh",
-        "-o", "StrictHostKeyChecking=no",
+        "-o", "StrictHostKeyChecking=accept-new",
         "-o", "BatchMode=yes",
     ]
     if cfg.port != 22:

@@ -102,7 +102,7 @@ def _detect_nvidia_remote(ssh_config: object) -> HardwareProfile | None:
     port = getattr(ssh_config, "port", 22)
     key_path = getattr(ssh_config, "key_path", "")
 
-    ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
+    ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10"]
     if key_path:
         ssh_cmd.extend(["-i", key_path])
     if port and port != 22:

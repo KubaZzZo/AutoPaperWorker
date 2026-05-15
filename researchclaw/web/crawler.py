@@ -19,9 +19,9 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
-from researchclaw.web._ssrf import check_url_ssrf
+from researchclaw.web._ssrf import check_url_ssrf, ssrf_urlopen as urlopen
 
 logger = logging.getLogger(__name__)
 

@@ -148,14 +148,14 @@ class RemoteExecutor:
         cmd = ["ssh", "-p", str(self.profile.port)]
         if self.profile.key_path:
             cmd.extend(["-i", self.profile.key_path])
-        cmd.extend(["-o", "StrictHostKeyChecking=no", f"{self.profile.user}@{self.profile.host}"])
+        cmd.extend(["-o", "StrictHostKeyChecking=accept-new", f"{self.profile.user}@{self.profile.host}"])
         return cmd
 
     def _scp_base(self) -> list[str]:
         cmd = ["scp", "-P", str(self.profile.port)]
         if self.profile.key_path:
             cmd.extend(["-i", self.profile.key_path])
-        cmd.extend(["-o", "StrictHostKeyChecking=no"])
+        cmd.extend(["-o", "StrictHostKeyChecking=accept-new"])
         return cmd
 
     def _run(self, cmd: list[str], timeout: int) -> RemoteCommandResult:
@@ -178,7 +178,8 @@ class RemoteExecutor:
                     "authentication or install `researchclaw[remote]`."
                 ) from exc
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
         elif factory is None:
             raise RuntimeError(
                 "Paramiko is required for password SSH fallback; use SSH key "

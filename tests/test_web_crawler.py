@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -226,6 +227,37 @@ class TestCheckUrlSsrf:
     def test_rejects_empty_hostname(self):
         err = check_url_ssrf("http://")
         assert err is not None
+
+    def test_rejects_domain_if_any_resolved_address_is_private(self, monkeypatch):
+        def fake_getaddrinfo(*_args, **_kwargs):
+            return [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80)),
+            ]
+
+        monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+
+        err = check_url_ssrf("http://mixed.example")
+
+        assert err is not None
+        assert "blocked" in err.lower()
+
+    def test_connected_peer_validation_rejects_dns_rebound_private_ip(self):
+        from researchclaw.web._ssrf import SSRFBlockedError, validate_connected_peer
+
+        class FakeSocket:
+            closed = False
+
+            def getpeername(self):
+                return ("127.0.0.1", 80)
+
+            def close(self):
+                self.closed = True
+
+        sock = FakeSocket()
+        with pytest.raises(SSRFBlockedError):
+            validate_connected_peer(sock, "example.com")
+        assert sock.closed is True
 
 
 # ---------------------------------------------------------------------------
