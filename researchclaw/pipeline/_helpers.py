@@ -13,7 +13,7 @@ from typing import Any
 import yaml
 
 from researchclaw.config import RCConfig
-from researchclaw.hardware import HardwareProfile, is_metric_name
+from researchclaw.hardware import HardwareProfile
 from researchclaw.llm.client import LLMClient
 from researchclaw.pipeline.artifact_io import (
     find_prior_file as _find_prior_file_impl,
@@ -25,6 +25,11 @@ from researchclaw.pipeline.artifact_io import (
 from researchclaw.pipeline.code_blocks import (
     extract_code_block as _extract_code_block_impl,
     extract_multi_file_blocks as _extract_multi_file_blocks_impl,
+)
+from researchclaw.pipeline.experiment_results import (
+    _CONDITION_RE,
+    collect_experiment_results as _collect_experiment_results_impl,
+    parse_metrics_from_stdout as _parse_metrics_from_stdout_impl,
 )
 from researchclaw.pipeline.parsing import (
     extract_yaml_block as _extract_yaml_block_impl,
@@ -335,9 +340,6 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 # BUG-173: regex for condition=name metric=value format
-_CONDITION_RE = re.compile(
-    r"^condition=(\S+)\s+metric=([0-9eE.+-]+)\s*$"
-)
 
 
 def _parse_metrics_from_stdout(stdout: str) -> dict[str, Any]:
@@ -352,50 +354,11 @@ def _parse_metrics_from_stdout(stdout: str) -> dict[str, Any]:
     Returns a flat dict of metric_name -> value.
     Filters out log/status lines using :func:`is_metric_name`.
     """
-    metrics: dict[str, Any] = {}
-    for line in stdout.splitlines():
-        line = line.strip()
-        # --- Format 2: condition=xxx metric=yyy ---
-        m = _CONDITION_RE.match(line)
-        if m:
-            cond_name = m.group(1)
-            try:
-                fval = float(m.group(2))
-                metrics[cond_name] = fval
-            except (ValueError, TypeError) as exc:
-                logger.debug(
-                    "Skipping non-numeric condition metric from stdout %s=%r: %s",
-                    cond_name,
-                    m.group(2),
-                    exc,
-                    exc_info=True,
-                )
-            continue
-        # --- Format 1: name: value ---
-        if ":" not in line:
-            continue
-        # Split on the LAST colon to handle names with colons
-        parts = line.rsplit(":", 1)
-        if len(parts) != 2:
-            continue
-        name_part = parts[0].strip()
-        value_part = parts[1].strip()
-        # Filter out log lines that look like status messages
-        if not is_metric_name(name_part):
-            continue
-        try:
-            fval = float(value_part)
-            # Use the full name (e.g. "UCB (Stochastic) cumulative_regret")
-            metrics[name_part] = fval
-        except (ValueError, TypeError) as exc:
-            logger.debug(
-                "Skipping non-numeric metric from stdout %s=%r: %s",
-                name_part,
-                value_part,
-                exc,
-                exc_info=True,
-            )
-    return metrics
+    return _parse_metrics_from_stdout_impl(
+        stdout,
+        condition_pattern=_CONDITION_RE,
+        diagnostic_logger=logger,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -573,159 +536,13 @@ def _collect_experiment_results(
     Returns a dict with ``runs``, ``metrics_summary``, ``best_run``,
     ``latex_table``, and optionally ``structured_results``.
     """
-    runs_data: list[dict[str, Any]] = []
-    structured_results: Any = None
-
-    # Scan all stage dirs for runs/ subdirectory
-    for stage_subdir in sorted(run_dir.glob("stage-*/runs")):
-        # Check for structured results.json first
-        results_json = stage_subdir / "results.json"
-        if results_json.exists() and structured_results is None:
-            try:
-                structured_results = json.loads(
-                    results_json.read_text(encoding="utf-8")
-                )
-            except (json.JSONDecodeError, OSError) as exc:
-                logger.debug(
-                    "Failed to load structured experiment results from %s: %s",
-                    results_json,
-                    exc,
-                    exc_info=True,
-                )
-
-        for run_file in sorted(stage_subdir.glob("*.json")):
-            if run_file.name == "results.json":
-                continue  # Already handled above
-            parsed = _safe_json_loads(run_file.read_text(encoding="utf-8"), {})
-            if isinstance(parsed, dict) and "metrics" in parsed:
-                # Also check for structured_results inside run payload
-                if "structured_results" in parsed and structured_results is None:
-                    structured_results = parsed["structured_results"]
-                runs_data.append(parsed)
-            elif isinstance(parsed, dict) and "key_metrics" in parsed:
-                # Simulated mode uses key_metrics
-                parsed["metrics"] = parsed.pop("key_metrics")
-                runs_data.append(parsed)
-
-    if not runs_data:
-        result: dict[str, Any] = {"runs": [], "metrics_summary": {}, "best_run": None, "latex_table": ""}
-        if structured_results is not None:
-            result["structured_results"] = structured_results
-        return result
-
-    # Aggregate metrics across runs
-    all_metric_keys: set[str] = set()
-    for r in runs_data:
-        m = r.get("metrics") or {}
-        if isinstance(m, dict):
-            all_metric_keys.update(m.keys())
-
-    metrics_summary: dict[str, dict[str, float | None]] = {}
-    for key in sorted(all_metric_keys):
-        values = []
-        for r in runs_data:
-            m = r.get("metrics") or {}
-            if isinstance(m, dict) and key in m:
-                try:
-                    _fv = float(m[key])
-                    if _fv == _fv and abs(_fv) != float("inf"):  # filter NaN/Inf
-                        values.append(_fv)
-                except (ValueError, TypeError) as exc:
-                    logger.debug(
-                        "Skipping non-numeric experiment metric %s=%r: %s",
-                        key,
-                        m[key],
-                        exc,
-                        exc_info=True,
-                    )
-        if values:
-            metrics_summary[key] = {
-                "min": round(min(values), 6),
-                "max": round(max(values), 6),
-                "mean": round(sum(values) / len(values), 6),
-                "count": len(values),
-            }
-
-    # Find best run using metric_key and metric_direction
-    best_run: dict[str, Any] | None = None
-    if runs_data:
-
-        def _primary_metric(r: dict[str, Any]) -> float:
-            m = r.get("metrics") or {}
-            if isinstance(m, dict):
-                # Try specific metric_key first
-                if metric_key and metric_key in m:
-                    try:
-                        return float(m[metric_key])
-                    except (ValueError, TypeError) as exc:
-                        logger.debug(
-                            "Skipping non-numeric primary experiment metric %s=%r: %s",
-                            metric_key,
-                            m[metric_key],
-                            exc,
-                            exc_info=True,
-                        )
-                # Fallback to first metric
-                for v in m.values():
-                    try:
-                        return float(v)
-                    except (ValueError, TypeError) as exc:
-                        logger.debug(
-                            "Skipping non-numeric fallback experiment metric value %r: %s",
-                            v,
-                            exc,
-                            exc_info=True,
-                        )
-            return 0.0
-
-        _cmp = min if metric_direction == "minimize" else max
-        best_run = _cmp(runs_data, key=_primary_metric)
-
-    # Build LaTeX table
-    latex_lines = [
-        r"\begin{table}[h]",
-        r"\centering",
-        r"\caption{Experiment Results}",
-    ]
-    if metrics_summary:
-        cols = sorted(metrics_summary.keys())
-        header = "Metric & Min & Max & Mean & N \\\\"
-        latex_lines.append(r"\begin{tabular}{l" + "r" * 4 + "}")
-        latex_lines.append(r"\hline")
-        latex_lines.append(header)
-        latex_lines.append(r"\hline")
-        for col in cols:
-            s = metrics_summary[col]
-            row = f"{col} & {s['min']:.4f} & {s['max']:.4f} & {s['mean']:.4f} & {s['count']} \\\\"
-            latex_lines.append(row)
-        latex_lines.append(r"\hline")
-        latex_lines.append(r"\end{tabular}")
-    else:
-        latex_lines.append(r"\begin{tabular}{l}")
-        latex_lines.append("No experiment data available \\\\")
-        latex_lines.append(r"\end{tabular}")
-    latex_lines.append(r"\end{table}")
-
-    # R18-1: Extract paired statistical comparisons from stdout
-    from researchclaw.experiment.sandbox import extract_paired_comparisons
-
-    paired_comparisons: list[dict[str, object]] = []
-    for r in runs_data:
-        stdout = r.get("stdout", "")
-        if stdout:
-            paired_comparisons.extend(extract_paired_comparisons(stdout))
-
-    collected: dict[str, Any] = {
-        "runs": runs_data,
-        "metrics_summary": metrics_summary,
-        "best_run": best_run,
-        "latex_table": "\n".join(latex_lines),
-    }
-    if paired_comparisons:
-        collected["paired_comparisons"] = paired_comparisons
-    if structured_results is not None:
-        collected["structured_results"] = structured_results
-    return collected
+    return _collect_experiment_results_impl(
+        run_dir,
+        metric_key=metric_key,
+        metric_direction=metric_direction,
+        json_loader=_safe_json_loads,
+        diagnostic_logger=logger,
+    )
 
 
 def _build_context_preamble(

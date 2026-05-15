@@ -19,6 +19,10 @@ from researchclaw.pipeline.code_blocks import (
     extract_code_block,
     extract_multi_file_blocks,
 )
+from researchclaw.pipeline.experiment_results import (
+    collect_experiment_results,
+    parse_metrics_from_stdout,
+)
 from researchclaw.pipeline.parsing import (
     extract_yaml_block,
     parse_jsonl_rows,
@@ -124,6 +128,39 @@ loss: not-a-number
     assert metrics == {}
     assert "Skipping non-numeric condition metric from stdout" in caplog.text
     assert "Skipping non-numeric metric from stdout" in caplog.text
+
+
+def test_experiment_results_module_matches_legacy_helper_exports(
+    tmp_path: Path,
+) -> None:
+    stdout = """
+primary_metric: 0.92
+condition=baseline/accuracy metric=0.81
+INFO: training complete
+"""
+    runs_dir = tmp_path / "stage-14" / "runs"
+    runs_dir.mkdir(parents=True)
+    (runs_dir / "a.json").write_text(
+        json.dumps({"metrics": {"accuracy": 0.8}, "stdout": "accuracy: 0.8"}),
+        encoding="utf-8",
+    )
+    (runs_dir / "b.json").write_text(
+        json.dumps({"metrics": {"accuracy": 0.9}, "stdout": "accuracy: 0.9"}),
+        encoding="utf-8",
+    )
+
+    assert parse_metrics_from_stdout(stdout) == _helpers._parse_metrics_from_stdout(
+        stdout
+    )
+    assert collect_experiment_results(
+        tmp_path,
+        metric_key="accuracy",
+        metric_direction="maximize",
+    ) == _helpers._collect_experiment_results(
+        tmp_path,
+        metric_key="accuracy",
+        metric_direction="maximize",
+    )
 
 
 def test_safe_json_loads_logs_failed_parse_candidates(caplog) -> None:

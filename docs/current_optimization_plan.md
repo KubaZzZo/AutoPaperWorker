@@ -77,6 +77,10 @@ The second optimization round is complete. The implemented slices are:
    - Phase 3.13 marker: prior artifact lookup and stage metadata I/O moved
      from pipeline `_helpers.py` into `researchclaw/pipeline/artifact_io.py`
      while preserving legacy helper wrappers.
+   - Phase 3.14 marker: experiment stdout metric parsing and run-result
+     aggregation moved from pipeline `_helpers.py` into
+     `researchclaw/pipeline/experiment_results.py` while preserving legacy
+     helper wrappers and diagnostics.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
@@ -225,6 +229,13 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/artifact_io.py`, while `_helpers` keeps compatible
      private wrappers for existing stage callers.
      Marker: Phase 3.13 implemented.
+   - 2026-05-15 slice: experiment stdout metric parsing, run metric
+     summarization, best-run selection, LaTeX result table generation, and
+     paired-comparison collection moved from
+     `researchclaw/pipeline/_helpers.py` into
+     `researchclaw/pipeline/experiment_results.py`, while `_helpers` keeps
+     compatible private wrappers and legacy diagnostic logging.
+     Marker: Phase 3.14 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
