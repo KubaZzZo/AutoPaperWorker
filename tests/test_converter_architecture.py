@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from researchclaw.templates.converter import (
+    _build_body as legacy_build_body,
     _collect_list as legacy_collect_list,
+    _convert_block as legacy_convert_block,
+    _deduplicate_tables as legacy_deduplicate_tables,
     _extract_abstract as legacy_extract_abstract,
     _extract_title as legacy_extract_title,
     _escape_algo_line as legacy_escape_algo_line,
@@ -18,6 +21,11 @@ from researchclaw.templates.converter import (
     _render_itemize as legacy_render_itemize,
     _render_table as legacy_render_table,
     check_paper_completeness as legacy_check_paper_completeness,
+)
+from researchclaw.templates.body import (
+    _build_body,
+    _convert_block,
+    _deduplicate_tables,
 )
 from researchclaw.templates.codeblocks import _escape_algo_line, _render_code_block
 from researchclaw.templates.completeness import check_paper_completeness
@@ -170,3 +178,22 @@ def test_section_module_matches_legacy_exports() -> None:
     ) == legacy_separate_heading_body(
         "Abstract This abstract was joined to the heading."
     )
+
+
+def test_body_module_matches_legacy_exports() -> None:
+    md = (
+        "## Method\n"
+        "- First **item**\n"
+        "- Second item\n\n"
+        "![Result Plot](charts/result plot.png)\n"
+    )
+    sections = _parse_sections(md)
+    block = (
+        "- First **item**\n"
+        "- Second item\n\n"
+        "![Result Plot](charts/result plot.png)\n"
+    )
+
+    assert _convert_block(block) == legacy_convert_block(block)
+    assert _build_body(sections, title="") == legacy_build_body(sections, title="")
+    assert _deduplicate_tables("plain body") == legacy_deduplicate_tables("plain body")

@@ -20,6 +20,11 @@ import textwrap
 import threading
 import unicodedata
 
+from researchclaw.templates.body import (
+    _build_body as _build_body_impl,
+    _convert_block as _convert_block_impl,
+    _deduplicate_tables,
+)
 from researchclaw.templates.codeblocks import (
     _UNICODE_TO_ASCII,
     _escape_algo_line as _escape_algo_line_impl,
@@ -46,7 +51,6 @@ from researchclaw.templates.sections import (
     _separate_heading_body,
 )
 from researchclaw.templates.tables import (
-    _collect_table,
     _parse_alignments,
     _parse_table_row,
     _render_table as _render_table_impl,
@@ -547,293 +551,25 @@ def _preprocess_markdown(md: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Body building
+# Body rendering
 # ---------------------------------------------------------------------------
-
-_SKIP_HEADINGS = {"title", "abstract"}
 
 
 def _build_body(sections: list[_Section], *, title: str = "") -> str:
-    """Convert all non-title/abstract sections to LaTeX body text.
-
-    When a paper has its title as an H1 heading (``# My Paper Title``),
-    that heading is already rendered via ``\\title{}`` in the preamble.
-    We skip it here and promote remaining headings so that H2 (``##``)
-    maps to ``\\section``, H3 to ``\\subsection``, etc.
-    """
-    title_lower = title.strip().lower()
-
-    # Determine minimum heading level used for real body sections
-    # (skip title/abstract/references).
-    title_h1_found = False
-    for sec in sections:
-        if (
-            sec.level == 1
-            and sec.heading
-            and sec.heading.strip().lower() == title_lower
-        ):
-            title_h1_found = True
-            break
-
-    # T1.3: Auto-detect when all body sections use H2 (##) instead of H1 (#).
-    # This happens when the LLM uses ## for main sections (Introduction, Method, etc.)
-    # without an explicit H1 title heading. We must promote H2→\section.
-    body_levels: set[int] = set()
-    for sec in sections:
-        if sec.heading_lower not in _SKIP_HEADINGS and sec.level >= 1:
-            if not (sec.level == 1 and sec.heading.strip().lower() == title_lower):
-                body_levels.add(sec.level)
-
-    min_body_level = min(body_levels) if body_levels else 1
-
-    # Promote if: (a) title was H1 and body starts at H2, OR
-    # (b) no title H1 found but all body sections are H2+ (LLM omitted H1 title)
-    # BUG-166: When title is H1 AND body also uses H1 for main sections,
-    # offset must be 0 — otherwise H1→max(1,1-1)=1 and H2→max(1,2-1)=1
-    # both collapse to \section, losing all subsection hierarchy.
-    if title_h1_found:
-        level_offset = 1 if min_body_level >= 2 else 0
-    elif min_body_level >= 2:
-        # All body sections are H2 or deeper — promote so H2→\section
-        level_offset = min_body_level - 1
-    else:
-        level_offset = 0
-
-    _level_map = {
-        1: "section",
-        2: "subsection",
-        3: "subsubsection",
-        4: "paragraph",
-    }
-
-    parts: list[str] = []
-    for sec in sections:
-        # Skip title-only and abstract sections
-        if sec.heading_lower in _SKIP_HEADINGS:
-            continue
-        # Skip the H1 heading that was used as the paper title
-        if (
-            sec.level == 1
-            and sec.heading
-            and sec.heading.strip().lower() == title_lower
-        ):
-            continue
-        if sec.level == 0:
-            # Preamble text before any heading — include as-is
-            parts.append(_convert_block(sec.body))
-            continue
-
-        effective_level = max(1, sec.level - level_offset)
-        cmd = _level_map.get(effective_level, "paragraph")
-        heading_tex = _escape_latex(sec.heading)
-        # Strip leading manual section numbers: "1. Introduction" → "Introduction"
-        # Handles: "1 Intro", "2.1 Related", "3.2.1 Details", "1. Intro"
-        heading_tex = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", heading_tex)
-        parts.append(f"\\{cmd}{{{heading_tex}}}")
-        # Generate a label for cross-referencing
-        if cmd in ("section", "subsection", "subsubsection"):
-            label_key = re.sub(r"[^a-z0-9]+", "_", heading_tex.lower()).strip("_")[:40]
-            if label_key:
-                parts.append(f"\\label{{sec:{label_key}}}")
-        if sec.body:
-            parts.append(_convert_block(sec.body))
-
-    return "\n\n".join(parts) + "\n"
-
-
-def _deduplicate_tables(body: str) -> str:
-    """IMP-30: Remove duplicate tables that share the same header row.
-
-    LLMs sometimes repeat tables (e.g. same results table in Results and
-    Discussion). We keep the first occurrence and drop subsequent copies.
-    """
-    import logging as _dup_log
-
-    _TABLE_ENV_RE = re.compile(
-        r"(\\begin\{table\}.*?\\end\{table\})", re.DOTALL
+    return _build_body_impl(
+        sections,
+        title=title,
+        next_table_num=_next_table_num,
+        next_figure_num=_next_figure_num,
     )
-    tables = list(_TABLE_ENV_RE.finditer(body))
-    if len(tables) < 2:
-        return body
-
-    seen_headers: dict[str, int] = {}
-    drop_spans: list[tuple[int, int]] = []
-    for m in tables:
-        table_text = m.group(1)
-        # Extract header row (first row after \toprule)
-        header_match = re.search(r"\\toprule\s*\n(.+?)\\\\", table_text)
-        if not header_match:
-            continue
-        header_key = re.sub(r"\s+", " ", header_match.group(1).strip())
-        if header_key in seen_headers:
-            drop_spans.append((m.start(), m.end()))
-            _dup_log.getLogger(__name__).info(
-                "IMP-30: Dropping duplicate table (same header as table #%d)",
-                seen_headers[header_key],
-            )
-        else:
-            seen_headers[header_key] = len(seen_headers) + 1
-
-    # Remove duplicates in reverse order to preserve offsets
-    for start, end in reversed(drop_spans):
-        body = body[:start] + body[end:]
-
-    return body
-
-
-# ---------------------------------------------------------------------------
-# Block-level conversion
-# ---------------------------------------------------------------------------
-
-# Patterns for block-level structures
-_DISPLAY_MATH_RE = re.compile(r"^\\\[(.+?)\\\]$", re.MULTILINE | re.DOTALL)
-# $$...$$ display math (single- or multi-line)
-_DISPLAY_MATH_DOLLAR_RE = re.compile(
-    r"^\$\$\s*\n?(.*?)\n?\s*\$\$$", re.MULTILINE | re.DOTALL
-)
-_FENCED_CODE_RE = re.compile(r"^```(\w*)\n(.*?)^```", re.MULTILINE | re.DOTALL)
-_TABLE_SEP_RE = re.compile(r"^\|[-:| ]+\|$")
-
-# Markdown image pattern: ![caption](path)
-_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)\s*$")
-
-# Bullet / numbered list patterns
-_BULLET_RE = re.compile(r"^(\s*)-\s+(.+)")
-_NUMBERED_RE = re.compile(r"^(\s*)\d+\.\s+(.+)")
 
 
 def _convert_block(text: str) -> str:
-    """Convert a block of Markdown body text to LaTeX."""
-    # Protect display math from further processing
-    math_blocks: list[str] = []
-
-    def _stash_math(m: re.Match[str]) -> str:
-        idx = len(math_blocks)
-        math_blocks.append(m.group(0))  # Keep \\[...\\] as-is
-        return f"%%MATH_BLOCK_{idx}%%"
-
-    def _stash_dollar_math(m: re.Match[str]) -> str:
-        """Convert $$...$$ to \\begin{equation}...\\end{equation}."""
-        idx = len(math_blocks)
-        inner = m.group(1).strip()
-        math_blocks.append(
-            f"\\begin{{equation}}\n{inner}\n\\end{{equation}}"
-        )
-        return f"%%MATH_BLOCK_{idx}%%"
-
-    text = _DISPLAY_MATH_RE.sub(_stash_math, text)
-    # Also handle $$...$$ display math
-    text = _DISPLAY_MATH_DOLLAR_RE.sub(_stash_dollar_math, text)
-
-    # Protect fenced code blocks
-    code_blocks: list[str] = []
-
-    def _stash_code(m: re.Match[str]) -> str:
-        idx = len(code_blocks)
-        lang = m.group(1) or ""
-        code = m.group(2)
-        code_blocks.append(_render_code_block(lang, code))
-        return f"%%CODE_BLOCK_{idx}%%"
-
-    text = _FENCED_CODE_RE.sub(_stash_code, text)
-
-    # Protect raw LaTeX environments (table, figure, algorithm, etc.)
-    # These appear when pre-built LaTeX (e.g. anti-fabrication result tables)
-    # is embedded directly in the markdown.  Without protection, their
-    # contents go through _convert_inline which double-escapes {, }, _, &.
-    latex_env_blocks: list[str] = []
-
-    def _stash_latex_env(m: re.Match[str]) -> str:
-        idx = len(latex_env_blocks)
-        latex_env_blocks.append(m.group(0))
-        return f"%%LATEX_ENV_{idx}%%"
-
-    # Match \begin{env}...\end{env} for environments that should pass through.
-    text = re.sub(
-        r"\\begin\{(table|figure|tabular|algorithm|algorithmic|equation|align"
-        r"|gather|multline|minipage|tikzpicture)\*?\}.*?"
-        r"\\end\{\1\*?\}",
-        _stash_latex_env,
+    return _convert_block_impl(
         text,
-        flags=re.DOTALL,
+        next_table_num=_next_table_num,
+        next_figure_num=_next_figure_num,
     )
-
-    # Process line by line for lists, tables, and paragraphs
-    lines = text.split("\n")
-    output: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
-        # Check for stashed blocks
-        if line.strip().startswith("%%MATH_BLOCK_"):
-            idx = int(re.search(r"\d+", line.strip()).group())  # type: ignore[union-attr]
-            output.append(math_blocks[idx])
-            i += 1
-            continue
-
-        if line.strip().startswith("%%CODE_BLOCK_"):
-            idx = int(re.search(r"\d+", line.strip()).group())  # type: ignore[union-attr]
-            output.append(code_blocks[idx])
-            i += 1
-            continue
-
-        # Stashed LaTeX environments — pass through unchanged
-        if line.strip().startswith("%%LATEX_ENV_"):
-            idx = int(re.search(r"\d+", line.strip()).group())  # type: ignore[union-attr]
-            output.append(latex_env_blocks[idx])
-            i += 1
-            continue
-
-        # Bullet list
-        if _BULLET_RE.match(line):
-            items, i = _collect_list(lines, i, _BULLET_RE)
-            output.append(_render_itemize(items))
-            continue
-
-        # Numbered list
-        if _NUMBERED_RE.match(line):
-            items, i = _collect_list(lines, i, _NUMBERED_RE)
-            output.append(_render_enumerate(items))
-            continue
-
-        # Table detection (line starts with |)
-        if (
-            line.strip().startswith("|")
-            and i + 1 < len(lines)
-            and _TABLE_SEP_RE.match(lines[i + 1].strip())
-        ):
-            # Check if previous line is a table caption (e.g. **Table 1: ...**)
-            table_caption = ""
-            if output:
-                prev = output[-1].strip()
-                # Match bold caption: \textbf{Table N...} (already converted)
-                # or raw markdown: **Table N: ...**
-                cap_m = re.match(
-                    r"(?:\\textbf\{|[*]{2})\s*Table\s+\d+[.:]?\s*(.*?)(?:\}|[*]{2})$",
-                    prev,
-                )
-                if cap_m:
-                    table_caption = f"Table {cap_m.group(1)}" if cap_m.group(1) else ""
-                    if not table_caption:
-                        table_caption = prev
-                    output.pop()  # Remove caption line from output (now inside table)
-            table_lines, i = _collect_table(lines, i)
-            output.append(_render_table(table_lines, caption=table_caption))
-            continue
-
-        # Markdown image: ![caption](path)
-        img_match = _IMAGE_RE.match(line.strip())
-        if img_match:
-            output.append(_render_figure(img_match.group(1), img_match.group(2)))
-            i += 1
-            continue
-
-        # Regular paragraph line
-        output.append(_convert_inline(line))
-        i += 1
-
-    return "\n".join(output)
 
 
 # ---------------------------------------------------------------------------
