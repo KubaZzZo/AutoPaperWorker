@@ -287,16 +287,16 @@ The second optimization round is complete. The implemented slices are:
      optional.
 
 5. **Full-suite verification hardening**
-   - 2026-05-15 slice: `GitHubClient(token="")` now means explicit
-     unauthenticated mode instead of falling back to a process-level
-     `GITHUB_TOKEN`.
-   - 2026-05-15 slice: Windows HITL `.sh` hooks now run through an available
-     POSIX shell when possible and fall back to a small echo-only compatibility
-     runner when WSL/Git Bash is unavailable.
-   - 2026-05-15 slice: literature cache `ttl <= 0` is treated as immediately
+   - 2026-05-15 round 1 marker: environment/config isolation fixes.
+     `GitHubClient(token="")` now means explicit unauthenticated mode instead
+     of falling back to a process-level `GITHUB_TOKEN`; MetaClaw and e2e
+     regression fixtures no longer use the deprecated inline `llm.api_key`
+     field.
+   - 2026-05-15 round 2 marker: platform/cache contract fixes. Windows HITL
+     `.sh` hooks now run through an available POSIX shell when possible and
+     fall back to a small echo-only compatibility runner when WSL/Git Bash is
+     unavailable; literature cache `ttl <= 0` is treated as immediately
      expired, matching the test contract.
-   - 2026-05-15 slice: MetaClaw and e2e regression fixtures no longer use the
-     deprecated inline `llm.api_key` field.
    - 2026-05-15 slice: introduced `researchclaw/run_state.py` with a
      `RunStateBackend` interface and JSON backend. Pipeline progress writing
      and dashboard progress reading now go through this backend while
@@ -305,7 +305,7 @@ The second optimization round is complete. The implemented slices are:
      run-state adapter. JSON remains the default backend, and dashboard
      collection can read from SQLite when explicitly provided.
 
-5. **Coverage expansion**
+6. **Coverage expansion**
    - Add tests for every optimization slice.
    - Prioritize dashboard/run-state behavior, LLM adapter resilience, MCP
      transport/registry paths, and experiment artifact handling.
