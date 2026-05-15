@@ -53,6 +53,8 @@ The second optimization round is complete. The implemented slices are:
      2026-05-15.
    - Phase 3.6 marker: Markdown preprocessing and raw metric rounding
      extraction implemented 2026-05-15.
+   - Phase 3.7 marker: document assembly extraction implemented
+     2026-05-15.
 
 2. **Pipeline module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/pipeline/_helpers.py`,
@@ -169,6 +171,11 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/templates/preprocessing.py`, with legacy converter imports
      preserved by re-exporting the imported helpers.
      Marker: Phase 3.6 implemented.
+   - 2026-05-15 slice: document assembly moved from
+     `researchclaw/templates/converter.py` into
+     `researchclaw/templates/document.py`, with converter keeping the public
+     `markdown_to_latex` entry point and legacy helper exports.
+     Marker: Phase 3.7 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

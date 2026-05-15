@@ -30,6 +30,7 @@ from researchclaw.templates.codeblocks import (
 )
 from researchclaw.templates.completeness import check_paper_completeness
 from researchclaw.templates.conference import ConferenceTemplate
+from researchclaw.templates.document import markdown_to_latex as _markdown_to_latex_impl
 from researchclaw.templates.figures import _render_figure as _render_figure_impl
 from researchclaw.templates.inline import (
     _convert_inline,
@@ -97,73 +98,18 @@ def markdown_to_latex(
     bib_file: str = "references",
     bib_entries: dict[str, str] | None = None,
 ) -> str:
-    """Convert a Markdown paper to a complete LaTeX document.
-
-    Parameters
-    ----------
-    paper_md:
-        Full paper in Markdown with embedded LaTeX math.
-    template:
-        Conference template controlling preamble and structure.
-    title:
-        Paper title.  If empty, extracted from ``# Title`` heading or the
-        first ``# ...`` heading in *paper_md*.
-    authors:
-        Author string inserted into the template author block.
-    bib_file:
-        Bibliography filename (without ``.bib`` extension).
-    bib_entries:
-        Optional mapping of author-year patterns to cite_keys for
-        recovering author-year citations that slipped through earlier
-        processing, e.g. ``{"Raissi et al., 2019": "raissi2019physics"}``.
-
-    Returns
-    -------
-    str
-        A complete ``.tex`` file ready for compilation.
-    """
-    _reset_render_counters()
-
-    paper_md = _preprocess_markdown(paper_md)
-    paper_md = _round_raw_metrics(paper_md)
-    sections = _parse_sections(paper_md)
-
-    # Extract title from first H1 heading if not provided
-    if not title:
-        title = _extract_title(sections, paper_md)
-
-    # Extract abstract
-    abstract = _extract_abstract(sections)
-
-    # Build body (everything except title/abstract headings)
-    body = _build_body(sections, title=title)
-
-    # IMP-30: Detect and remove duplicate tables
-    body = _deduplicate_tables(body)
-
-    # R10-Fix5: Completeness check
-    completeness_warnings = check_paper_completeness(sections)
-    if completeness_warnings:
-        import logging
-
-        _logger = logging.getLogger(__name__)
-        for warning in completeness_warnings:
-            _logger.warning("LaTeX completeness check: %s", warning)
-        # BUG-28: Log warnings only — don't inject comments into LaTeX body
-
-    preamble = template.render_preamble(
-        title=_escape_latex(title),
+    """Convert a Markdown paper to a complete LaTeX document."""
+    return _markdown_to_latex_impl(
+        paper_md,
+        template,
+        title=title,
         authors=authors,
-        abstract=_convert_inline(abstract),
+        bib_file=bib_file,
+        bib_entries=bib_entries,
+        reset_render_counters=_reset_render_counters,
+        next_table_num=_next_table_num,
+        next_figure_num=_next_figure_num,
     )
-    footer = template.render_footer(bib_file)
-
-    tex = preamble + "\n" + body + footer
-
-    # Final sanitization pass on the complete LaTeX output
-    tex = _sanitize_latex_output(tex, bib_entries=bib_entries)
-
-    return tex
 
 
 # ---------------------------------------------------------------------------

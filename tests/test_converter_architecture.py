@@ -17,6 +17,7 @@ from researchclaw.templates.converter import (
     _sanitize_latex_output as legacy_sanitize_latex_output,
     _normalize_latex_unicode as legacy_normalize_latex_unicode,
     _separate_heading_body as legacy_separate_heading_body,
+    markdown_to_latex as legacy_markdown_to_latex,
     _parse_alignments as legacy_parse_alignments,
     _parse_table_row as legacy_parse_table_row,
     _reset_render_counters,
@@ -32,6 +33,7 @@ from researchclaw.templates.body import (
     _deduplicate_tables,
 )
 from researchclaw.templates.codeblocks import _escape_algo_line, _render_code_block
+from researchclaw.templates.document import markdown_to_latex
 from researchclaw.templates.completeness import check_paper_completeness
 from researchclaw.templates.figures import _render_figure
 from researchclaw.templates.inline import _convert_inline, _escape_latex
@@ -59,6 +61,7 @@ from researchclaw.templates.tables import (
     _parse_table_row,
     _render_table,
 )
+from researchclaw.templates.conference import NEURIPS_2024
 
 
 def test_inline_converter_module_matches_legacy_exports() -> None:
@@ -244,3 +247,13 @@ def test_preprocessing_module_matches_legacy_exports() -> None:
 
     assert _round_raw_metrics(md) == legacy_round_raw_metrics(md)
     assert _preprocess_markdown(md) == legacy_preprocess_markdown(md)
+
+
+def test_document_module_matches_legacy_export() -> None:
+    md = "# Demo Paper\n\n## Abstract\nShort abstract.\n\n## Method\nBody text."
+
+    assert markdown_to_latex(md, NEURIPS_2024, authors="A") == legacy_markdown_to_latex(
+        md,
+        NEURIPS_2024,
+        authors="A",
+    )
