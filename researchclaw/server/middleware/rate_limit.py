@@ -22,10 +22,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         *,
         max_requests: int = 30,
         window_seconds: int = 60,
+        trusted_proxy_ips: tuple[str, ...] = (),
     ) -> None:
         super().__init__(app)  # type: ignore[arg-type]
         self._max_requests = max(1, int(max_requests))
         self._window_seconds = max(1, int(window_seconds))
+        self._trusted_proxy_ips = frozenset(ip.strip() for ip in trusted_proxy_ips if ip.strip())
         self._hits: dict[str, deque[float]] = defaultdict(deque)
 
     async def dispatch(
@@ -56,9 +58,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         hits.append(now)
         return await call_next(request)
 
-    @staticmethod
-    def _client_key(request: Request) -> str:
-        forwarded_for = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        if forwarded_for:
-            return forwarded_for
-        return request.client.host if request.client else "unknown"
+    def _client_key(self, request: Request) -> str:
+        peer_host = request.client.host if request.client else "unknown"
+        if peer_host in self._trusted_proxy_ips:
+            forwarded_for = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            if forwarded_for:
+                return forwarded_for
+        return peer_host

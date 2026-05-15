@@ -159,6 +159,10 @@ server:
   # Leave blank to generate a random token at startup; set a value only for
   # controlled deployments where the config file is kept secret.
   auth_token: ""
+  rate_limit_requests: 30
+  rate_limit_window_sec: 60
+  # Only trust X-Forwarded-For when the direct peer is one of these proxies.
+  trusted_proxy_ips: []
 
 # ============================================================================
 # SSH Remote Examples

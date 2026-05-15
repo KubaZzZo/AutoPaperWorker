@@ -193,6 +193,29 @@ class TestSSHExecutor:
         exe = SSHExecutor(server)
         assert exe.host == "gpu1.local"
 
+    def test_run_experiment_quotes_remote_command(self) -> None:
+        server = _make_server()
+        exe = SSHExecutor(server)
+
+        async def _run() -> None:
+            with patch("asyncio.create_subprocess_exec") as mock_exec:
+                proc = AsyncMock()
+                proc.communicate = AsyncMock(return_value=(b"ok", b""))
+                proc.returncode = 0
+                mock_exec.return_value = proc
+                result = await exe.run_experiment("/tmp/test", "echo hello; rm -rf /", timeout=1)
+                assert result["success"] is True
+
+                args = mock_exec.call_args.args
+                assert args[0] == "ssh"
+                assert args[5] == server.host
+                assert args[6] == "sh"
+                assert args[7] == "-lc"
+                assert "; rm -rf /" in args[8]
+                assert args[8].startswith("'") and args[8].endswith("'")
+
+        asyncio.run(_run())
+
     def test_run_experiment_timeout(self) -> None:
         server = _make_server()
         exe = SSHExecutor(server)

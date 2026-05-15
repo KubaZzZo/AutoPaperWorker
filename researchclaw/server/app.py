@@ -7,13 +7,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from researchclaw import __version__
 from researchclaw.config import RCConfig
-from researchclaw.server.middleware.auth import TokenAuthMiddleware
+from researchclaw.server.middleware.auth import TokenAuthMiddleware, require_websocket_token
 from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 from researchclaw.server.websocket.manager import ConnectionManager
 from researchclaw.server.websocket.events import Event, EventType
@@ -65,6 +65,7 @@ def create_app(
         RateLimitMiddleware,
         max_requests=config.server.rate_limit_requests,
         window_seconds=config.server.rate_limit_window_sec,
+        trusted_proxy_ips=config.server.trusted_proxy_ips,
     )
 
     # --- WebSocket manager ---
@@ -111,12 +112,13 @@ def create_app(
             app.include_router(voice_router)
 
     # --- WebSocket events endpoint ---
-    from fastapi import WebSocket, WebSocketDisconnect
     import uuid
 
     @app.websocket("/ws/events")
     async def events_ws(websocket: WebSocket) -> None:
         """Real-time event stream for dashboard."""
+        if not await require_websocket_token(websocket):
+            return
         client_id = f"evt-{uuid.uuid4().hex[:8]}"
         await event_manager.connect(websocket, client_id)
         try:

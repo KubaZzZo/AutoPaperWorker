@@ -7,6 +7,7 @@ import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from researchclaw.server.middleware.auth import require_websocket_token
 from researchclaw.server.websocket.events import Event, EventType
 from researchclaw.server.websocket.manager import ConnectionManager
 
@@ -34,6 +35,8 @@ def get_chat_manager() -> ConnectionManager:
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket) -> None:
     """WebSocket endpoint for conversational research chat."""
+    if not await require_websocket_token(websocket):
+        return
     manager = get_chat_manager()
     client_id = str(uuid.uuid4())[:8]
 

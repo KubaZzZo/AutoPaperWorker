@@ -44,10 +44,11 @@ class SSHExecutor:
     ) -> dict[str, Any]:
         """Run an experiment command on the remote server."""
         full_cmd = f"cd {shlex.quote(remote_dir)} && {command}"
+        remote_shell_cmd = shlex.quote(full_cmd)
         logger.info("Running on %s: %s", self.host, full_cmd)
         proc = await asyncio.create_subprocess_exec(
             "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
-            self.host, full_cmd,
+            self.host, "sh", "-lc", remote_shell_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

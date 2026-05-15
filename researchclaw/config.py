@@ -625,6 +625,7 @@ class ServerConfig:
     whisper_api_url: str = ""  # empty = use OpenAI default
     rate_limit_requests: int = 30
     rate_limit_window_sec: int = 60
+    trusted_proxy_ips: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1429,6 +1430,16 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
         cors = DEFAULT_CORS_ORIGINS
     else:
         cors = (str(cors),)
+    trusted_proxy_ips = data.get("trusted_proxy_ips", ())
+    if isinstance(trusted_proxy_ips, str):
+        trusted_proxy_ips = (trusted_proxy_ips,)
+    elif isinstance(trusted_proxy_ips, list):
+        trusted_proxy_ips = tuple(trusted_proxy_ips)
+    elif trusted_proxy_ips is None:
+        trusted_proxy_ips = ()
+    else:
+        trusted_proxy_ips = tuple(trusted_proxy_ips)
+    trusted_proxy_ips = tuple(str(ip).strip() for ip in trusted_proxy_ips if str(ip).strip())
     auth_token = str(data.get("auth_token", "")).strip() or secrets.token_urlsafe(32)
     return ServerConfig(
         enabled=bool(data.get("enabled", False)),
@@ -1441,6 +1452,7 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
         whisper_api_url=data.get("whisper_api_url", ""),
         rate_limit_requests=int(data.get("rate_limit_requests", 30)),
         rate_limit_window_sec=int(data.get("rate_limit_window_sec", 60)),
+        trusted_proxy_ips=trusted_proxy_ips,
     )
 
 

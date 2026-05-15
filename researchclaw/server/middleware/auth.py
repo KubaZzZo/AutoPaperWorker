@@ -4,9 +4,61 @@ from __future__ import annotations
 
 from typing import Callable, Awaitable
 
+from fastapi import WebSocket
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+WEBSOCKET_UNAUTHORIZED_CODE = 4001
+
+
+def extract_auth_token(auth_header: str) -> str:
+    """Extract a token from an Authorization header value."""
+    value = (auth_header or "").strip()
+    if value.lower().startswith("bearer "):
+        return value[7:].strip()
+    return value
+
+
+def token_matches(candidate: str, expected: str) -> bool:
+    """Return True when a presented token matches the configured token."""
+    return bool(expected) and candidate == expected
+
+
+def request_token(request: Request) -> str:
+    """Extract auth token from HTTP headers or query parameters."""
+    return (
+        extract_auth_token(request.headers.get("authorization", ""))
+        or request.query_params.get("token", "")
+    )
+
+
+def websocket_token(websocket: WebSocket) -> str:
+    """Extract auth token from WebSocket headers or query parameters."""
+    return (
+        websocket.query_params.get("token", "")
+        or extract_auth_token(websocket.headers.get("authorization", ""))
+    )
+
+
+def websocket_expected_token(websocket: WebSocket) -> str:
+    """Read the configured app auth token for a WebSocket request."""
+    app = websocket.scope.get("app") if hasattr(websocket, "scope") else None
+    state = getattr(app, "state", None)
+    return str(getattr(state, "auth_token", "") or "")
+
+
+async def require_websocket_token(websocket: WebSocket) -> bool:
+    """Close unauthorized WebSockets and return whether they may continue."""
+    expected = websocket_expected_token(websocket)
+    if not expected:
+        # Direct unit tests and intentionally unauthenticated ad hoc apps do
+        # not carry app.state.auth_token.
+        return True
+    if token_matches(websocket_token(websocket), expected):
+        return True
+    await websocket.close(code=WEBSOCKET_UNAUTHORIZED_CODE)
+    return False
 
 
 class TokenAuthMiddleware(BaseHTTPMiddleware):
@@ -31,12 +83,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         if path in self.EXEMPT_PATHS or path.startswith("/static"):
             return await call_next(request)
 
-        auth_header = request.headers.get("authorization", "")
-        token = auth_header.removeprefix("Bearer ").strip()
-        if not token:
-            token = request.query_params.get("token", "")
-
-        if token != self._token:
+        if not token_matches(request_token(request), self._token):
             return JSONResponse(
                 {"detail": "Unauthorized"}, status_code=401
             )

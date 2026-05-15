@@ -63,6 +63,7 @@ class TestServerConfig:
         assert cfg.voice_enabled is False
         assert cfg.rate_limit_requests == 30
         assert cfg.rate_limit_window_sec == 60
+        assert cfg.trusted_proxy_ips == ()
 
     def test_dashboard_config_defaults(self) -> None:
         from researchclaw.config import DashboardConfig
@@ -82,6 +83,7 @@ class TestServerConfig:
             "auth_token": "secret123",
             "rate_limit_requests": 2,
             "rate_limit_window_sec": 10,
+            "trusted_proxy_ips": ["127.0.0.1", "10.0.0.10"],
         })
         assert cfg.enabled is True
         assert cfg.host == "127.0.0.1"
@@ -89,6 +91,7 @@ class TestServerConfig:
         assert cfg.auth_token == "secret123"
         assert cfg.rate_limit_requests == 2
         assert cfg.rate_limit_window_sec == 10
+        assert cfg.trusted_proxy_ips == ("127.0.0.1", "10.0.0.10")
 
     def test_parse_server_config_empty(self) -> None:
         from researchclaw.config import _parse_server_config
@@ -99,6 +102,7 @@ class TestServerConfig:
         assert cfg.cors_origins == ("http://127.0.0.1:8080", "http://localhost:8080")
         assert cfg.auth_token
         assert len(cfg.auth_token) >= 32
+        assert cfg.trusted_proxy_ips == ()
 
     def test_parse_dashboard_config(self) -> None:
         from researchclaw.config import _parse_dashboard_config
@@ -809,6 +813,35 @@ class TestFastAPIApp:
             assert resp.status_code == 200
             assert resp.json()["project"] == "test"
 
+    def test_events_websocket_rejects_missing_token(self, app: object) -> None:
+        from fastapi.testclient import TestClient
+        from starlette.websockets import WebSocketDisconnect
+
+        client = TestClient(app)  # type: ignore[arg-type]
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect("/ws/events"):
+                pass
+        assert exc.value.code == 4001
+
+    def test_events_websocket_accepts_query_token(self, app: object) -> None:
+        from fastapi.testclient import TestClient
+
+        token = app.state.auth_token  # type: ignore[attr-defined]
+        client = TestClient(app)  # type: ignore[arg-type]
+        with client.websocket_connect(f"/ws/events?token={token}") as ws:
+            event = json.loads(ws.receive_text())
+            assert event["type"] == "connected"
+
+    def test_chat_websocket_rejects_missing_token(self, app: object) -> None:
+        from fastapi.testclient import TestClient
+        from starlette.websockets import WebSocketDisconnect
+
+        client = TestClient(app)  # type: ignore[arg-type]
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect("/ws/chat"):
+                pass
+        assert exc.value.code == 4001
+
     @pytest.mark.asyncio
     async def test_pipeline_status_idle(self, app: object) -> None:
         from httpx import AsyncClient, ASGITransport
@@ -944,3 +977,78 @@ class TestFastAPIApp:
         assert second.status_code == 429
         assert second.json()["detail"] == "Rate limit exceeded"
         assert 1 <= int(second.headers["retry-after"]) <= 60
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_ignores_spoofed_forwarded_for_by_default(
+        self,
+        _skip_if_no_fastapi: None,
+    ) -> None:
+        from httpx import AsyncClient, ASGITransport
+        from fastapi import FastAPI
+        from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
+
+        app = FastAPI()
+        app.add_middleware(
+            RateLimitMiddleware,
+            max_requests=1,
+            window_seconds=60,
+        )
+
+        @app.post("/api/pipeline/start")
+        async def _start() -> dict[str, str]:
+            return {"status": "ok"}
+
+        transport = ASGITransport(app=app, client=("127.0.0.1", 12345))
+
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.post(
+                "/api/pipeline/start",
+                headers={"X-Forwarded-For": "198.51.100.1"},
+                json={"topic": "first"},
+            )
+            second = await ac.post(
+                "/api/pipeline/start",
+                headers={"X-Forwarded-For": "198.51.100.2"},
+                json={"topic": "second"},
+            )
+
+        assert first.status_code == 200
+        assert second.status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_uses_forwarded_for_from_trusted_proxy(
+        self,
+        _skip_if_no_fastapi: None,
+    ) -> None:
+        from httpx import AsyncClient, ASGITransport
+        from fastapi import FastAPI
+        from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
+
+        app = FastAPI()
+        app.add_middleware(
+            RateLimitMiddleware,
+            max_requests=1,
+            window_seconds=60,
+            trusted_proxy_ips=("127.0.0.1",),
+        )
+
+        @app.post("/api/pipeline/start")
+        async def _start() -> dict[str, str]:
+            return {"status": "ok"}
+
+        transport = ASGITransport(app=app, client=("127.0.0.1", 12345))
+
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.post(
+                "/api/pipeline/start",
+                headers={"X-Forwarded-For": "198.51.100.1"},
+                json={"topic": "first"},
+            )
+            second = await ac.post(
+                "/api/pipeline/start",
+                headers={"X-Forwarded-For": "198.51.100.2"},
+                json={"topic": "second"},
+            )
+
+        assert first.status_code == 200
+        assert second.status_code == 200
