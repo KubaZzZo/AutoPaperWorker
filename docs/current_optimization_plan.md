@@ -84,9 +84,10 @@ The second optimization round is complete. The implemented slices are:
    - Phase 3.15 marker: Stage 12 sandbox run persistence and status
      classification moved from `_execution.py` into
      `researchclaw/pipeline/stage_impls/execution_run.py`.
-   - Phase 3.16 planned: extract one review/publish quality, citation, or
-     packaging workflow from
-     `researchclaw/pipeline/stage_impls/_review_publish.py`.
+   - Phase 3.16 marker: missing-citation resolution moved from
+     `_review_publish.py` into
+     `researchclaw/pipeline/stage_impls/review_publish_citations.py`, while
+     preserving legacy private wrappers.
    - Phase 3.17 planned: extract one well-covered writing or code-generation
      workflow from `_paper_writing.py` or `_code_generation.py`.
    - Tracking plan: `docs/stage_impls_refactor_plan.md`.
@@ -252,6 +253,14 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/stage_impls/execution_run.py`, leaving
      `_execution.py` focused on invoking the sandbox and stage orchestration.
      Marker: Phase 3.15 implemented.
+   - 2026-05-15 slice: missing-citation resolution, seminal-paper lookup,
+     BibTeX generation, API result validation, and conservative wrong-paper
+     rejection moved from
+     `researchclaw/pipeline/stage_impls/_review_publish.py` into
+     `researchclaw/pipeline/stage_impls/review_publish_citations.py`, with
+     legacy `_review_publish.py` private wrappers preserved for existing tests
+     and stage callers.
+     Marker: Phase 3.16 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

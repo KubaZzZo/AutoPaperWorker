@@ -91,6 +91,23 @@ class TestLoadSeminalPapersByKey:
 class TestSeminalToBibtex:
     """Test BibTeX generation from seminal_papers.yaml entries."""
 
+    def test_new_module_matches_legacy_wrapper(self):
+        from researchclaw.pipeline.stage_impls._review_publish import _seminal_to_bibtex
+        from researchclaw.pipeline.stage_impls.review_publish_citations import (
+            seminal_to_bibtex,
+        )
+
+        entry = {
+            "title": "Attention Is All You Need",
+            "authors": "Vaswani et al.",
+            "year": 2017,
+            "venue": "NeurIPS",
+        }
+
+        assert seminal_to_bibtex(entry, "vaswani2017attention") == _seminal_to_bibtex(
+            entry, "vaswani2017attention"
+        )
+
     def test_conference_paper(self):
         from researchclaw.pipeline.stage_impls._review_publish import _seminal_to_bibtex
         entry = {

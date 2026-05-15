@@ -34,6 +34,12 @@ from researchclaw.pipeline._helpers import (
     _utcnow_iso,
     reconcile_figure_refs,
 )
+from researchclaw.pipeline.stage_impls.review_publish_citations import (
+    CITATION_RESOLVE_MIN_SIMILARITY as _CITATION_RESOLVE_MIN_SIMILARITY,
+    load_seminal_papers_by_key,
+    resolve_missing_citations,
+    seminal_to_bibtex,
+)
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
@@ -1195,250 +1201,23 @@ def _sanitize_fabricated_data(
 #           similarity validation for API results, (3) build better queries.
 # ---------------------------------------------------------------------------
 
-# Minimum title-similarity between search result and expected title/query
-# for a result to be accepted.  Prevents "Jokowi and the New Developmentalism"
-# from replacing "Deep Residual Learning for Image Recognition".
-_CITATION_RESOLVE_MIN_SIMILARITY = 0.30
-
-
 def _load_seminal_papers_by_key() -> dict[str, dict]:
-    """Load seminal_papers.yaml and index by cite_key.
-
-    Returns dict like::
-
-        {"he2016deep": {"title": "Deep Residual Learning...", "authors": "He et al.", ...}, ...}
-
-    Returns empty dict on any failure (missing file, bad YAML, etc.).
-    """
-    try:
-        from researchclaw.data import _load_all as _load_seminal_all
-        all_papers = _load_seminal_all()
-        return {p["cite_key"]: p for p in all_papers if "cite_key" in p}
-    except Exception:  # noqa: BLE001
-        return {}
+    return load_seminal_papers_by_key()
 
 
 def _seminal_to_bibtex(paper: dict, cite_key: str) -> str:
-    """Convert a seminal_papers.yaml entry dict to a BibTeX string."""
-    title = paper.get("title", "Unknown")
-    authors = paper.get("authors", "Unknown")
-    year = paper.get("year", "")
-    venue = paper.get("venue", "")
-
-    # Decide entry type
-    venue_lower = (venue or "").lower()
-    is_conf = any(kw in venue_lower for kw in (
-        "neurips", "nips", "icml", "iclr", "cvpr", "eccv", "iccv",
-        "aaai", "acl", "emnlp", "naacl", "sigir", "kdd", "www",
-        "ijcai", "conference", "proc", "workshop",
-    ))
-    if is_conf:
-        return (
-            f"@inproceedings{{{cite_key},\n"
-            f"  title = {{{title}}},\n"
-            f"  author = {{{authors}}},\n"
-            f"  year = {{{year}}},\n"
-            f"  booktitle = {{{venue}}},\n"
-            f"}}"
-        )
-    return (
-        f"@article{{{cite_key},\n"
-        f"  title = {{{title}}},\n"
-        f"  author = {{{authors}}},\n"
-        f"  year = {{{year}}},\n"
-        f"  journal = {{{venue}}},\n"
-        f"}}"
-    )
+    return seminal_to_bibtex(paper, cite_key)
 
 
 def _resolve_missing_citations(
     missing_keys: set[str],
     existing_bib: str,
 ) -> tuple[set[str], list[str]]:
-    """Try to find BibTeX entries for citation keys not in references.bib.
-
-    Parses each cite_key (e.g. ``hendrycks2017baseline``) into an author name
-    and year, then searches academic APIs.  Returns ``(resolved_keys,
-    new_bib_entries)`` where each entry is a complete BibTeX string.
-
-    BUG-194 fix: Three-layer resolution strategy:
-      1. **Seminal lookup** — check seminal_papers.yaml (zero API calls, exact match)
-      2. **API search with validation** — search Semantic Scholar / arXiv, but ONLY
-         accept results whose title has ≥ 30% word overlap with query terms.
-         Previously any year-matching result was blindly accepted, causing
-         foundational papers to be replaced with garbage.
-      3. **Skip** — if no confident match, leave the citation unresolved rather
-         than inject a wrong paper.
-
-    Gracefully returns empty results on any network failure.
-    """
-    import re as _re176
-    import time as _time176
-
-    resolved: set[str] = set()
-    new_entries: list[str] = []
-
-    def _parse_cite_key(key: str) -> tuple[str, str, str]:
-        """Extract (author, year, keyword_hint) from a citation key.
-
-        Common patterns:
-          ``he2016deep``       → ("he", "2016", "deep")
-          ``vaswani2017attention`` → ("vaswani", "2017", "attention")
-          ``goodfellow2014generative`` → ("goodfellow", "2014", "generative")
-        """
-        m = _re176.match(r"([a-zA-Z]+?)(\d{4})(.*)", key)
-        if m:
-            return m.group(1), m.group(2), m.group(3)
-        return key, "", ""
-
-    def _title_word_overlap(title: str, query_words: list[str]) -> float:
-        """Word-overlap score between a paper title and query keywords.
-
-        Returns fraction of query words found in the title (0.0–1.0).
-        Used to validate that a search result is actually relevant.
-        """
-        if not query_words:
-            return 0.0
-        title_lower = set(
-            _re176.sub(r"[^a-z0-9\s]", "", title.lower()).split()
-        ) - {""}
-        if not title_lower:
-            return 0.0
-        matched = sum(1 for w in query_words if w.lower() in title_lower)
-        return matched / len(query_words)
-
-    # --- Layer 1: Seminal papers lookup (no API calls) ---
-    seminal_by_key = _load_seminal_papers_by_key()
-
-    for key in sorted(missing_keys):
-        if key in seminal_by_key and key not in existing_bib:
-            sp = seminal_by_key[key]
-            bib_entry = _seminal_to_bibtex(sp, key)
-            new_entries.append(bib_entry)
-            resolved.add(key)
-            logger.info(
-                "BUG-194: Resolved %r via seminal_papers.yaml → %r (%s)",
-                key, sp.get("title", "")[:60], sp.get("year", ""),
-            )
-
-    # Remaining keys that weren't in the seminal database AND aren't already
-    # present in the existing bib (no point re-resolving keys we already have).
-    remaining = sorted(
-        k for k in (missing_keys - resolved) if k not in existing_bib
+    return resolve_missing_citations(
+        missing_keys,
+        existing_bib,
+        diagnostic_logger=logger,
     )
-    if not remaining:
-        return resolved, new_entries
-
-    # --- Layer 2: API search with title-similarity validation ---
-    try:
-        from researchclaw.literature.search import search_papers
-    except ImportError:
-        logger.debug("BUG-176: literature.search not available, skipping resolution")
-        return resolved, new_entries
-
-    for key in remaining:
-        author, year, hint = _parse_cite_key(key)
-        if not author or not year:
-            continue
-
-        # BUG-194: Build a better search query.
-        # Instead of "he 2016 deep", use "he deep residual learning 2016" or
-        # at minimum, split camelCase hints into separate words.
-        # Split hint on word boundaries (camelCase or underscore).
-        hint_words = _re176.findall(r"[a-zA-Z]+", hint) if hint else []
-        # The query words used for validation
-        query_words = [author] + hint_words
-
-        # Build search query: author + hint words + year (year helps but isn't
-        # the primary discriminator anymore)
-        query_parts = [author] + hint_words + [year]
-        query = " ".join(query_parts)
-
-        try:
-            results = search_papers(query, limit=5, deduplicate=True)
-        except Exception as exc:
-            logger.debug("BUG-176: Search failed for %r: %s", key, exc)
-            continue
-
-        if not results:
-            logger.debug(
-                "BUG-194: No search results for %r (query=%r), skipping",
-                key, query,
-            )
-            continue
-
-        # BUG-194: Find best match by title-word-overlap AND year match.
-        # Previously the code just took the first year-matching result.
-        best = None
-        best_score = -1.0
-        for paper in results:
-            overlap = _title_word_overlap(paper.title, query_words)
-            year_bonus = 0.2 if str(paper.year) == year else 0.0
-            # Also give bonus for author name appearing in paper.authors
-            author_bonus = 0.0
-            if any(author.lower() in a.name.lower() for a in paper.authors):
-                author_bonus = 0.2
-            score = overlap + year_bonus + author_bonus
-            if score > best_score:
-                best_score = score
-                best = paper
-
-        if best is None:
-            continue
-
-        # BUG-194: Validate the result — require minimum similarity.
-        # This is the KEY fix: previously ANY result was accepted blindly.
-        overlap = _title_word_overlap(best.title, query_words)
-        if overlap < _CITATION_RESOLVE_MIN_SIMILARITY:
-            logger.info(
-                "BUG-194: Rejecting search result for %r — title %r has "
-                "too-low overlap (%.2f < %.2f) with query words %r",
-                key, best.title[:60], overlap,
-                _CITATION_RESOLVE_MIN_SIMILARITY, query_words,
-            )
-            continue
-
-        # Year must also match (or be within 1 year — sometimes conferences
-        # vs arXiv preprint have different years)
-        if year and best.year:
-            year_diff = abs(int(year) - int(best.year))
-            if year_diff > 1:
-                logger.info(
-                    "BUG-194: Rejecting search result for %r — year mismatch "
-                    "(%s vs %s, diff=%d)",
-                    key, year, best.year, year_diff,
-                )
-                continue
-
-        # Generate BibTeX with the ORIGINAL cite_key (so \cite{key} works)
-        bib_entry = best.to_bibtex()
-        # Replace the auto-generated cite_key with the one used in the paper
-        orig_key_match = _re176.match(r"@(\w+)\{([^,]+),", bib_entry)
-        if orig_key_match:
-            bib_entry = bib_entry.replace(
-                f"@{orig_key_match.group(1)}{{{orig_key_match.group(2)},",
-                f"@{orig_key_match.group(1)}{{{key},",
-                1,
-            )
-
-        # Verify entry doesn't duplicate an existing key
-        if key not in existing_bib:
-            new_entries.append(bib_entry)
-            resolved.add(key)
-            logger.info(
-                "BUG-194: Resolved %r via API → %r (%s, overlap=%.2f)",
-                key, best.title[:60], best.year, overlap,
-            )
-        else:
-            logger.debug(
-                "BUG-194: Key %r already in bib, skipping API result", key,
-            )
-
-        # Rate limit: 0.5s between API calls
-        _time176.sleep(0.5)
-
-    return resolved, new_entries
-
 
 # ---------------------------------------------------------------------------
 # Stage 22: Export & Publish
