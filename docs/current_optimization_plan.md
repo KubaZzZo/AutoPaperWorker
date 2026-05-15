@@ -81,8 +81,9 @@ The second optimization round is complete. The implemented slices are:
      aggregation moved from pipeline `_helpers.py` into
      `researchclaw/pipeline/experiment_results.py` while preserving legacy
      helper wrappers and diagnostics.
-   - Phase 3.15 planned: extract a cohesive execution repair workflow from
-     `researchclaw/pipeline/stage_impls/_execution.py`.
+   - Phase 3.15 marker: Stage 12 sandbox run persistence and status
+     classification moved from `_execution.py` into
+     `researchclaw/pipeline/stage_impls/execution_run.py`.
    - Phase 3.16 planned: extract one review/publish quality, citation, or
      packaging workflow from
      `researchclaw/pipeline/stage_impls/_review_publish.py`.
@@ -244,6 +245,13 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/experiment_results.py`, while `_helpers` keeps
      compatible private wrappers and legacy diagnostic logging.
      Marker: Phase 3.14 implemented.
+   - 2026-05-15 slice: Stage 12 sandbox run persistence, status
+     classification, structured results copying, automatic `results.json`
+     fallback, time-budget warnings, and low-seed warnings moved from
+     `researchclaw/pipeline/stage_impls/_execution.py` into
+     `researchclaw/pipeline/stage_impls/execution_run.py`, leaving
+     `_execution.py` focused on invoking the sandbox and stage orchestration.
+     Marker: Phase 3.15 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

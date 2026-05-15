@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import math
-import re
 import time as _time
 from pathlib import Path
 from typing import Any
@@ -36,6 +35,7 @@ from researchclaw.pipeline._helpers import (
     _write_stage_meta,
 )
 from researchclaw.pipeline.stages import Stage, StageStatus
+from researchclaw.pipeline.stage_impls.execution_run import persist_sandbox_run_result
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -172,67 +172,6 @@ def _execute_experiment_run(
                 stdout_path=stdout_log_path,
                 stderr_path=stderr_log_path,
             )
-        # Try to read structured results.json from sandbox working dir
-        structured_results: dict[str, Any] | None = None
-        sandbox_project = runs_dir / "sandbox" / "_project"
-        results_json_path = sandbox_project / "results.json"
-        if results_json_path.exists():
-            try:
-                structured_results = json.loads(
-                    results_json_path.read_text(encoding="utf-8")
-                )
-                # Copy results.json to runs dir for easy access
-                (runs_dir / "results.json").write_text(
-                    results_json_path.read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            except (json.JSONDecodeError, OSError):
-                logger.debug(
-                    "Failed to read sandbox structured results: %s",
-                    results_json_path,
-                    exc_info=True,
-                )
-                structured_results = None
-
-        # If sandbox metrics are empty, try to parse from stdout
-        effective_metrics = result.metrics
-        if not effective_metrics and result.stdout:
-            effective_metrics = _parse_metrics_from_stdout(result.stdout)
-
-        # Determine run status: completed / partial (timed out with data) / failed
-        # R6-2: Detect stdout failure signals even when exit code is 0
-        _stdout_has_failure = bool(
-            result.stdout
-            and not effective_metrics
-            and any(
-                sig in result.stdout
-                for sig in ("FAIL:", "NaN/divergence", "Traceback (most recent")
-            )
-        )
-        if result.returncode == 0 and not result.timed_out and not _stdout_has_failure:
-            run_status = "completed"
-        elif result.timed_out and effective_metrics:
-            run_status = "partial"
-            logger.warning(
-                "Experiment timed out but captured %d partial metrics",
-                len(effective_metrics),
-            )
-        else:
-            run_status = "failed"
-            if _stdout_has_failure:
-                logger.warning(
-                    "Experiment exited cleanly but stdout contains failure signals"
-                )
-
-        # P1: Warn if experiment completed suspiciously fast (trivially easy benchmark)
-        if run_status == "completed" and result.elapsed_sec and result.elapsed_sec < 5.0:
-            logger.warning(
-                "Stage 12: Experiment completed in %.2fs — benchmark may be trivially easy. "
-                "Consider increasing task difficulty.",
-                result.elapsed_sec,
-            )
-
-        # P4.2: Capture environment for reproducibility
         _env_info: dict[str, Any] = {}
         try:
             from researchclaw.experiment.environment import (
@@ -242,86 +181,24 @@ def _execute_experiment_run(
             _env_info = capture_environment()
             _artifacts = write_reproducibility_artifacts(stage_dir, _env_info)
             logger.info(
-                "Stage 12: Reproducibility artifacts — %s",
+                "Stage 12: Reproducibility artifacts - %s",
                 list(_artifacts.keys()),
             )
         except Exception:
             logger.debug("Environment capture failed (non-fatal)", exc_info=True)
 
-        run_payload: dict[str, Any] = {
-            "run_id": "run-1",
-            "task_id": "sandbox-main",
-            "status": run_status,
-            "metrics": effective_metrics,
-            "elapsed_sec": result.elapsed_sec,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "stdout_log": str(stdout_log_path),
-            "stderr_log": str(stderr_log_path),
-            "timed_out": result.timed_out,
-            "completed_at": _utcnow_iso(),
-            "environment": _env_info,
-        }
-        if structured_results is not None:
-            run_payload["structured_results"] = structured_results
-        # Auto-generate results.json from parsed metrics if sandbox didn't produce one
-        if structured_results is None and effective_metrics:
-            auto_results = {"source": "stdout_parsed", "metrics": effective_metrics}
-            (runs_dir / "results.json").write_text(
-                json.dumps(auto_results, indent=2), encoding="utf-8"
-            )
-            logger.info("Stage 12: Auto-generated results.json from stdout metrics (%d keys)", len(effective_metrics))
-        (runs_dir / "run-1.json").write_text(
-            json.dumps(run_payload, indent=2), encoding="utf-8"
+        persist_sandbox_run_result(
+            stage_dir=stage_dir,
+            runs_dir=runs_dir,
+            result=result,
+            stdout_log_path=stdout_log_path,
+            stderr_log_path=stderr_log_path,
+            time_budget_sec=config.experiment.time_budget_sec,
+            parse_metrics=_parse_metrics_from_stdout,
+            timestamp_factory=_utcnow_iso,
+            diagnostic_logger=logger,
+            environment=_env_info,
         )
-
-        # R11-6: Time budget adequacy check
-        if result.timed_out or (result.elapsed_sec and result.elapsed_sec > config.experiment.time_budget_sec * 0.9):
-            # Parse stdout to estimate how many conditions/seeds completed
-            _stdout = result.stdout or ""
-            _completed_conditions = set()
-            _completed_seeds = 0
-            for _line in _stdout.splitlines():
-                if "condition=" in _line and "seed=" in _line:
-                    _completed_seeds += 1
-                    _cond_match = re.match(r".*condition=(\S+)", _line)
-                    if _cond_match:
-                        _completed_conditions.add(_cond_match.group(1))
-            _time_budget_warning = {
-                "timed_out": result.timed_out,
-                "elapsed_sec": result.elapsed_sec,
-                "budget_sec": config.experiment.time_budget_sec,
-                "conditions_completed": sorted(_completed_conditions),
-                "total_seed_runs": _completed_seeds,
-                "warning": (
-                    f"Experiment used {result.elapsed_sec:.0f}s of "
-                    f"{config.experiment.time_budget_sec}s budget. "
-                    f"Only {len(_completed_conditions)} conditions completed "
-                    f"({_completed_seeds} seed-runs). Consider increasing "
-                    f"time_budget_sec for more complete results."
-                ),
-            }
-            logger.warning(
-                "Stage 12: %s", _time_budget_warning["warning"]
-            )
-            (stage_dir / "time_budget_warning.json").write_text(
-                json.dumps(_time_budget_warning, indent=2), encoding="utf-8"
-            )
-
-        # FIX-8: Validate seed count from structured results
-        if structured_results and isinstance(structured_results, dict):
-            _sr_conditions = structured_results.get("conditions", structured_results.get("per_condition", {}))
-            if isinstance(_sr_conditions, dict):
-                for _cname, _cdata in _sr_conditions.items():
-                    if isinstance(_cdata, dict):
-                        _seeds_run = _cdata.get("seeds_run", _cdata.get("n_seeds", 0))
-                        if isinstance(_seeds_run, (int, float)) and 0 < _seeds_run < 3:
-                            logger.warning(
-                                "Stage 12: Condition '%s' ran only %d seed(s) — "
-                                "minimum 3 required for statistical validity",
-                                _cname, int(_seeds_run),
-                            )
-
     elif mode == "simulated":
         schedule = _safe_json_loads(schedule_text, {})
         tasks = schedule.get("tasks", []) if isinstance(schedule, dict) else []

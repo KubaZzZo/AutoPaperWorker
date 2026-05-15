@@ -1,7 +1,7 @@
 # Stage Implementations Refactor Plan
 
 > Created: 2026-05-15
-> Status: Planned
+> Status: Phase 3.15 implemented; Phase 3.16 planned
 > Scope: three large-module reduction rounds for selected `researchclaw/pipeline/stage_impls/` modules.
 
 ## Goal
@@ -32,7 +32,7 @@ document and in `docs/current_optimization_plan.md`.
 
 | Phase | Target | Status | Marker |
 | --- | --- | --- | --- |
-| 3.15 | Execution repair workflow extraction | Planned | Not yet implemented |
+| 3.15 | Execution repair workflow extraction | Implemented | 2026-05-15: `execution_run.py` owns Stage 12 sandbox run persistence, status classification, result artifact writing, time-budget warnings, and low-seed warnings. |
 | 3.16 | Review/publish quality or citation workflow extraction | Planned | Not yet implemented |
 | 3.17 | Paper writing or code-generation workflow extraction | Planned | Not yet implemented |
 
