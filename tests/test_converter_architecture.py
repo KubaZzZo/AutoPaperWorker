@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from researchclaw.templates.converter import (
+    _collect_list as legacy_collect_list,
     _escape_algo_line as legacy_escape_algo_line,
     _convert_inline as legacy_convert_inline,
     _escape_latex as legacy_escape_latex,
@@ -9,6 +10,8 @@ from researchclaw.templates.converter import (
     _parse_table_row as legacy_parse_table_row,
     _reset_render_counters,
     _render_code_block as legacy_render_code_block,
+    _render_enumerate as legacy_render_enumerate,
+    _render_itemize as legacy_render_itemize,
     _render_table as legacy_render_table,
     check_paper_completeness as legacy_check_paper_completeness,
 )
@@ -16,6 +19,11 @@ from researchclaw.templates.codeblocks import _escape_algo_line, _render_code_bl
 from researchclaw.templates.completeness import check_paper_completeness
 from researchclaw.templates.figures import _render_figure
 from researchclaw.templates.inline import _convert_inline, _escape_latex
+from researchclaw.templates.lists import (
+    _collect_list,
+    _render_enumerate,
+    _render_itemize,
+)
 from researchclaw.templates.tables import (
     _parse_alignments,
     _parse_table_row,
@@ -105,3 +113,26 @@ def test_figure_module_matches_legacy_export() -> None:
         inline_converter=_convert_inline,
         next_figure_num=next_figure,
     ) == legacy_result
+
+
+def test_list_module_matches_legacy_exports() -> None:
+    import re
+
+    lines = [
+        "- First **item**",
+        "",
+        "- Second item",
+        "  continued",
+        "Paragraph",
+    ]
+    pattern = re.compile(r"^(\s*)[-*+]\s+(.*)$")
+
+    assert _collect_list(lines, 0, pattern) == legacy_collect_list(lines, 0, pattern)
+    assert _render_itemize(
+        ["First **item**"],
+        inline_converter=_convert_inline,
+    ) == legacy_render_itemize(["First **item**"])
+    assert _render_enumerate(
+        ["Step _one_"],
+        inline_converter=_convert_inline,
+    ) == legacy_render_enumerate(["Step _one_"])

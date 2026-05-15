@@ -34,6 +34,11 @@ from researchclaw.templates.inline import (
     _convert_inline,
     _escape_latex,
 )
+from researchclaw.templates.lists import (
+    _collect_list as _collect_list_impl,
+    _render_enumerate as _render_enumerate_impl,
+    _render_itemize as _render_itemize_impl,
+)
 from researchclaw.templates.tables import (
     _collect_table,
     _parse_alignments,
@@ -1113,40 +1118,15 @@ def _convert_block(text: str) -> str:
 def _collect_list(
     lines: list[str], start: int, pattern: re.Pattern[str]
 ) -> tuple[list[str], int]:
-    """Collect consecutive list items matching *pattern*."""
-    items: list[str] = []
-    i = start
-    while i < len(lines):
-        m = pattern.match(lines[i])
-        if m:
-            items.append(m.group(2))
-            i += 1
-        elif lines[i].strip() == "":
-            # Blank line — might continue list or end it
-            if i + 1 < len(lines) and pattern.match(lines[i + 1]):
-                i += 1  # skip blank, continue
-            else:
-                break
-        elif lines[i].startswith("  ") or lines[i].startswith("\t"):
-            # Continuation of previous item
-            if items:
-                items[-1] += " " + lines[i].strip()
-            i += 1
-        else:
-            break
-    return items, i
+    return _collect_list_impl(lines, start, pattern)
 
 
 def _render_itemize(items: list[str]) -> str:
-    inner = "\n".join(f"  \\item {_convert_inline(item)}" for item in items)
-    return f"\\begin{{itemize}}\n{inner}\n\\end{{itemize}}"
+    return _render_itemize_impl(items, inline_converter=_convert_inline)
 
 
 def _render_enumerate(items: list[str]) -> str:
-    inner = "\n".join(f"  \\item {_convert_inline(item)}" for item in items)
-    return f"\\begin{{enumerate}}\n{inner}\n\\end{{enumerate}}"
-
-
+    return _render_enumerate_impl(items, inline_converter=_convert_inline)
 
 
 def _render_table(table_lines: list[str], caption: str = "") -> str:
