@@ -12,6 +12,8 @@ from researchclaw.templates.converter import (
     _escape_latex as legacy_escape_latex,
     _parse_sections as legacy_parse_sections,
     _render_figure as legacy_render_figure,
+    _preprocess_markdown as legacy_preprocess_markdown,
+    _round_raw_metrics as legacy_round_raw_metrics,
     _sanitize_latex_output as legacy_sanitize_latex_output,
     _normalize_latex_unicode as legacy_normalize_latex_unicode,
     _separate_heading_body as legacy_separate_heading_body,
@@ -47,6 +49,10 @@ from researchclaw.templates.sections import (
 from researchclaw.templates.sanitization import (
     _normalize_latex_unicode,
     _sanitize_latex_output,
+)
+from researchclaw.templates.preprocessing import (
+    _preprocess_markdown,
+    _round_raw_metrics,
 )
 from researchclaw.templates.tables import (
     _parse_alignments,
@@ -225,3 +231,16 @@ def test_sanitization_module_matches_legacy_exports() -> None:
         tex,
         bib_entries=bib_entries,
     )
+
+
+def test_preprocessing_module_matches_legacy_exports() -> None:
+    md = (
+        "```markdown\n"
+        "> quoted\n\n"
+        "metric: 0.9717036975193437\n"
+        "Some text ## Abstract Body on same line\n"
+        "```\n"
+    )
+
+    assert _round_raw_metrics(md) == legacy_round_raw_metrics(md)
+    assert _preprocess_markdown(md) == legacy_preprocess_markdown(md)
