@@ -799,6 +799,17 @@ class TestFastAPIApp:
             assert data["project"] == "test"
 
     @pytest.mark.asyncio
+    async def test_config_endpoint_accepts_query_token(self, app: object) -> None:
+        from httpx import AsyncClient, ASGITransport
+
+        token = app.state.auth_token  # type: ignore[attr-defined]
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/config", params={"token": token})
+            assert resp.status_code == 200
+            assert resp.json()["project"] == "test"
+
+    @pytest.mark.asyncio
     async def test_pipeline_status_idle(self, app: object) -> None:
         from httpx import AsyncClient, ASGITransport
 

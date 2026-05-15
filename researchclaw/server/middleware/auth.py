@@ -31,12 +31,10 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         if path in self.EXEMPT_PATHS or path.startswith("/static"):
             return await call_next(request)
 
-        # WebSocket connections carry token as query param
-        if path.startswith("/ws"):
+        auth_header = request.headers.get("authorization", "")
+        token = auth_header.removeprefix("Bearer ").strip()
+        if not token:
             token = request.query_params.get("token", "")
-        else:
-            auth_header = request.headers.get("authorization", "")
-            token = auth_header.removeprefix("Bearer ").strip()
 
         if token != self._token:
             return JSONResponse(
