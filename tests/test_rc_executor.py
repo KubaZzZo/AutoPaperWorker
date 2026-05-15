@@ -4445,6 +4445,16 @@ def _build_draft(**section_overrides: str) -> str:
 class TestValidateDraftQuality:
     """Tests for _validate_draft_quality()."""
 
+    def test_new_module_matches_legacy_wrapper(self) -> None:
+        """New draft-quality module matches the legacy executor export."""
+        from researchclaw.pipeline.stage_impls.paper_draft_quality import (
+            validate_draft_quality,
+        )
+
+        draft = _build_draft(Method=_make_bullets(1200))
+
+        assert validate_draft_quality(draft) == rc_executor._validate_draft_quality(draft)
+
     def test_short_section_triggers_warning(self) -> None:
         """Short Method section triggers expand warning."""
         draft = _build_draft(Method=_make_prose(200))

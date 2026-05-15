@@ -88,8 +88,10 @@ The second optimization round is complete. The implemented slices are:
      `_review_publish.py` into
      `researchclaw/pipeline/stage_impls/review_publish_citations.py`, while
      preserving legacy private wrappers.
-   - Phase 3.17 planned: extract one well-covered writing or code-generation
-     workflow from `_paper_writing.py` or `_code_generation.py`.
+   - Phase 3.17 marker: Stage 17 draft-quality validation moved from
+     `_paper_writing.py` into
+     `researchclaw/pipeline/stage_impls/paper_draft_quality.py`, while
+     preserving legacy private wrappers and executor exports.
    - Tracking plan: `docs/stage_impls_refactor_plan.md`.
 
 3. **Runtime noise cleanup**
@@ -261,6 +263,14 @@ The second optimization round is complete. The implemented slices are:
      legacy `_review_publish.py` private wrappers preserved for existing tests
      and stage callers.
      Marker: Phase 3.16 implemented.
+   - 2026-05-15 slice: Stage 17 draft section balance, bullet-density,
+     citation-count, recency, abstract/conclusion length, raw metric path,
+     writing-quality, boilerplate, related-work depth, and statistical-rigor
+     checks moved from
+     `researchclaw/pipeline/stage_impls/_paper_writing.py` into
+     `researchclaw/pipeline/stage_impls/paper_draft_quality.py`, with legacy
+     `_paper_writing.py` private wrappers and executor exports preserved.
+     Marker: Phase 3.17 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

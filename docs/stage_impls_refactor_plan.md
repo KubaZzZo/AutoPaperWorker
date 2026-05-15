@@ -1,7 +1,7 @@
 # Stage Implementations Refactor Plan
 
 > Created: 2026-05-15
-> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 planned
+> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 implemented
 > Scope: three large-module reduction rounds for selected `researchclaw/pipeline/stage_impls/` modules.
 
 ## Goal
@@ -34,7 +34,7 @@ document and in `docs/current_optimization_plan.md`.
 | --- | --- | --- | --- |
 | 3.15 | Execution repair workflow extraction | Implemented | 2026-05-15: `execution_run.py` owns Stage 12 sandbox run persistence, status classification, result artifact writing, time-budget warnings, and low-seed warnings. |
 | 3.16 | Review/publish citation workflow extraction | Implemented | 2026-05-15: `review_publish_citations.py` owns missing-citation resolution, seminal-paper lookup, BibTeX generation, API result validation, and conservative wrong-paper rejection. |
-| 3.17 | Paper writing or code-generation workflow extraction | Planned | Not yet implemented |
+| 3.17 | Paper draft-quality workflow extraction | Implemented | 2026-05-15: `paper_draft_quality.py` owns Stage 17 draft section balance, bullet-density, citation-count, recency, length, raw-path, writing-quality, boilerplate, related-work, and statistical-rigor checks. |
 
 ## Round 1: Phase 3.15 - Execution Repair Workflow
 
