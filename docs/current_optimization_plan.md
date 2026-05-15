@@ -39,12 +39,14 @@ The second optimization round is complete. The implemented slices are:
 
 1. **Template converter extraction**
    - `researchclaw/templates/converter.py` is down from its previous size but
-     still owns section parsing and document assembly.
+     still owns document assembly and body rendering.
    - Continue extracting narrow helpers only when legacy behavior can be pinned
      with tests.
    - Phase 3.1 marker: figure rendering extraction implemented 2026-05-15.
    - Phase 3.2 marker: list collection/rendering extraction implemented
      2026-05-15.
+   - Phase 3.3 marker: section parsing and title/abstract extraction
+     implemented 2026-05-15.
 
 2. **Pipeline module reduction**
    - `researchclaw/pipeline/runner.py`, `researchclaw/pipeline/_helpers.py`,
@@ -141,6 +143,11 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/templates/lists.py`, with legacy converter exports preserved
      as thin wrappers.
      Marker: Phase 3.2 implemented.
+   - 2026-05-15 slice: section parsing plus title and abstract extraction moved
+     from `researchclaw/templates/converter.py` into
+     `researchclaw/templates/sections.py`, with legacy converter imports
+     preserved by re-exporting the imported helpers.
+     Marker: Phase 3.3 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

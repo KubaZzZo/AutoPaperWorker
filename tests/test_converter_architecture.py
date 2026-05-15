@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from researchclaw.templates.converter import (
     _collect_list as legacy_collect_list,
+    _extract_abstract as legacy_extract_abstract,
+    _extract_title as legacy_extract_title,
     _escape_algo_line as legacy_escape_algo_line,
     _convert_inline as legacy_convert_inline,
     _escape_latex as legacy_escape_latex,
+    _parse_sections as legacy_parse_sections,
     _render_figure as legacy_render_figure,
+    _separate_heading_body as legacy_separate_heading_body,
     _parse_alignments as legacy_parse_alignments,
     _parse_table_row as legacy_parse_table_row,
     _reset_render_counters,
@@ -23,6 +27,12 @@ from researchclaw.templates.lists import (
     _collect_list,
     _render_enumerate,
     _render_itemize,
+)
+from researchclaw.templates.sections import (
+    _extract_abstract,
+    _extract_title,
+    _parse_sections,
+    _separate_heading_body,
 )
 from researchclaw.templates.tables import (
     _parse_alignments,
@@ -136,3 +146,27 @@ def test_list_module_matches_legacy_exports() -> None:
         ["Step _one_"],
         inline_converter=_convert_inline,
     ) == legacy_render_enumerate(["Step _one_"])
+
+
+def test_section_module_matches_legacy_exports() -> None:
+    md = (
+        "# Title\n"
+        "Deep Paper\n\n"
+        "## Abstract This abstract was joined to the heading.\n\n"
+        "## Method\n"
+        "Body text.\n"
+    )
+
+    legacy_sections = legacy_parse_sections(md)
+    sections = _parse_sections(md)
+
+    assert [(s.level, s.heading, s.body) for s in sections] == [
+        (s.level, s.heading, s.body) for s in legacy_sections
+    ]
+    assert _extract_title(sections, md) == legacy_extract_title(legacy_sections, md)
+    assert _extract_abstract(sections) == legacy_extract_abstract(legacy_sections)
+    assert _separate_heading_body(
+        "Abstract This abstract was joined to the heading."
+    ) == legacy_separate_heading_body(
+        "Abstract This abstract was joined to the heading."
+    )
