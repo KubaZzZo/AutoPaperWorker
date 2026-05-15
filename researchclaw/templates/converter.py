@@ -28,6 +28,7 @@ from researchclaw.templates.codeblocks import (
 )
 from researchclaw.templates.completeness import check_paper_completeness
 from researchclaw.templates.conference import ConferenceTemplate
+from researchclaw.templates.figures import _render_figure as _render_figure_impl
 from researchclaw.templates.inline import (
     _UNICODE_GREEK_TO_LATEX,
     _convert_inline,
@@ -1174,19 +1175,9 @@ def _render_code_block(lang: str, code: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _render_figure(caption: str, path: str) -> str:
-    """Render a markdown image as a LaTeX figure environment."""
-    fig_num = _next_figure_num()
-    # Sanitize path for LaTeX: replace spaces, keep underscores
-    path = path.replace(" ", "_")
-    cap_tex = _convert_inline(caption) if caption else f"Figure {fig_num}"
-    label_key = re.sub(r"[^a-z0-9]+", "_", caption.lower()).strip("_")[:30]
-    if not label_key:
-        label_key = str(fig_num)
-    return (
-        "\\begin{figure}[t]\n"
-        "\\centering\n"
-        f"\\includegraphics[width=0.95\\columnwidth]{{{path}}}\n"
-        f"\\caption{{{cap_tex}}}\n"
-        f"\\label{{fig:{label_key}}}\n"
-        "\\end{figure}"
+    return _render_figure_impl(
+        caption,
+        path,
+        inline_converter=_convert_inline,
+        next_figure_num=_next_figure_num,
     )

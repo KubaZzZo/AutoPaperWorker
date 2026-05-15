@@ -1,7 +1,8 @@
 # Current Optimization Plan
 
 > Created: 2026-05-14
-> Status: Active
+> Last updated: 2026-05-15
+> Status: Phase 2 implemented; Phase 3 active
 > Supersedes: completed issue tracker, roadmap, Figure/BenchmarkAgent plan, and MetaClaw integration plan.
 
 ## Cleanup Decision
@@ -17,7 +18,51 @@ because they no longer describe active work:
 The remaining docs are user-facing guides, localized READMEs, tester guides,
 and this active optimization plan.
 
-## Current Priorities
+## Current State
+
+The second optimization round is complete. The implemented slices are:
+
+- Experiment throughput observability: Stage 12 run telemetry is exposed in
+  `progress.json` and preserved by dashboard collection.
+- Runtime noise cleanup: major library-level progress and repair output paths
+  now use injected reporters or logging while intentional CLI output remains
+  explicit.
+- Large-module reduction: prompt defaults and template conversion helpers have
+  been split into narrower modules while preserving legacy imports.
+- Long-run performance backends: progress storage now goes through a
+  `RunStateBackend` interface with JSON and SQLite adapters.
+- Coverage expansion: LLM retry behavior, MCP registry replacement cleanup,
+  AgenticSandbox malformed artifact fallback, prompt defaults, converter
+  helpers, and run-state adapters have focused regression tests.
+
+## Remaining Optimization Queue
+
+1. **Template converter extraction**
+   - `researchclaw/templates/converter.py` is down from its previous size but
+     still owns list rendering, section parsing, and document assembly.
+   - Continue extracting narrow helpers only when legacy behavior can be pinned
+     with tests.
+   - Phase 3.1 marker: figure rendering extraction implemented 2026-05-15.
+
+2. **Pipeline module reduction**
+   - `researchclaw/pipeline/runner.py`, `researchclaw/pipeline/_helpers.py`,
+     and selected `stage_impls` modules remain large enough to slow review.
+   - Prefer moving cohesive workflows behind small interfaces instead of
+     extracting isolated pass-through helpers.
+
+3. **Runtime noise cleanup**
+   - Remaining `print()` usage in pipeline and experiment modules is mostly
+     intentional generated-code guidance, sandbox metric output, or worker
+     template status output.
+   - Future slices should keep CLI-visible behavior explicit while making
+     library and worker paths injectable where useful.
+
+4. **Optional backend hardening**
+   - SQLite run-state is available as an injectable adapter. Redis or other
+     multi-process backends remain optional future work, not required for the
+     current local-run contract.
+
+## Completed Priority History
 
 1. **Experiment throughput observability**
    - Stage 12 already writes live stdout/stderr log files.
@@ -84,12 +129,17 @@ and this active optimization plan.
      `researchclaw/templates/codeblocks.py`, and
      `researchclaw/templates/completeness.py`, with legacy converter imports
      preserved.
+   - 2026-05-15 slice: figure rendering moved from
+     `researchclaw/templates/converter.py` into
+     `researchclaw/templates/figures.py`, with the legacy converter export
+     preserved as a thin wrapper.
+     Marker: Phase 3.1 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not
      ideal for high-throughput multi-run monitoring.
-   - A later slice should introduce a pluggable run-state backend such as
-     SQLite first, with Redis left optional.
+   - A pluggable run-state backend such as SQLite first, with Redis left
+     optional.
    - 2026-05-15 slice: introduced `researchclaw/run_state.py` with a
      `RunStateBackend` interface and JSON backend. Pipeline progress writing
      and dashboard progress reading now go through this backend while

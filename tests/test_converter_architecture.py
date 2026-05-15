@@ -4,6 +4,7 @@ from researchclaw.templates.converter import (
     _escape_algo_line as legacy_escape_algo_line,
     _convert_inline as legacy_convert_inline,
     _escape_latex as legacy_escape_latex,
+    _render_figure as legacy_render_figure,
     _parse_alignments as legacy_parse_alignments,
     _parse_table_row as legacy_parse_table_row,
     _reset_render_counters,
@@ -13,6 +14,7 @@ from researchclaw.templates.converter import (
 )
 from researchclaw.templates.codeblocks import _escape_algo_line, _render_code_block
 from researchclaw.templates.completeness import check_paper_completeness
+from researchclaw.templates.figures import _render_figure
 from researchclaw.templates.inline import _convert_inline, _escape_latex
 from researchclaw.templates.tables import (
     _parse_alignments,
@@ -90,3 +92,16 @@ def test_completeness_module_matches_legacy_export() -> None:
     assert check_paper_completeness([section]) == legacy_check_paper_completeness(
         [section]
     )
+
+
+def test_figure_module_matches_legacy_export() -> None:
+    _reset_render_counters()
+    legacy_result = legacy_render_figure("Result Plot", "charts/result plot.png")
+
+    next_figure = iter([1]).__next__
+    assert _render_figure(
+        "Result Plot",
+        "charts/result plot.png",
+        inline_converter=_convert_inline,
+        next_figure_num=next_figure,
+    ) == legacy_result
