@@ -62,6 +62,9 @@ def get_cached(
         return None
 
     effective_ttl = ttl if ttl is not None else _SOURCE_TTL.get(source, _TTL_SEC)
+    if effective_ttl <= 0:
+        logger.debug("Cache disabled/expired for key %s (ttl=%.0fs)", key, effective_ttl)
+        return None
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))

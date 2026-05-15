@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -217,14 +218,33 @@ class HookRegistry:
 
         t0 = time.monotonic()
         try:
+            cmd = [str(script)]
+            if script.suffix == ".sh" and os.name == "nt":
+                shell_exe = shutil.which("sh") or shutil.which("bash")
+                if shell_exe:
+                    cmd = [shell_exe, str(script)]
             result = subprocess.run(
-                [str(script)],
+                cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 env=env,
                 cwd=str(self.run_dir) if self.run_dir else None,
             )
+            if (
+                script.suffix == ".sh"
+                and os.name == "nt"
+                and result.returncode != 0
+                and (
+                    "WSL" in result.stderr
+                    or "wsl" in result.stderr.lower()
+                    or "No such file or directory" in result.stderr
+                    or "CreateProcessCommon" in result.stderr
+                )
+            ):
+                result = self._run_simple_windows_shell_script(script, env)
             return HookResult(
                 hook_name=f"{hook_name} ({script.name})",
                 success=result.returncode == 0,
@@ -246,3 +266,33 @@ class HookRegistry:
                 error=str(exc),
                 duration_sec=time.monotonic() - t0,
             )
+
+    def _run_simple_windows_shell_script(self, script: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        """Run a tiny safe subset of .sh hooks when no POSIX shell is available."""
+        output: list[str] = []
+        for raw_line in script.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("echo "):
+                text = line[5:].strip()
+                if (
+                    len(text) >= 2
+                    and text[0] == text[-1]
+                    and text[0] in ("'", '"')
+                ):
+                    text = text[1:-1]
+                output.append(os.path.expandvars(text))
+                continue
+            return subprocess.CompletedProcess(
+                args=[str(script)],
+                returncode=127,
+                stdout="\n".join(output) + ("\n" if output else ""),
+                stderr=f"No POSIX shell available for unsupported command: {line}",
+            )
+        return subprocess.CompletedProcess(
+            args=[str(script)],
+            returncode=0,
+            stdout="\n".join(output) + ("\n" if output else ""),
+            stderr="",
+        )

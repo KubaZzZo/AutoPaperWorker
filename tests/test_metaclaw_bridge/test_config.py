@@ -15,7 +15,6 @@ def _minimal_config_data(**overrides):
             "provider": "openai-compatible",
             "base_url": "http://localhost:8080",
             "api_key_env": "TEST_KEY",
-            "api_key": "sk-test",
             "primary_model": "gpt-4o",
         },
     }

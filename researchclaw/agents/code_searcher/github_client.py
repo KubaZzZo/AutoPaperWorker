@@ -67,7 +67,7 @@ class GitHubClient:
     """
 
     def __init__(self, token: str | None = None) -> None:
-        self._token = token or os.environ.get("GITHUB_TOKEN", "")
+        self._token = os.environ.get("GITHUB_TOKEN", "") if token is None else token
         self._last_search_time: float = 0
         self._search_interval: float = 6.0  # 10 req/min → 6s between requests
         self._request_count: int = 0

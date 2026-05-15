@@ -34,6 +34,10 @@ The second optimization round is complete. The implemented slices are:
 - Coverage expansion: LLM retry behavior, MCP registry replacement cleanup,
   AgenticSandbox malformed artifact fallback, prompt defaults, converter
   helpers, and run-state adapters have focused regression tests.
+- Full-suite cleanup: local ignored caches/run artifacts were removed, tracked
+  tests/docs were preserved, and the full pytest suite now passes on Windows
+  after fixing environment-token isolation, shell hook portability, cache TTL
+  expiry, and deprecated inline LLM key fixtures.
 
 ## Remaining Optimization Queue
 
@@ -101,6 +105,10 @@ The second optimization round is complete. The implemented slices are:
    - Remaining `print()` usage is limited to CLI, HITL/TUI, wizard, health
      report, tests, or generated code/template strings where terminal-visible
      behavior is intentional.
+   - 2026-05-15 full-suite cleanup marker: ignored `.pytest_cache/`,
+     `.researchclaw_cache/`, `artifacts/`, and regenerated `__pycache__/`
+     directories were treated as local run products, not project assets.
+     No tracked test or documentation file was removed during cleanup.
 
 4. **Optional backend hardening**
    - SQLite run-state is available as an injectable adapter. Redis or other
@@ -277,6 +285,18 @@ The second optimization round is complete. The implemented slices are:
      ideal for high-throughput multi-run monitoring.
    - A pluggable run-state backend such as SQLite first, with Redis left
      optional.
+
+5. **Full-suite verification hardening**
+   - 2026-05-15 slice: `GitHubClient(token="")` now means explicit
+     unauthenticated mode instead of falling back to a process-level
+     `GITHUB_TOKEN`.
+   - 2026-05-15 slice: Windows HITL `.sh` hooks now run through an available
+     POSIX shell when possible and fall back to a small echo-only compatibility
+     runner when WSL/Git Bash is unavailable.
+   - 2026-05-15 slice: literature cache `ttl <= 0` is treated as immediately
+     expired, matching the test contract.
+   - 2026-05-15 slice: MetaClaw and e2e regression fixtures no longer use the
+     deprecated inline `llm.api_key` field.
    - 2026-05-15 slice: introduced `researchclaw/run_state.py` with a
      `RunStateBackend` interface and JSON backend. Pipeline progress writing
      and dashboard progress reading now go through this backend while
