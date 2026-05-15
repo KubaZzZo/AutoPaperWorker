@@ -8,6 +8,13 @@ from types import SimpleNamespace
 import pytest
 
 from researchclaw.pipeline import _helpers
+from researchclaw.pipeline.artifact_io import (
+    find_prior_file,
+    load_hardware_profile,
+    read_best_analysis,
+    read_prior_artifact,
+    write_stage_meta,
+)
 from researchclaw.pipeline.code_blocks import (
     extract_code_block,
     extract_multi_file_blocks,
@@ -23,6 +30,7 @@ from researchclaw.pipeline.topic_utils import (
     extract_topic_keywords,
     topic_constraint_block,
 )
+from researchclaw.pipeline.stages import Stage, StageStatus
 
 
 def test_extract_code_block_prefers_fenced_python() -> None:
@@ -167,6 +175,55 @@ def test_runtime_issues_module_matches_legacy_helper_exports() -> None:
     assert detect_runtime_issues(sandbox_result) == _helpers._detect_runtime_issues(
         sandbox_result
     )
+
+
+def test_artifact_io_module_matches_legacy_helper_exports(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    stage_01 = run_dir / "stage-01"
+    stage_03 = run_dir / "stage-03"
+    stage_01.mkdir(parents=True)
+    stage_03.mkdir(parents=True)
+    (stage_01 / "goal.md").write_text("old", encoding="utf-8")
+    (stage_03 / "goal.md").write_text("new", encoding="utf-8")
+    (stage_03 / "analysis.md").write_text("analysis", encoding="utf-8")
+    (stage_01 / "hardware_profile.json").write_text(
+        json.dumps({"gpu_type": "mps"}),
+        encoding="utf-8",
+    )
+
+    assert read_prior_artifact(run_dir, "goal.md") == _helpers._read_prior_artifact(
+        run_dir,
+        "goal.md",
+    )
+    assert find_prior_file(run_dir, "goal.md") == _helpers._find_prior_file(
+        run_dir,
+        "goal.md",
+    )
+    assert read_best_analysis(run_dir) == _helpers._read_best_analysis(run_dir)
+    assert load_hardware_profile(run_dir) == _helpers._load_hardware_profile(run_dir)
+
+    stage_dir = run_dir / "stage-02"
+    stage_dir.mkdir()
+    result = _helpers.StageResult(
+        stage=Stage.PROBLEM_DECOMPOSE,
+        status=StageStatus.PAUSED,
+        artifacts=("refinement_log.json",),
+        decision="resume",
+        error="timeout",
+        evidence_refs=("stage-02/refinement_log.json",),
+    )
+    write_stage_meta(stage_dir, Stage.PROBLEM_DECOMPOSE, "run-123", result)
+    direct_payload = json.loads(
+        (stage_dir / "decision.json").read_text(encoding="utf-8")
+    )
+    (stage_dir / "decision.json").unlink()
+    _helpers._write_stage_meta(stage_dir, Stage.PROBLEM_DECOMPOSE, "run-123", result)
+    legacy_payload = json.loads(
+        (stage_dir / "decision.json").read_text(encoding="utf-8")
+    )
+    assert direct_payload.pop("ts")
+    assert legacy_payload.pop("ts")
+    assert direct_payload == legacy_payload
 
 
 def test_get_evolution_overlay_logs_store_failures(tmp_path: Path, caplog, monkeypatch) -> None:

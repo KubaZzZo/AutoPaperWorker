@@ -74,6 +74,9 @@ The second optimization round is complete. The implemented slices are:
    - Phase 3.12 marker: sandbox runtime issue detection moved from pipeline
      `_helpers.py` into `researchclaw/pipeline/runtime_issues.py` while
      preserving the legacy helper wrapper and diagnostic logger compatibility.
+   - Phase 3.13 marker: prior artifact lookup and stage metadata I/O moved
+     from pipeline `_helpers.py` into `researchclaw/pipeline/artifact_io.py`
+     while preserving legacy helper wrappers.
 
 3. **Runtime noise cleanup**
    - Phase 3.8 marker: pipeline and experiment library paths now have an AST
@@ -216,6 +219,12 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/runtime_issues.py`, while `_helpers` keeps the
      compatible private wrapper and historical diagnostic logger behavior.
      Marker: Phase 3.12 implemented.
+   - 2026-05-15 slice: prior artifact lookup, best-analysis resolution,
+     hardware-profile loading, and stage metadata writing moved from
+     `researchclaw/pipeline/_helpers.py` into
+     `researchclaw/pipeline/artifact_io.py`, while `_helpers` keeps compatible
+     private wrappers for existing stage callers.
+     Marker: Phase 3.13 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

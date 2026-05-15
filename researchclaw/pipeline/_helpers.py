@@ -15,6 +15,13 @@ import yaml
 from researchclaw.config import RCConfig
 from researchclaw.hardware import HardwareProfile, is_metric_name
 from researchclaw.llm.client import LLMClient
+from researchclaw.pipeline.artifact_io import (
+    find_prior_file as _find_prior_file_impl,
+    load_hardware_profile as _load_hardware_profile_impl,
+    read_best_analysis as _read_best_analysis_impl,
+    read_prior_artifact as _read_prior_artifact_impl,
+    write_stage_meta as _write_stage_meta_impl,
+)
 from researchclaw.pipeline.code_blocks import (
     extract_code_block as _extract_code_block_impl,
     extract_multi_file_blocks as _extract_multi_file_blocks_impl,
@@ -34,7 +41,6 @@ from researchclaw.pipeline.topic_utils import (
     topic_constraint_block as _topic_constraint_block_impl,
 )
 from researchclaw.pipeline.stages import (
-    NEXT_STAGE,
     Stage,
     StageStatus,
 )
@@ -176,25 +182,12 @@ def _build_fallback_queries(topic: str) -> list[str]:
 def _write_stage_meta(
     stage_dir: Path, stage: Stage, run_id: str, result: "StageResult"
 ) -> None:
-    if result.status is StageStatus.DONE:
-        next_stage = NEXT_STAGE[stage]
-    else:
-        # Failed / paused / blocked stages should point back to themselves so
-        # retry-resume tooling does not imply that the pipeline advanced.
-        next_stage = stage
-    meta = {
-        "stage_id": f"{int(stage):02d}-{stage.name.lower()}",
-        "run_id": run_id,
-        "status": result.status.value,
-        "decision": result.decision,
-        "output_artifacts": list(result.artifacts),
-        "evidence_refs": list(result.evidence_refs),
-        "error": result.error,
-        "ts": _utcnow_iso(),
-        "next_stage": int(next_stage) if next_stage is not None else None,
-    }
-    (stage_dir / "decision.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
+    _write_stage_meta_impl(
+        stage_dir,
+        stage,
+        run_id,
+        result,
+        timestamp_factory=_utcnow_iso,
     )
 
 
@@ -259,68 +252,21 @@ def _read_best_analysis(run_dir: Path) -> str:
     ``_promote_best_stage14``) over ``_read_prior_artifact("analysis.md")``
     which may pick a degenerate non-versioned stage-14 directory.
     """
-    best = run_dir / "analysis_best.md"
-    if best.exists():
-        return best.read_text(encoding="utf-8")
-    return _read_prior_artifact(run_dir, "analysis.md") or ""
+    return _read_best_analysis_impl(run_dir)
 
 
 def _read_prior_artifact(run_dir: Path, filename: str) -> str | None:
-    # R14-2: Sort so non-versioned dirs (stage-13) come before versioned (stage-13_v1).
-    # Within the same stage number, prefer the latest (non-versioned) copy.
-    def _stage_sort_key(p: Path) -> tuple[str, int]:
-        name = p.name
-        # Extract base stage name and version
-        if "_v" in name:
-            base, _, ver = name.rpartition("_v")
-            try:
-                return (base, -int(ver))  # Versioned: lower priority (negative version)
-            except ValueError:
-                return (name, -999)
-        return (name, 0)  # Non-versioned: highest priority
-
-    for stage_subdir in sorted(run_dir.glob("stage-*"), key=_stage_sort_key, reverse=True):
-        candidate = stage_subdir / filename
-        if candidate.is_file():
-            try:
-                return candidate.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError) as exc:
-                logger.warning("Cannot read %s: %s — skipping", candidate, exc)
-                continue
-        if filename.endswith("/") and (stage_subdir / filename.rstrip("/")).is_dir():
-            return str(stage_subdir / filename.rstrip("/"))
-    return None
+    return _read_prior_artifact_impl(run_dir, filename, diagnostic_logger=logger)
 
 
 def _find_prior_file(run_dir: Path, filename: str) -> Path | None:
     """Like ``_read_prior_artifact`` but returns the *Path* instead of content."""
-    def _stage_sort_key(p: Path) -> tuple[str, int]:
-        name = p.name
-        if "_v" in name:
-            base, _, ver = name.rpartition("_v")
-            try:
-                return (base, -int(ver))
-            except ValueError:
-                return (name, -999)
-        return (name, 0)
-
-    for stage_subdir in sorted(run_dir.glob("stage-*"), key=_stage_sort_key, reverse=True):
-        candidate = stage_subdir / filename
-        if candidate.is_file():
-            return candidate
-    return None
+    return _find_prior_file_impl(run_dir, filename)
 
 
 def _load_hardware_profile(run_dir: Path) -> dict[str, Any] | None:
     """Load hardware_profile.json from a prior stage (usually stage-01)."""
-    raw = _read_prior_artifact(run_dir, "hardware_profile.json")
-    if raw is None:
-        return None
-    try:
-        data = json.loads(raw)
-        return data if isinstance(data, dict) else None
-    except (json.JSONDecodeError, ValueError):
-        return None
+    return _load_hardware_profile_impl(run_dir, diagnostic_logger=logger)
 
 
 # ---------------------------------------------------------------------------
