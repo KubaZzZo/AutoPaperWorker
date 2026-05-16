@@ -102,6 +102,19 @@ def test_valid_config_data_helper_returns_expected_baseline_shape():
     assert data["security"]["hitl_required_stages"] == [5, 9, 20]
 
 
+def test_config_public_api_is_reexported_from_package_modules():
+    import researchclaw.config as config_pkg
+    from researchclaw.config.defaults import DEFAULT_PYTHON_PATH as defaults_python
+    from researchclaw.config.parsing import _parse_benchmark_agent_config
+    from researchclaw.config.schema import RCConfig as SchemaRCConfig
+    from researchclaw.config.validation import validate_config as package_validate
+
+    assert config_pkg.RCConfig is SchemaRCConfig
+    assert config_pkg.DEFAULT_PYTHON_PATH == defaults_python
+    assert config_pkg.validate_config is package_validate
+    assert config_pkg._parse_benchmark_agent_config is _parse_benchmark_agent_config
+
+
 def test_validate_config_with_valid_data_returns_ok_true(tmp_path: Path):
     result = validate_config(
         _valid_config_data(), project_root=tmp_path, check_paths=False
