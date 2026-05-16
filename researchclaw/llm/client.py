@@ -276,6 +276,16 @@ class LLMClient:
             f"All models failed. Last error: {last_error}"
         ) from last_error
 
+    def chat_json(
+        self,
+        messages: list[dict[str, str]],
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Send a chat request in JSON mode and parse the object response."""
+
+        response = self.chat(messages, json_mode=True, **kwargs)
+        return _parse_json_object_response(response.content)
+
     def preflight(self) -> tuple[bool, str]:
         """Quick connectivity check - one minimal chat call.
 
@@ -730,3 +740,22 @@ def create_client_from_yaml(yaml_path: str | None = None) -> LLMClient:
             ),
         )
     )
+
+
+def _parse_json_object_response(content: str) -> dict[str, Any]:
+    """Parse a JSON object, accepting optional fenced-code wrappers."""
+
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise MalformedLLMResponseError(
+            f"Malformed JSON response: expected object, got {type(data).__name__}"
+        )
+    return data

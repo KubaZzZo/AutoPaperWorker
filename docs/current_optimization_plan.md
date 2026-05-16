@@ -34,6 +34,12 @@ The second optimization round is complete. The implemented slices are:
 - Coverage expansion: LLM retry behavior, MCP registry replacement cleanup,
   AgenticSandbox malformed artifact fallback, prompt defaults, converter
   helpers, and run-state adapters have focused regression tests.
+- LLM adapter architecture: OpenAI-compatible, Anthropic, Gemini, and ACP
+  client paths now share a structural protocol surface and native-provider
+  message normalization helpers.
+- Test fixture consolidation: `tests/conftest.py` now provides shared LLM,
+  config, adapter, run-dir, and pipeline-context fixtures for incremental
+  test-suite migration.
 - Full-suite cleanup: local ignored caches/run artifacts were removed, tracked
   tests/docs were preserved, and the full pytest suite now passes on Windows
   after fixing environment-token isolation, shell hook portability, cache TTL
@@ -114,6 +120,20 @@ The second optimization round is complete. The implemented slices are:
    - SQLite run-state is available as an injectable adapter. Redis or other
      multi-process backends remain optional future work, not required for the
      current local-run contract.
+
+5. **LLM adapter architecture**
+   - Phase 3.21 marker: shared LLM client/provider protocols and native
+     provider message normalization helpers implemented 2026-05-16.
+   - Anthropic and Gemini adapters now use the same system-message splitting,
+     consecutive-turn merging, leading-user normalization, and JSON-mode
+     instruction injection logic.
+
+6. **Test fixture consolidation**
+   - Phase 3.22 marker: shared test fixtures implemented 2026-05-16 in
+     `tests/conftest.py` for mock LLM behavior, temporary RC config, adapter
+     bundles, run directories, and a small pipeline-context bundle.
+   - Existing test modules can migrate incrementally when their local fakes
+     match the shared fixture behavior.
 
 ## Completed Priority History
 
@@ -296,6 +316,18 @@ The second optimization round is complete. The implemented slices are:
      transitions while preserving legacy `ValueError`/`RuntimeError`
      compatibility.
      Marker: Phase 3.20 implemented.
+   - 2026-05-16 slice: shared LLM structural protocols were added under
+     `researchclaw/llm/protocols.py`, and Anthropic/Gemini native adapter
+     message conversion moved into `researchclaw/llm/messages.py`. The
+     OpenAI-compatible and ACP client paths now expose `chat_json()` alongside
+     `chat()` for a common high-level interface.
+     Marker: Phase 3.21 implemented.
+   - 2026-05-16 slice: `tests/conftest.py` now defines shared `MockLLMClient`,
+     temporary config, adapter bundle, run directory, and pipeline-context
+     fixtures. `tests/test_assessor.py` and `tests/test_trends.py` started the
+     incremental migration by replacing duplicated successful async LLM fakes
+     with the shared fixture while keeping specialized failure fakes local.
+     Marker: Phase 3.22 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

@@ -22,7 +22,7 @@ import weakref
 from dataclasses import dataclass
 from typing import Any
 
-from researchclaw.llm.client import LLMResponse
+from researchclaw.llm.client import LLMResponse, _parse_json_object_response
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +125,16 @@ class ACPClient:
             model=f"acp:{self.config.agent}",
             finish_reason="stop",
         )
+
+    def chat_json(
+        self,
+        messages: list[dict[str, str]],
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Send a prompt expecting a JSON object response."""
+
+        response = self.chat(messages, json_mode=True, **kwargs)
+        return _parse_json_object_response(response.content)
 
     def preflight(self) -> tuple[bool, str]:
         """Check that acpx and the agent are available."""

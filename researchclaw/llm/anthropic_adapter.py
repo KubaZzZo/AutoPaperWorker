@@ -5,6 +5,8 @@ import logging
 import urllib.error
 from typing import Any
 
+from researchclaw.llm.messages import normalize_provider_messages
+
 try:
     import httpx
 
@@ -13,11 +15,6 @@ except ImportError:
     HAS_HTTPX = False
 
 logger = logging.getLogger(__name__)
-
-_JSON_MODE_INSTRUCTION = (
-    "You MUST respond with valid JSON only. "
-    "Do not include any text outside the JSON object."
-)
 
 # Map Anthropic stop_reason → OpenAI finish_reason
 _STOP_REASON_MAP = {
@@ -63,43 +60,9 @@ class AnthropicAdapter:
         Raises urllib.error.HTTPError on API errors so the upstream retry
         logic in LLMClient._call_with_retry works unchanged.
         """
-        # Extract and concatenate all system messages
-        system_parts: list[str] = []
-        user_messages: list[dict[str, str]] = []
-        for msg in messages:
-            if msg["role"] == "system":
-                system_parts.append(msg["content"])
-            else:
-                user_messages.append(msg)
-
-        system_msg = "\n\n".join(system_parts) if system_parts else None
-
-        # Merge consecutive messages with the same role (Anthropic
-        # requires strict user/assistant alternation)
-        merged: list[dict[str, str]] = []
-        for msg in user_messages:
-            if merged and merged[-1]["role"] == msg["role"]:
-                merged[-1] = {
-                    "role": msg["role"],
-                    "content": merged[-1]["content"] + "\n\n" + msg["content"],
-                }
-            else:
-                merged.append(dict(msg))
-        user_messages = merged
-
-        # Ensure at least one user message and that it starts with "user"
-        if not user_messages:
-            user_messages = [{"role": "user", "content": "Hello."}]
-        elif user_messages[0]["role"] != "user":
-            user_messages.insert(0, {"role": "user", "content": "Continue."})
-
-        # Prepend JSON instruction when json_mode is requested
-        if json_mode:
-            system_msg = (
-                f"{_JSON_MODE_INSTRUCTION}\n\n{system_msg}"
-                if system_msg
-                else _JSON_MODE_INSTRUCTION
-            )
+        normalized = normalize_provider_messages(messages, json_mode=json_mode)
+        system_msg = normalized.system
+        user_messages = normalized.messages
 
         # Thinking-enabled Claude models require temperature=1.0
         # and do not accept other temperature values.

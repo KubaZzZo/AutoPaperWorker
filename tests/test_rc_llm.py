@@ -643,3 +643,59 @@ def test_call_with_retry_retries_transient_400_provider_overload(
 
     assert response.content == "ok"
     assert attempts == 2
+
+
+def test_llm_package_exposes_shared_structural_protocols():
+    from researchclaw.llm.protocols import ChatLLMClientProtocol, LLMClientProtocol
+
+    class MinimalClient:
+        def chat(self, messages: list[dict[str, str]], **kwargs: Any) -> LLMResponse:
+            return LLMResponse(content="ok", model="fake")
+
+        def chat_json(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+            return {"ok": True}
+
+    assert isinstance(MinimalClient(), ChatLLMClientProtocol)
+    assert LLMClientProtocol is ChatLLMClientProtocol
+
+
+def test_provider_message_normalization_merges_system_and_consecutive_roles():
+    from researchclaw.llm.messages import normalize_provider_messages
+
+    normalized = normalize_provider_messages(
+        [
+            {"role": "system", "content": "sys-a"},
+            {"role": "user", "content": "hello"},
+            {"role": "user", "content": "again"},
+            {"role": "assistant", "content": "answer"},
+            {"role": "assistant", "content": "more"},
+        ],
+        json_mode=True,
+    )
+
+    assert normalized.system == (
+        "You MUST respond with valid JSON only. "
+        "Do not include any text outside the JSON object.\n\nsys-a"
+    )
+    assert normalized.messages == [
+        {"role": "user", "content": "hello\n\nagain"},
+        {"role": "assistant", "content": "answer\n\nmore"},
+    ]
+
+
+def test_gemini_contents_use_shared_normalized_provider_messages():
+    from researchclaw.llm.messages import build_gemini_contents
+
+    contents = build_gemini_contents(
+        [
+            {"role": "assistant", "content": "prior"},
+            {"role": "user", "content": "next"},
+            {"role": "user", "content": "detail"},
+        ]
+    )
+
+    assert contents == [
+        {"role": "user", "parts": [{"text": "Continue."}]},
+        {"role": "model", "parts": [{"text": "prior"}]},
+        {"role": "user", "parts": [{"text": "next\n\ndetail"}]},
+    ]

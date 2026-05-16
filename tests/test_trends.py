@@ -49,16 +49,6 @@ def _make_papers(n: int = 10) -> list[dict[str, Any]]:
     return papers
 
 
-class MockLLM:
-    async def chat_async(self, prompt: str) -> str:
-        return (
-            "TOPIC: Graph transformers for drug discovery | "
-            "WHY: Rising trend | FEASIBILITY: high\n"
-            "TOPIC: Diffusion models for 3D generation | "
-            "WHY: New paradigm | FEASIBILITY: medium\n"
-        )
-
-
 class FailingLLM:
     async def chat_async(self, prompt: str) -> str:
         raise RuntimeError("API error")
@@ -244,8 +234,14 @@ class TestOpportunityFinder:
         ))
         assert result == []
 
-    def test_llm_path(self):
-        finder = OpportunityFinder(llm_client=MockLLM())
+    def test_llm_path(self, mock_llm_client):
+        mock_llm_client.set_responses(
+            "TOPIC: Graph transformers for drug discovery | "
+            "WHY: Rising trend | FEASIBILITY: high\n"
+            "TOPIC: Diffusion models for 3D generation | "
+            "WHY: New paradigm | FEASIBILITY: medium\n"
+        )
+        finder = OpportunityFinder(llm_client=mock_llm_client)
         trend_analysis = {
             "rising_keywords": [{"keyword": "graph", "count": 10}],
             "method_trends": [{"method": "transformer", "mention_count": 5}],

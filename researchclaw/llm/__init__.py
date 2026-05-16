@@ -5,6 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from researchclaw.llm.protocols import (
+    ChatLLMClientProtocol,
+    LLMClientProtocol,
+    LLMResponseProtocol,
+    ProviderAdapterProtocol,
+)
+
 if TYPE_CHECKING:
     from researchclaw.config import RCConfig
     from researchclaw.llm.acp_client import ACPClient

@@ -47,16 +47,6 @@ def _sample_scores(overall: float = 7.5) -> dict[str, Any]:
     }
 
 
-class MockLLM:
-    """Minimal mock LLM client."""
-
-    def __init__(self, response: str = "SCORE: 7\nREASON: Solid contribution"):
-        self.response = response
-
-    async def chat_async(self, prompt: str) -> str:
-        return self.response
-
-
 class FailingLLM:
     async def chat_async(self, prompt: str) -> str:
         raise RuntimeError("API error")
@@ -102,9 +92,9 @@ class TestPaperScorer:
         assert isinstance(result["overall"], float)
         assert len(result["dimensions_evaluated"]) == 5
 
-    def test_score_with_mock_llm(self):
-        llm = MockLLM("SCORE: 8\nREASON: Excellent work")
-        scorer = PaperScorer(llm_client=llm)
+    def test_score_with_mock_llm(self, mock_llm_client):
+        mock_llm_client.set_responses("SCORE: 8\nREASON: Excellent work")
+        scorer = PaperScorer(llm_client=mock_llm_client)
         result = asyncio.run(scorer.score(_sample_paper()))
         assert result["overall"] == 8.0
         for dim in result["scores"]:

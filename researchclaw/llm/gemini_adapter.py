@@ -6,12 +6,9 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from researchclaw.llm.messages import normalize_provider_messages
 
-_JSON_MODE_INSTRUCTION = (
-    "You MUST respond with valid JSON only. "
-    "Do not include any text outside the JSON object."
-)
+logger = logging.getLogger(__name__)
 
 
 class GeminiAdapter:
@@ -39,41 +36,15 @@ class GeminiAdapter:
         Raises urllib.error.HTTPError on API errors so the upstream retry
         logic in LLMClient._call_with_retry works unchanged.
         """
-        system_parts: list[str] = []
-        user_messages: list[dict[str, str]] = []
-
-        for msg in messages:
-            if msg.get("role") == "system":
-                system_parts.append(msg["content"])
-            else:
-                user_messages.append(msg)
-
-        system_msg = "\n\n".join(system_parts) if system_parts else None
-
-        if json_mode:
-            system_msg = (
-                f"{_JSON_MODE_INSTRUCTION}\n\n{system_msg}"
-                if system_msg
-                else _JSON_MODE_INSTRUCTION
-            )
-
-        contents = []
-
-        # Merge consecutive messages with same role, map "assistant" to "model"
-        for msg in user_messages:
-            role = "user" if msg["role"] == "user" else "model"
-            content = msg["content"]
-
-            if contents and contents[-1]["role"] == role:
-                contents[-1]["parts"][0]["text"] += "\n\n" + content
-            else:
-                contents.append({"role": role, "parts": [{"text": content}]})
-
-        # Ensure it starts with user
-        if not contents:
-            contents = [{"role": "user", "parts": [{"text": "Hello."}]}]
-        elif contents[0]["role"] != "user":
-            contents.insert(0, {"role": "user", "parts": [{"text": "Continue."}]})
+        normalized = normalize_provider_messages(messages, json_mode=json_mode)
+        system_msg = normalized.system
+        contents = [
+            {
+                "role": "user" if msg["role"] == "user" else "model",
+                "parts": [{"text": msg["content"]}],
+            }
+            for msg in normalized.messages
+        ]
 
         body: dict[str, Any] = {
             "contents": contents,
