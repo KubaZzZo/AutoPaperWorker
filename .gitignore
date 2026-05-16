@@ -86,6 +86,8 @@ config_*.yaml
 frontend/
 
 # Test outputs and run logs (local only)
+.coverage
+htmlcov/
 test_outputs*/
 records/
 run*_full_log.txt
