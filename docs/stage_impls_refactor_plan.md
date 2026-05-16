@@ -1,7 +1,7 @@
 # Stage Implementations Refactor Plan
 
 > Created: 2026-05-15
-> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 implemented
+> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 implemented; Phase 3.18 implemented
 > Scope: three large-module reduction rounds for selected `researchclaw/pipeline/stage_impls/` modules.
 
 ## Goal
@@ -35,6 +35,7 @@ document and in `docs/current_optimization_plan.md`.
 | 3.15 | Execution repair workflow extraction | Implemented | 2026-05-15: `execution_run.py` owns Stage 12 sandbox run persistence, status classification, result artifact writing, time-budget warnings, and low-seed warnings. |
 | 3.16 | Review/publish citation workflow extraction | Implemented | 2026-05-15: `review_publish_citations.py` owns missing-citation resolution, seminal-paper lookup, BibTeX generation, API result validation, and conservative wrong-paper rejection. |
 | 3.17 | Paper draft-quality workflow extraction | Implemented | 2026-05-15: `paper_draft_quality.py` owns Stage 17 draft section balance, bullet-density, citation-count, recency, length, raw-path, writing-quality, boilerplate, related-work, and statistical-rigor checks. |
+| 3.18 | Review/revision/publish stage ownership split | Implemented | 2026-05-16: `_review.py` owns peer review and evidence collection, `_revision.py` owns paper revision and the quality gate, `_publish.py` owns knowledge archive, export/publish, sanitization, and citation verification; `_review_publish.py` remains a compatibility facade. |
 
 ## Round 1: Phase 3.15 - Execution Repair Workflow
 
@@ -121,11 +122,31 @@ the first two refactors.
 - Add a focused new compatibility test before moving code.
 - Run targeted tests plus py_compile and diff checks.
 
+## Round 4: Phase 3.18 - Review/Revision/Publish Stage Ownership
+
+**Primary file:** `researchclaw/pipeline/stage_impls/_review_publish.py`
+
+**Completed extraction:** Split the remaining stage implementations into
+focused ownership modules:
+
+- `_review.py`: Stage 18 peer review and experiment evidence collection.
+- `_revision.py`: Stage 19 paper revision and Stage 20 quality gate.
+- `_publish.py`: Stage 21 knowledge archive, Stage 22 export/publish, Stage
+  23 citation verification, fabrication sanitization, and citation helpers.
+- `_review_publish.py`: compatibility facade preserving legacy private imports.
+
+**Verification completed:**
+
+- `pytest tests/test_review_publish_architecture.py -q`
+- `python -m compileall -q researchclaw\pipeline\stage_impls`
+- `pytest tests\test_rc_runner.py::test_pipeline_final_round_prompt_and_file_handlers_are_specific tests\test_rc_runner.py::test_pipeline_third_round_handlers_are_specific -q`
+- `pytest tests\test_rc_executor.py tests\test_rc_citation_resolve.py tests\test_rc_citation_verify.py tests\test_rc_sanitization.py tests\test_review_publish_architecture.py -q`
+
 ## Completion Definition
 
-The three-round stage_impls refactor is complete when:
+The stage_impls refactor is complete when:
 
-- Phases 3.15, 3.16, and 3.17 are all marked implemented in this document.
+- Phases 3.15, 3.16, 3.17, and 3.18 are all marked implemented in this document.
 - `docs/current_optimization_plan.md` contains matching implemented markers.
-- Each phase has its own commit pushed to `origin/main`.
-- The final local worktree is clean and tracks `origin/main`.
+- Each phase has its own commit pushed to the active work branch.
+- The final local worktree is clean and tracks the active remote branch.

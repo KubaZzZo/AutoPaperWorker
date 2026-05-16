@@ -279,6 +279,12 @@ The second optimization round is complete. The implemented slices are:
      `researchclaw/pipeline/stage_impls/paper_draft_quality.py`, with legacy
      `_paper_writing.py` private wrappers and executor exports preserved.
      Marker: Phase 3.17 implemented.
+   - 2026-05-16 slice: Stages 18-23 moved out of the monolithic
+     `researchclaw/pipeline/stage_impls/_review_publish.py` into focused
+     `_review.py`, `_revision.py`, and `_publish.py` modules. The legacy
+     `_review_publish.py` path now acts as a compatibility facade for existing
+     executor and test imports.
+     Marker: Phase 3.18 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

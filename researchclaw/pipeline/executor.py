@@ -166,17 +166,21 @@ from researchclaw.pipeline.stage_impls._paper_writing import (  # noqa: E402
 )
 
 # ---------------------------------------------------------------------------
-# Stages 18-23 (extracted to stage_impls/_review_publish.py)
+# Stages 18-23 (split across focused review/revision/publish modules)
 # ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._review_publish import (  # noqa: E402
+from researchclaw.pipeline.stage_impls._review import (  # noqa: E402
     _execute_peer_review,
+    _collect_experiment_evidence,
+)
+from researchclaw.pipeline.stage_impls._revision import (  # noqa: E402
     _execute_paper_revision,
     _execute_quality_gate,
+)
+from researchclaw.pipeline.stage_impls._publish import (  # noqa: E402
     _execute_knowledge_archive,
     _execute_export_publish,
     _execute_citation_verify,
     _sanitize_fabricated_data,
-    _collect_experiment_evidence,
     _check_citation_relevance,
     _remove_bibtex_entries,
     _remove_citations_from_text,
