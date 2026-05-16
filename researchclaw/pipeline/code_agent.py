@@ -344,7 +344,7 @@ class CodeAgent:
                     parts.append(
                         "# Domain-Specific Guidance\n" + blueprint_ctx
                     )
-            except Exception:
+            except (ImportError, RuntimeError, TypeError, ValueError):
                 logger.debug("Failed to get domain context", exc_info=True)
 
         # Code search results
@@ -358,7 +358,7 @@ class CodeAgent:
                         "Use them as reference for API usage and project structure.\n\n"
                         + prompt_ctx
                     )
-            except Exception:
+            except (RuntimeError, TypeError, ValueError):
                 logger.debug("Failed to get code search context", exc_info=True)
 
         return "\n\n".join(parts)
@@ -450,7 +450,7 @@ class CodeAgent:
                 data = yaml.safe_load(attempt_text)
                 if isinstance(data, dict) and "files" in data:
                     return data
-            except Exception as exc:
+            except (yaml.YAMLError, TypeError, ValueError) as exc:
                 self._log_event(f"  Blueprint YAML parse error: {exc}")
         return None
 
@@ -647,7 +647,7 @@ class CodeAgent:
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 try:
                     summary["imports"].append(ast.unparse(node))
-                except Exception as exc:
+                except (AttributeError, ValueError) as exc:
                     logger.debug(
                         "Failed to summarize import node in %s: %s",
                         filename,
@@ -1435,7 +1435,7 @@ class CodeAgent:
         sandbox = self._get_or_create_sandbox()
         try:
             result = sandbox.run_project(run_dir, timeout_sec=timeout)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self._log_event(f"  Sandbox run failed: {exc}")
             result = _SimpleResult(
                 returncode=1,

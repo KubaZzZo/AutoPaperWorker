@@ -168,6 +168,296 @@ def test_pipeline_second_round_expected_exception_handlers_are_specific() -> Non
     assert broad_handlers == []
 
 
+def test_pipeline_final_round_prompt_and_file_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "compute_budget"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "network_disabled_guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "full-network prompt guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "dataset_guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "setup_script_guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "hp_reporting"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "multi_seed_enforcement"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "Failed to load benchmark plan"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "rl_step_guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "Framework doc injection skipped"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "llm_training_guidance"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "llm_eval_guidance"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "academic_style_guide"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "writing_structure"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "title_guidelines"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "abstract_structure"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "narrative_writing_rules"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "anti_hedging_rules"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "anti_repetition_rules"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "draft quality warnings"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "paper revision: writing_structure"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "paper revision: %s"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "draft quality directives"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
+def test_pipeline_final_round_runner_integration_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/runner.py", "Event log initialisation failed"),
+        ("researchclaw/pipeline/runner.py", "Experiment memory initialisation failed"),
+        ("researchclaw/pipeline/runner.py", "Event log stage-start append failed"),
+        ("researchclaw/pipeline/runner.py", "Cost budget check failed"),
+        ("researchclaw/pipeline/runner.py", "Experiment spec generation failed"),
+        ("researchclaw/pipeline/runner.py", "Experiment spec validation failed"),
+        ("researchclaw/pipeline/runner.py", "Pitfall detection failed"),
+        ("researchclaw/pipeline/runner.py", "Experiment memory recording failed"),
+        ("researchclaw/pipeline/runner.py", "Knowledge-base stage write failed"),
+        ("researchclaw/pipeline/runner.py", "Event log pipeline-end append failed"),
+        ("researchclaw/pipeline/runner.py", "Evolution lesson extraction failed"),
+        ("researchclaw/pipeline/runner.py", "MetaClaw post-pipeline hook failed"),
+        ("researchclaw/pipeline/runner.py", "Deliverables packaging failed"),
+        ("researchclaw/pipeline/runner.py", "HITL session finalization failed"),
+        ("researchclaw/pipeline/executor.py", "CostGuard check skipped"),
+        ("researchclaw/pipeline/executor.py", "SmartPause check skipped"),
+        ("researchclaw/pipeline/executor.py", "LLM client creation failed"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
+def test_pipeline_remaining_data_agent_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/verified_registry.py", "from_run_dir"),
+        ("researchclaw/pipeline/stage_impls/_literature.py", "src[\"status\"] = \"unknown\""),
+        ("researchclaw/pipeline/stage_impls/_literature.py", "Literature search failed"),
+        ("researchclaw/pipeline/stage_impls/_literature.py", "Seminal paper injection skipped"),
+        ("researchclaw/pipeline/stage_impls/_literature.py", "Web search augmentation failed"),
+        ("researchclaw/pipeline/stage_impls/_analysis.py", "FigureAgent failed"),
+        ("researchclaw/pipeline/stage_impls/_analysis.py", "Early chart generation failed"),
+        ("researchclaw/pipeline/stage_impls/_analysis.py", "Ablation quality assessment skipped"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
+def test_pipeline_helper_and_experiment_repair_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/_helpers.py", "Skill registry init failed"),
+        ("researchclaw/pipeline/_helpers.py", "Sandbox: failed to check/install"),
+        ("researchclaw/pipeline/_helpers.py", "LLM call failed (attempt"),
+        ("researchclaw/pipeline/_helpers.py", "Failed to build evolution lesson overlay"),
+        ("researchclaw/pipeline/_helpers.py", "Failed to build matched skill overlay"),
+        ("researchclaw/pipeline/_helpers.py", "Framework prompt LLM generation failed"),
+        ("researchclaw/pipeline/_helpers.py", "Debate perspective"),
+        ("researchclaw/pipeline/experiment_repair.py", "cannot create LLM client"),
+        ("researchclaw/pipeline/experiment_repair.py", "OpenCode repair failed"),
+        ("researchclaw/pipeline/experiment_repair.py", "LLM repair call failed"),
+        ("researchclaw/pipeline/experiment_repair.py", "Sandbox execution failed"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
+def test_pipeline_third_round_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/executor.py", "Collaboration failed"),
+        ("researchclaw/pipeline/executor.py", "LLM client creation failed"),
+        ("researchclaw/pipeline/executor.py", "MetaClaw PRM evaluation failed (non-blocking)"),
+        ("researchclaw/pipeline/runner.py", "MetaClaw lesson-to-skill conversion failed"),
+        ("researchclaw/pipeline/runner.py", "MetaClaw skill feedback recording failed"),
+        ("researchclaw/pipeline/runner.py", "MetaClaw session-end signal request failed"),
+        ("researchclaw/pipeline/runner.py", "MetaClaw session-end signal setup failed"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "Domain detection unavailable"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "BenchmarkAgent domain detection unavailable"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "BenchmarkAgent failed (non-fatal)"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "Failed to write benchmark_plan.json"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "Failed to build VerifiedRegistry"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "Failed to build pre-built tables"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "P3: Pre-verification failed, using original bib"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "HITL guidance application to draft failed"),
+        ("researchclaw/pipeline/stage_impls/_paper_writing.py", "Paper Co-Writer persistence failed"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "Verified registry quality gate enrichment failed"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "Chart generation failed"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "Figure path validation skipped"),
+        ("researchclaw/pipeline/stage_impls/_review_publish.py", "remove_missing_figures skipped"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
+def test_pipeline_last_round_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/experiment_workflow.py", "Experiment diagnosis failed"),
+        ("researchclaw/pipeline/experiment_workflow.py", "Experiment repair failed"),
+        ("researchclaw/pipeline/stage_impls/review_publish_citations.py", ""),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "Review-fix failed"),
+        ("researchclaw/pipeline/stage_impls/_code_generation.py", "Code review failed"),
+        ("researchclaw/pipeline/stage_impls/_synthesis.py", "Idea workshop persistence failed"),
+        ("researchclaw/pipeline/stage_impls/_synthesis.py", "Novelty check failed"),
+        ("researchclaw/pipeline/checkpoint.py", "HITL checkpoint data collection failed"),
+        ("researchclaw/pipeline/progress.py", "Failed to read experiment run progress"),
+        ("researchclaw/pipeline/progress.py", "cost_summary = None"),
+        ("researchclaw/pipeline/stage_impls/_execution.py", "Deep repair failed"),
+        ("researchclaw/pipeline/stage_impls/_topic.py", "IMP-35: Topic evaluation skipped"),
+        ("researchclaw/pipeline/stage_impls/_topic.py", "Failed to read existing topic profile"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(source, node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
 def test_execute_pipeline_runs_stages_in_sequence(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,

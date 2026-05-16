@@ -227,7 +227,7 @@ def execute_pipeline(
             EventType.PIPELINE_START, run_id=run_id,
             stages=total_stages, from_stage=int(from_stage),
         ))
-    except Exception:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.warning("Event log initialisation failed", exc_info=True)
 
     exp_memory = None
@@ -236,7 +236,7 @@ def execute_pipeline(
         _mem_dir = run_dir / "experiment_memory"
         _mem_dir.mkdir(parents=True, exist_ok=True)
         exp_memory = ExperimentMemory(store_dir=str(_mem_dir))
-    except Exception:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.warning("Experiment memory initialisation failed", exc_info=True)
 
     cost_budget = getattr(config.experiment.cli_agent, "max_budget_usd", 0.0) or 0.0
@@ -265,7 +265,7 @@ def execute_pipeline(
                 event_log.append(create_event(
                     EventType.STAGE_START, run_id=run_id, stage=stage.name,
                 ))
-            except Exception:
+            except (OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Event log stage-start append failed", exc_info=True)
 
         # ── Cost budget check ──
@@ -279,7 +279,7 @@ def execute_pipeline(
                         f"{prefix} BUDGET EXCEEDED (${cost_budget:.2f}) — stopping",
                     )
                     break
-            except Exception:
+            except (ImportError, OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Cost budget check failed", exc_info=True)
 
         # BUG-218: Ensure the best stage-14 experiment data is promoted
@@ -313,7 +313,7 @@ def execute_pipeline(
                     status=result.status.value, elapsed_sec=round(elapsed, 1),
                     error=result.error,
                 ))
-            except Exception:
+            except (OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Event log stage-end append failed", exc_info=True)
 
         # ── ExperimentSpec: generate after design, validate after analysis ──
@@ -335,7 +335,7 @@ def execute_pipeline(
                             cancel_event=cancel_event,
                         )
                         branch_fanout_completed = completed_manifest is not None
-            except Exception:
+            except (OSError, RuntimeError, TypeError, ValueError):
                 logger.warning(
                     "Parallel hypothesis branch preparation failed",
                     exc_info=True,
@@ -348,7 +348,7 @@ def execute_pipeline(
                 spec_path = run_dir / f"stage-{int(stage):02d}" / "experiment_spec.md"
                 spec_path.write_text(spec_text, encoding="utf-8")
                 logger.info("Experiment spec generated: %s", spec_path)
-            except Exception:
+            except (ImportError, OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Experiment spec generation failed", exc_info=True)
 
         if stage == Stage.RESULT_ANALYSIS and result.status == StageStatus.DONE:
@@ -367,7 +367,7 @@ def execute_pipeline(
                         (run_dir / f"stage-{int(stage):02d}" / "spec_violations.json").write_text(
                             json.dumps(violations, indent=2), encoding="utf-8"
                         )
-            except Exception:
+            except (ImportError, json.JSONDecodeError, OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Experiment spec validation failed", exc_info=True)
 
         # ── Pitfall detection after code generation / experiment run ──
@@ -387,7 +387,7 @@ def execute_pipeline(
                     (run_dir / f"stage-{int(stage):02d}" / "pitfall_report.json").write_text(
                         json.dumps(pitfall_report, indent=2), encoding="utf-8"
                     )
-            except Exception:
+            except (ImportError, OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Pitfall detection failed", exc_info=True)
 
         # ── Experiment memory: record outcome after experiment stages ──
@@ -411,7 +411,7 @@ def execute_pipeline(
                     packages_used=[], hyperparameters={},
                     timestamp=_time_mod.time(), duration_sec=elapsed,
                 ))
-            except Exception:
+            except (ImportError, json.JSONDecodeError, OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Experiment memory recording failed", exc_info=True)
 
         if result.status == StageStatus.DONE:
@@ -468,7 +468,7 @@ def execute_pipeline(
                     backend=config.knowledge_base.backend,
                     topic=config.research.topic,
                 )
-            except Exception:  # noqa: BLE001
+            except (OSError, RuntimeError, TypeError, ValueError):
                 logger.warning("Knowledge-base stage write failed", exc_info=True)
 
         if result.status == StageStatus.DONE:
@@ -681,7 +681,7 @@ def execute_pipeline(
                 EventType.PIPELINE_END, run_id=run_id,
                 stages_done=done_count, stages_failed=failed_count,
             ))
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError):
             logger.warning("Event log pipeline-end append failed", exc_info=True)
 
     # --- Evolution: extract and store lessons ---
@@ -692,7 +692,7 @@ def execute_pipeline(
             store = EvolutionStore(run_dir / "evolution")
             store.append_many(lessons)
             logger.info("Extracted %d lessons from pipeline run", len(lessons))
-    except Exception:  # noqa: BLE001
+    except (OSError, RuntimeError, TypeError, ValueError):
         logger.warning(
             "Evolution lesson extraction failed (non-blocking)",
             exc_info=True,
@@ -701,7 +701,7 @@ def execute_pipeline(
     # --- MetaClaw bridge: convert high-severity lessons to skills ---
     try:
         _metaclaw_post_pipeline(config, results, lessons, run_id, run_dir)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.warning(
             "MetaClaw post-pipeline hook failed (non-blocking)",
             exc_info=True,
@@ -715,7 +715,7 @@ def execute_pipeline(
                 progress_reporter,
                 f"[{run_id}] Deliverables packaged → {deliverables_dir}",
             )
-    except Exception:  # noqa: BLE001
+    except (OSError, RuntimeError, TypeError, ValueError):
         logger.warning("Deliverables packaging failed (non-blocking)", exc_info=True)
 
     # --- HITL: Finalize session state ---
@@ -734,7 +734,7 @@ def execute_pipeline(
                 hitl_session.abort()
             else:
                 hitl_session.complete()
-    except Exception:  # noqa: BLE001
+    except (RuntimeError, TypeError, ValueError):
         logger.warning("HITL session finalization failed (non-blocking)", exc_info=True)
 
     return results
@@ -1236,7 +1236,7 @@ def execute_iterative_pipeline(
         deliverables_dir = _package_deliverables(run_dir, run_id, config)
         if deliverables_dir is not None:
             logger.info("[%s] Deliverables packaged -> %s", run_id, deliverables_dir)
-    except Exception:  # noqa: BLE001
+    except (OSError, RuntimeError, TypeError, ValueError):
         logger.warning("Deliverables packaging failed (non-blocking)", exc_info=True)
 
     return summary
@@ -1284,7 +1284,7 @@ def _metaclaw_post_pipeline(
                     len(new_skills),
                     new_skills,
                 )
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
             logger.warning("MetaClaw lesson-to-skill conversion failed", exc_info=True)
 
     # 2. Skill effectiveness feedback
@@ -1324,7 +1324,7 @@ def _metaclaw_post_pipeline(
                     success,
                     active_skills,
                 )
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.warning("MetaClaw skill feedback recording failed", exc_info=True)
 
     # 3. Signal session end (fire-and-forget)
@@ -1348,7 +1348,7 @@ def _metaclaw_post_pipeline(
         req = _urllib_req.Request(url, data=body, headers=headers)
         try:
             _urllib_req.urlopen(req, timeout=5)
-        except Exception:  # noqa: BLE001
+        except (OSError, RuntimeError, TypeError, ValueError, AttributeError, TimeoutError):
             logger.debug("MetaClaw session-end signal request failed", exc_info=True)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug("MetaClaw session-end signal setup failed", exc_info=True)

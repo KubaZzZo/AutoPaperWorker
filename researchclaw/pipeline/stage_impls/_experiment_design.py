@@ -114,7 +114,7 @@ def _execute_experiment_design(
             }, indent=2),
             encoding="utf-8",
         )
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug("Domain detection unavailable", exc_info=True)
     if llm is not None:
         _pm = prompts or PromptManager()
@@ -324,7 +324,7 @@ def _execute_experiment_design(
                 topic=config.research.topic,
                 hypotheses=hypotheses,
             )
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
             logger.debug("BenchmarkAgent domain detection unavailable", exc_info=True)
     _ba_domain_id = (
         _ba_domain_profile.domain_id
@@ -410,7 +410,15 @@ def _execute_experiment_design(
                 _benchmark_plan.total_llm_calls,
                 _benchmark_plan.elapsed_sec,
             )
-        except Exception as _ba_exc:
+        except (
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            LookupError,
+        ) as _ba_exc:
             logger.warning("BenchmarkAgent failed (non-fatal): %s", _ba_exc, exc_info=True)
 
     # Save benchmark plan for code_generation stage
@@ -420,7 +428,7 @@ def _execute_experiment_design(
                 json.dumps(_benchmark_plan.to_dict(), indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
-        except Exception:  # noqa: BLE001
+        except (OSError, TypeError, ValueError, AttributeError, UnicodeError):
             logger.debug("Stage 09: Failed to write benchmark_plan.json", exc_info=True)
 
     plan.setdefault("topic", config.research.topic)

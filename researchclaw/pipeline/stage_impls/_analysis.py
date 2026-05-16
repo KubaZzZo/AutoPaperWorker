@@ -699,7 +699,7 @@ Generated: {_utcnow_iso()}
                 )
             else:
                 logger.warning("Stage 14: FigureAgent produced no charts, falling back")
-        except Exception as _fa_exc:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _fa_exc:
             logger.warning("Stage 14: FigureAgent failed (%s), falling back to visualize.py", _fa_exc, exc_info=True)
 
     # Fallback: legacy visualize.py chart generation
@@ -722,7 +722,7 @@ Generated: {_utcnow_iso()}
                     "Stage 14: Generated %d early charts (legacy) for paper embedding",
                     len(_early_charts),
                 )
-        except Exception as _chart_exc:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _chart_exc:
             logger.warning("Stage 14: Early chart generation failed: %s", _chart_exc, exc_info=True)
 
     return StageResult(
@@ -877,7 +877,7 @@ def _execute_research_decision(
                         "Warnings:\n" + "\n".join(f"- {w}" for w in _abl_warnings) + "\n"
                     )
                     logger.warning("C: %d/%d ablations trivial → recommending REFINE", _trivial_count, _total_abl)
-        except Exception:  # noqa: BLE001
+        except (ImportError, json.JSONDecodeError, OSError, RuntimeError, TypeError, ValueError):
             logger.debug("Stage 15: Ablation quality assessment skipped", exc_info=True)
 
     if llm is not None:

@@ -321,7 +321,7 @@ class OpenCodeBridge:
             return False
         except subprocess.TimeoutExpired:
             return False
-        except Exception:  # noqa: BLE001
+        except (OSError, subprocess.SubprocessError):
             return False
 
     # -- workspace preparation ------------------------------------------------
@@ -520,7 +520,7 @@ class OpenCodeBridge:
             return False, log, elapsed
         except FileNotFoundError:
             return False, "opencode CLI not found", 0.0
-        except Exception as exc:  # noqa: BLE001
+        except (OSError, subprocess.SubprocessError) as exc:
             elapsed = time.monotonic() - t0
             return False, f"Unexpected error: {exc}", elapsed
 
@@ -797,7 +797,7 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                 data = json.loads(bm_log.read_text(encoding="utf-8"))
                 if not data.get("success", True):
                     failed = True
-            except Exception as exc:  # noqa: BLE001
+            except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
                 logger.debug(
                     "Failed to read beast mode failure history from %s: %s",
                     bm_log,
@@ -812,7 +812,7 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                     data = json.loads(health.read_text(encoding="utf-8"))
                     if data.get("status") == "FAILED":
                         failed = True
-                except Exception as exc:  # noqa: BLE001
+                except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
                     logger.debug(
                         "Failed to read stage health failure history from %s: %s",
                         health,
@@ -827,7 +827,7 @@ def count_historical_failures(run_dir: Path, stage_name: str = "stage-10") -> in
                     content = vr.read_text(encoding="utf-8")
                     if "BLOCKED" in content or "FAILED" in content:
                         failed = True
-                except Exception as exc:  # noqa: BLE001
+                except (OSError, UnicodeError) as exc:
                     logger.debug(
                         "Failed to read validation failure history from %s: %s",
                         vr,

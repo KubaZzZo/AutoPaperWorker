@@ -101,7 +101,7 @@ def _execute_paper_outline(
         # IMP-20: Pass academic style guide block for outline stage
         try:
             _asg = _pm.block("academic_style_guide")
-        except (KeyError, Exception):
+        except KeyError:
             _asg = ""
         _overlay = _get_evolution_overlay(run_dir, "paper_outline")
         sp = _pm.for_stage(
@@ -354,7 +354,7 @@ def _write_paper_sections(
     # Render writing_structure block for injection
     try:
         _writing_structure = pm.block("writing_structure")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         _writing_structure = ""
 
     _overlay = _get_evolution_overlay(run_dir, "paper_draft")
@@ -374,29 +374,29 @@ def _write_paper_sections(
     # --- R4-3: Title guidelines and abstract structure ---
     try:
         title_guidelines = pm.block("title_guidelines")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         title_guidelines = ""
     try:
         abstract_structure = pm.block("abstract_structure")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         abstract_structure = ""
 
     # IMP-20/25/31/24: Academic style, narrative, anti-hedging, anti-repetition
     try:
         academic_style_guide = pm.block("academic_style_guide")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         academic_style_guide = ""
     try:
         narrative_writing_rules = pm.block("narrative_writing_rules")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         narrative_writing_rules = ""
     try:
         anti_hedging_rules = pm.block("anti_hedging_rules")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         anti_hedging_rules = ""
     try:
         anti_repetition_rules = pm.block("anti_repetition_rules")
-    except (KeyError, Exception):  # noqa: BLE001
+    except KeyError:
         anti_repetition_rules = ""
 
     language_instruction = ""
@@ -448,7 +448,7 @@ def _write_paper_sections(
     try:
         resp1 = _chat_with_prompt(llm, system, call1_user, max_tokens=_paper_max_tokens, retries=1)
         part1 = resp1.content.strip()
-    except Exception as exc:  # noqa: BLE001
+    except (RuntimeError, OSError, TypeError, ValueError) as exc:
         logger.error("Stage 17: Part 1 LLM call failed after retry", exc_info=True)
         raise RuntimeError("paper section 1 generation failed after retry") from exc
     sections.append(part1)
@@ -486,7 +486,7 @@ def _write_paper_sections(
     try:
         resp2 = _chat_with_prompt(llm, system, call2_user, max_tokens=_paper_max_tokens, retries=1)
         part2 = resp2.content.strip()
-    except Exception as exc:  # noqa: BLE001
+    except (RuntimeError, OSError, TypeError, ValueError) as exc:
         logger.error("Stage 17: Part 2 LLM call failed after retry", exc_info=True)
         raise RuntimeError("paper section 2 generation failed after retry") from exc
     sections.append(part2)
@@ -540,7 +540,7 @@ def _write_paper_sections(
     try:
         resp3 = _chat_with_prompt(llm, system, call3_user, max_tokens=_paper_max_tokens, retries=1)
         part3 = resp3.content.strip()
-    except Exception as exc:  # noqa: BLE001
+    except (RuntimeError, OSError, TypeError, ValueError) as exc:
         logger.error("Stage 17: Part 3 LLM call failed after retry", exc_info=True)
         raise RuntimeError("paper section 3 generation failed after retry") from exc
     sections.append(part3)
@@ -682,7 +682,7 @@ def _review_compiled_pdf(
             if valid:
                 review_data["mean_score"] = round(sum(valid.values()) / len(valid), 2)
             return review_data
-    except Exception as exc:  # noqa: BLE001
+    except (RuntimeError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
         logger.debug("PDF review LLM call failed: %s", exc)
 
     return {}
@@ -956,7 +956,7 @@ def _execute_paper_draft(
                     len(_verified_registry.values),
                     len(_verified_registry.condition_names),
                 )
-            except Exception as _vr_exc:
+            except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as _vr_exc:
                 logger.warning("Stage 17: Failed to build VerifiedRegistry: %s", _vr_exc, exc_info=True)
         if isinstance(exp_summary, dict) and exp_summary.get("metrics_summary"):
             has_real_metrics = True
@@ -1391,7 +1391,7 @@ def _execute_paper_draft(
                     + _condition_whitelist
                     + "\nDo NOT discuss conditions not in this list. Do NOT invent new conditions.\n"
                 )
-        except Exception as _tb_exc:
+        except (OSError, RuntimeError, TypeError, ValueError, AttributeError, KeyError) as _tb_exc:
             logger.warning("Stage 17: Failed to build pre-built tables: %s", _tb_exc, exc_info=True)
 
     # R4-2: Anti-fabrication data integrity instruction
@@ -1571,7 +1571,7 @@ def _execute_paper_draft(
                     "P3: Pre-verification kept %d/%d citations (removed %d hallucinated)",
                     _kept, _pre_report.total, _removed,
                 )
-        except Exception as exc:
+        except (RuntimeError, OSError, TypeError, ValueError, AttributeError) as exc:
             logger.warning("P3: Pre-verification failed, using original bib: %s", exc, exc_info=True)
 
     candidates_text = _read_prior_artifact(run_dir, "candidates.jsonl")
@@ -1741,7 +1741,7 @@ Generated: {_utcnow_iso()}
                         max_tokens=8192,
                     )
                     draft_path.write_text(resp.content, encoding="utf-8")
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError, AttributeError):
             logger.debug("HITL guidance application to draft failed (non-blocking)", exc_info=True)
 
     # --- HITL: Paper Co-Writer data persistence ---
@@ -1762,7 +1762,7 @@ Generated: {_utcnow_iso()}
                     section.content = match.group(1).strip()
                     section.status = "ai_draft"
         writer.save()
-    except Exception:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug("Stage 17: Paper Co-Writer persistence failed", exc_info=True)
 
     return StageResult(

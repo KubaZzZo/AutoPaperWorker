@@ -169,7 +169,7 @@ def _execute_peer_review(
                     + "\n".join(f"- {w}" for w in _dq_warnings)
                     + "\n"
                 )
-        except Exception:  # noqa: BLE001
+        except (json.JSONDecodeError, OSError, TypeError):
             logger.debug(
                 "Failed to read draft quality warnings for peer review: %s",
                 _quality_json_path,
@@ -252,7 +252,7 @@ def _execute_paper_revision(
         _pm = prompts or PromptManager()
         try:
             _ws_revision = _pm.block("writing_structure")
-        except (KeyError, Exception):  # noqa: BLE001
+        except KeyError:
             logger.debug(
                 "Prompt block unavailable for paper revision: writing_structure",
                 exc_info=True,
@@ -264,7 +264,7 @@ def _execute_paper_revision(
                         "anti_hedging_rules", "anti_repetition_rules"):
             try:
                 _rev_blocks[_bname] = _pm.block(_bname)
-            except (KeyError, Exception):  # noqa: BLE001
+            except KeyError:
                 logger.debug(
                     "Prompt block unavailable for paper revision: %s",
                     _bname,
@@ -284,7 +284,7 @@ def _execute_paper_revision(
                         + "\n".join(f"- {d}" for d in _dq_directives)
                         + "\n\n"
                     )
-            except Exception:  # noqa: BLE001
+            except (json.JSONDecodeError, OSError, TypeError):
                 logger.debug(
                     "Failed to read draft quality directives for paper revision: %s",
                     _quality_json_path,
@@ -606,7 +606,7 @@ def _execute_quality_gate(
         if _vr20:
             _fabrication_info["verified_values_count"] = len(_vr20.values)
             _fabrication_info["verified_conditions"] = sorted(_vr20.condition_names)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug(
             "Verified registry quality gate enrichment failed",
             exc_info=True,
@@ -1903,7 +1903,7 @@ def _execute_export_publish(
                     _vresult.strict_violations,
                     _vresult.fabrication_rate * 100,
                 )
-        except Exception as _pv_exc:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _pv_exc:
             logger.debug("Stage 22: Paper verification skipped: %s", _pv_exc)
 
         # BUG-23 P1: Enforce REJECT verdict — sanitize unverified numbers
@@ -2032,14 +2032,21 @@ def _execute_export_publish(
             if charts:
                 artifacts.append("charts/")
                 logger.info("Stage 22: Generated %d chart(s) total", len(charts))
-        except Exception as exc:  # noqa: BLE001
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            LookupError,
+        ) as exc:
             logger.warning("Chart generation failed: %s", exc, exc_info=True)
 
         # BUG-99: Fix \includegraphics paths that don't match actual chart files
         try:
             reconcile_figure_refs(stage_dir / "paper.tex", stage_dir / "charts")
-        except Exception as _fig_exc:  # noqa: BLE001
-            logger.debug("Stage 22: Figure path validation skipped: %s", _fig_exc)
+        except (OSError, RuntimeError, TypeError, ValueError, AttributeError):
+            logger.debug("Stage 22: Figure path validation skipped")
 
         # BUG-R41-12: Remove figure blocks referencing files that still don't exist
         try:
@@ -2054,8 +2061,8 @@ def _execute_export_publish(
                         "Stage 22: Removed %d figure block(s) with missing images: %s",
                         len(_removed_figs), _removed_figs,
                     )
-        except Exception as _rmf_exc:  # noqa: BLE001
-            logger.debug("Stage 22: remove_missing_figures skipped: %s", _rmf_exc)
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
+            logger.debug("Stage 22: remove_missing_figures skipped")
 
         # Compile verification
         try:
@@ -2089,7 +2096,7 @@ def _execute_export_publish(
                                     "Stage 22: PDF visual review score %d/10",
                                     _pdf_score,
                                 )
-                    except Exception as _pdf_exc:  # noqa: BLE001
+                    except (RuntimeError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as _pdf_exc:
                         logger.debug("Stage 22: PDF review skipped: %s", _pdf_exc)
                 # Post-compilation quality checks
                 try:
@@ -2121,7 +2128,7 @@ def _execute_export_publish(
                             "Consider tightening content in revision.",
                             _qc.page_count, _page_limit,
                         )
-                except Exception as _qc_exc:  # noqa: BLE001
+                except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _qc_exc:
                     logger.debug("Stage 22: Quality checks skipped: %s", _qc_exc)
             else:
                 logger.warning("Stage 22: LaTeX compilation verification FAILED: %s", _compile_result.errors[:3])
@@ -2136,9 +2143,9 @@ def _execute_export_publish(
                             + _tex_content
                         )
                         _tex_path.write_text(_tex_content, encoding="utf-8")
-        except Exception as _compile_exc:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _compile_exc:
             logger.debug("Stage 22: Compile verification skipped: %s", _compile_exc)
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.error("LaTeX generation failed: %s", exc, exc_info=True)
 
     # (Charts, BUG-99 path fix, and remove_missing_figures are now handled
@@ -2186,7 +2193,7 @@ def _execute_export_publish(
                     top = node.module.split(".")[0]
                     if top in known_packages:
                         detected.add(known_packages[top])
-        except SyntaxError:
+        except (SyntaxError, OSError, UnicodeDecodeError, UnicodeError):
             logger.debug(
                 "Failed to parse packaged experiment files for dependency detection",
                 exc_info=True,
@@ -2257,7 +2264,7 @@ def _execute_export_publish(
                         top = node.module.split(".")[0]
                         if top in known_packages_single:
                             detected_single.add(known_packages_single[top])
-            except SyntaxError:
+            except (SyntaxError, OSError, UnicodeDecodeError, UnicodeError):
                 logger.debug(
                     "Failed to parse single-file experiment for dependency detection",
                     exc_info=True,
@@ -2296,7 +2303,7 @@ def _execute_export_publish(
                 _framework_prompt, encoding="utf-8"
             )
             logger.info("Stage 22: Generated framework diagram prompt → charts/framework_diagram_prompt.md")
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.debug("Stage 22: Framework diagram prompt generation skipped: %s", exc)
 
     return StageResult(
@@ -2354,7 +2361,7 @@ def _check_citation_relevance(
                 for k, v in parsed.items():
                     if isinstance(v, (int, float)):
                         all_scores[k] = max(0.0, min(1.0, float(v)))
-        except Exception:  # noqa: BLE001
+        except (RuntimeError, TypeError, ValueError, UnicodeError, OSError):
             logger.debug(
                 "Citation relevance check failed for batch %d–%d, skipping",
                 batch_start, batch_start + len(batch),

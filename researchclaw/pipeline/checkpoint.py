@@ -32,7 +32,7 @@ def write_checkpoint(
         if hitl_session is not None:
             try:
                 checkpoint["hitl"] = hitl_session.hitl_checkpoint_data()
-            except Exception:
+            except (RuntimeError, OSError, TypeError, ValueError, AttributeError):
                 logger.warning("HITL checkpoint data collection failed", exc_info=True)
 
     target = run_dir / "checkpoint.json"

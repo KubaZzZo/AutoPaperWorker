@@ -179,7 +179,7 @@ def _execute_search_strategy(
                     else "unreachable"
                 )
                 src["http_status"] = response.status_code
-            except Exception:  # noqa: BLE001
+            except (ImportError, OSError, RuntimeError, TypeError, ValueError):
                 src["status"] = "unknown"
     (stage_dir / "search_plan.yaml").write_text(
         yaml.dump(plan, default_flow_style=False, allow_unicode=True),
@@ -405,7 +405,7 @@ def _execute_literature_collect(
             logger.info(
                 "[literature] Found %d papers (%s)", len(papers), src_str
             )
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.warning(
             "[rate-limit] Literature search failed — falling back to LLM",
             exc_info=True,
@@ -435,7 +435,7 @@ def _execute_literature_collect(
                     _injected += 1
             if _injected:
                 logger.info("Stage 4: Injected %d seminal papers from seed library", _injected)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.debug("Seminal paper injection skipped", exc_info=True)
 
     # --- Fallback: LLM-generated candidates ---
@@ -510,7 +510,7 @@ def _execute_literature_collect(
                 len(web_result.web_results),
                 len(web_result.crawled_pages),
             )
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError):
             logger.warning(
                 "[web-search] Web search augmentation failed — continuing with academic APIs only",
                 exc_info=True,

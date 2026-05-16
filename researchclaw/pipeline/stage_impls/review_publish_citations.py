@@ -21,7 +21,7 @@ def load_seminal_papers_by_key() -> dict[str, dict]:
 
         all_papers = _load_seminal_all()
         return {p["cite_key"]: p for p in all_papers if "cite_key" in p}
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         return {}
 
 
@@ -143,7 +143,7 @@ def resolve_missing_citations(
 
         try:
             results = search_papers(query, limit=5, deduplicate=True)
-        except Exception as exc:
+        except (ImportError, RuntimeError, OSError, TypeError, ValueError, AttributeError) as exc:
             log.debug("BUG-176: Search failed for %r: %s", key, exc)
             continue
 

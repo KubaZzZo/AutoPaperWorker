@@ -136,7 +136,7 @@ def _execute_code_generation(
         compute_budget = _pm.block("compute_budget").replace(
             "{time_budget_sec}", str(time_budget_sec)
         )
-    except Exception:  # noqa: BLE001
+    except KeyError:
         compute_budget = (
             f"\n## Compute Budget Constraint\n"
             f"- Total execution time limit: {time_budget_sec} seconds\n"
@@ -157,33 +157,33 @@ def _execute_code_generation(
             # Network disabled: inject strict offline-only guidance
             try:
                 extra_guidance += _pm.block("network_disabled_guidance")
-            except Exception:  # noqa: BLE001
+            except KeyError:
                 logger.debug("Stage 10: network_disabled_guidance prompt block unavailable", exc_info=True)
         elif _net_policy == "full":
             try:
                 extra_guidance += _pm.block("dataset_guidance")
                 extra_guidance += _pm.block("network_full_guidance")
-            except Exception:  # noqa: BLE001
+            except KeyError:
                 logger.debug("Stage 10: full-network prompt guidance unavailable", exc_info=True)
         else:
             # setup_only or pip_only — existing behavior
             try:
                 extra_guidance += _pm.block("dataset_guidance")
-            except Exception:  # noqa: BLE001
+            except KeyError:
                 logger.debug("Stage 10: dataset_guidance prompt block unavailable", exc_info=True)
             if config.experiment.mode == "docker":
                 try:
                     extra_guidance += _pm.block("setup_script_guidance")
-                except Exception:  # noqa: BLE001
+                except KeyError:
                     logger.debug("Stage 10: setup_script_guidance prompt block unavailable", exc_info=True)
         try:
             extra_guidance += _pm.block("hp_reporting")
-        except Exception:  # noqa: BLE001
+        except KeyError:
             logger.debug("Stage 10: hp_reporting prompt block unavailable", exc_info=True)
         # I-06: Multi-seed enforcement for all experiments
         try:
             extra_guidance += _pm.block("multi_seed_enforcement")
-        except Exception:  # noqa: BLE001
+        except KeyError:
             logger.debug("Stage 10: multi_seed_enforcement prompt block unavailable", exc_info=True)
 
     # --- BA: Inject BenchmarkAgent plan from Stage 9 ---
@@ -219,7 +219,7 @@ def _execute_code_generation(
                     "BA: Injected benchmark plan (%d benchmarks, %d baselines)",
                     len(_bp.selected_benchmarks), len(_bp.selected_baselines),
                 )
-        except Exception as _bp_exc:
+        except (ImportError, json.JSONDecodeError, OSError, TypeError, ValueError) as _bp_exc:
             logger.debug("BA: Failed to load benchmark plan: %s", _bp_exc)
 
     # --- P2.2+P2.3: LLM training topic detection and guidance ---
@@ -244,7 +244,7 @@ def _execute_code_generation(
     if is_rl_topic:
         try:
             extra_guidance += _pm.block("rl_step_guidance")
-        except Exception:  # noqa: BLE001
+        except KeyError:
             logger.debug("Stage 10: rl_step_guidance prompt block unavailable", exc_info=True)
 
     # --- F-01: Framework API doc injection (auto-detected) ---
@@ -260,17 +260,17 @@ def _execute_code_generation(
             if _fw_docs:
                 extra_guidance += _fw_docs
                 logger.info("F-01: Injected framework docs for: %s", _fw_ids)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, UnicodeError):
         logger.debug("F-01: Framework doc injection skipped", exc_info=True)
 
     if is_llm_topic and config.experiment.mode == "docker":
         try:
             extra_guidance += _pm.block("llm_training_guidance")
-        except Exception:  # noqa: BLE001
+        except KeyError:
             logger.debug("Stage 10: llm_training_guidance prompt block unavailable", exc_info=True)
         try:
             extra_guidance += _pm.block("llm_eval_guidance")
-        except Exception:  # noqa: BLE001
+        except KeyError:
             logger.debug("Stage 10: llm_eval_guidance prompt block unavailable", exc_info=True)
         # P2.3: Warn if time budget is too short for LLM training
         if time_budget_sec < 3600:
@@ -304,7 +304,7 @@ def _execute_code_generation(
             if _blocks.output_format_guidance:
                 extra_guidance += "\n" + _blocks.output_format_guidance
             logger.info("Injected domain-specific guidance for %s", _dp.domain_id)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         logger.debug("Domain guidance injection skipped", exc_info=True)
 
     _dist_cfg = getattr(config.experiment, "distributed", None)
@@ -394,7 +394,7 @@ def _execute_code_generation(
                             f"(threshold={_oc_cfg.complexity_threshold}). "
                             f"Route to OpenCode?"
                         )
-                    except Exception:  # noqa: BLE001
+                    except RuntimeError:
                         logger.info(
                             "Beast mode: HITL adapter unavailable, skipping "
                             "(set opencode.auto=true for non-interactive runs)"
@@ -524,9 +524,9 @@ def _execute_code_generation(
                             len(_code_search_result.patterns.api_patterns),
                             len(_code_search_result.repos_found),
                         )
-                except Exception:  # noqa: BLE001
+                except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
                     logger.debug("Code search unavailable", exc_info=True)
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
             logger.debug("Domain detection unavailable", exc_info=True)
 
         _agent = _CodeAgent(
@@ -929,7 +929,7 @@ def _execute_code_generation(
                     f"[REPAIR] Deep repair fixed {fixed}/{len(critical_deep)} "
                     f"critical issues"
                 )
-        except Exception as exc:
+        except (RuntimeError, OSError, UnicodeError, json.JSONDecodeError) as exc:
             logger.debug("Deep repair failed: %s", exc)
 
     if complexity_warnings:
@@ -1048,9 +1048,9 @@ def _execute_code_generation(
                                 "(was %d/10, %d critical issues)",
                                 review_score, len(critical_issues),
                             )
-                    except Exception as exc:
+                    except (RuntimeError, OSError, json.JSONDecodeError) as exc:
                         logger.debug("Review-fix failed: %s", exc)
-        except Exception as exc:
+        except (RuntimeError, OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             logger.debug("Code review failed: %s", exc)
 
     # --- FIX-3: Topic-experiment alignment check ---
@@ -1257,7 +1257,7 @@ def _execute_code_generation(
                             "Stage 10: Regen attempt %d still misaligned: %s",
                             _regen_attempt, alignment_note,
                         )
-        except Exception as exc:
+        except (RuntimeError, OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             logger.debug("Alignment check failed: %s", exc)
 
     # --- FIX-7: Ablation distinctness check ---
@@ -1323,9 +1323,9 @@ def _execute_code_generation(
                             "Stage 10: Ablation repair applied — "
                             "rewrote duplicate conditions"
                         )
-                except Exception as exc:
+                except (RuntimeError, OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
                     logger.debug("Ablation repair failed: %s", exc)
-        except Exception as exc:
+        except (RuntimeError, OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             logger.debug("Ablation validation skipped: %s", exc)
 
     # --- Write spec ---

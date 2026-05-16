@@ -212,7 +212,7 @@ Derived from `goal.md` for topic: {config.research.topic}
                 (stage_dir / "topic_evaluation.json").write_text(
                     json.dumps(_eval_data, indent=2), encoding="utf-8"
                 )
-        except Exception:  # noqa: BLE001
+        except (RuntimeError, OSError, TypeError, ValueError, AttributeError):
             logger.debug("IMP-35: Topic evaluation skipped (non-blocking)")
 
     return StageResult(

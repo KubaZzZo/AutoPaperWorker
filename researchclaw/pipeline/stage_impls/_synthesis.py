@@ -154,7 +154,7 @@ def _execute_hypothesis_gen(
                             "score": 0.0})()
         ]
         workshop.save()
-    except Exception:  # noqa: BLE001
+    except (OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug("Idea workshop persistence failed (non-blocking)", exc_info=True)
 
     (stage_dir / "hypotheses.md").write_text(hypotheses_md, encoding="utf-8")
@@ -191,7 +191,7 @@ def _execute_hypothesis_gen(
             novelty_report["assessment"],
             novelty_report["recommendation"],
         )
-    except Exception:  # noqa: BLE001
+    except (RuntimeError, OSError, TypeError, ValueError, AttributeError):
         logger.warning("Novelty check failed (non-blocking)", exc_info=True)
 
     return StageResult(

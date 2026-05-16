@@ -16,6 +16,7 @@ import json
 import logging
 import re
 import time as _time
+import urllib.error
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -344,7 +345,7 @@ def run_repair_loop(
     try:
         from researchclaw.llm import create_llm_client
         llm = create_llm_client(config)
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.error("[%s] Repair loop: cannot create LLM client: %s", run_id, exc, exc_info=True)
         return ExperimentRepairResult(
             success=False, total_cycles=0, final_mode=qa.mode,
@@ -721,7 +722,7 @@ def _repair_via_opencode(
             )
             return merged
 
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("OpenCode repair failed: %s", exc, exc_info=True)
 
     return None
@@ -750,7 +751,15 @@ def _repair_via_llm(
             system=system,
         )
         content = resp.content
-    except Exception as exc:
+    except (
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        urllib.error.URLError,
+    ) as exc:
         logger.warning("LLM repair call failed: %s", exc, exc_info=True)
         return None
 
@@ -842,7 +851,7 @@ def _run_experiment_in_sandbox(
             "timed_out": result.timed_out,
         }
 
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("Sandbox execution failed: %s", exc, exc_info=True)
         return None
 

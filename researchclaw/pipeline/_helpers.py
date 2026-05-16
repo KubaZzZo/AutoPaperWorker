@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import urllib.error
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -145,7 +146,7 @@ def _get_skill_registry(config: object | None = None) -> object:
             _skill_registry.count(),
             1 + len(custom_dirs),
         )
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         # Fallback: create empty registry so we never crash
         from researchclaw.skills.registry import SkillRegistry
         _skill_registry = SkillRegistry(builtin_dir="/dev/null")
@@ -237,7 +238,7 @@ def _ensure_sandbox_deps(code: str, python_path: str) -> list[str]:
                     encoding="utf-8", errors="replace",
                 )
                 installed.append(pip_name)
-        except Exception as exc:
+        except (OSError, _sp.SubprocessError, ValueError) as exc:
             logger.warning("Sandbox: failed to check/install '%s': %s", pkg, exc, exc_info=True)
 
     if installed:
@@ -402,7 +403,15 @@ def _chat_with_prompt(
             if max_tokens is not None:
                 return llm.chat(messages, system=system, max_tokens=max_tokens, strip_thinking=strip_thinking)
             return llm.chat(messages, system=system, strip_thinking=strip_thinking)
-        except Exception as exc:  # noqa: BLE001
+        except (
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            urllib.error.URLError,
+        ) as exc:
             last_exc = exc
             # Auto-disable json_mode on HTTP 400 — likely provider incompatibility
             _err_str = str(exc)
@@ -461,7 +470,7 @@ def _get_evolution_overlay(
             )
             if evo_overlay:
                 parts.append(evo_overlay)
-        except Exception as exc:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
             logger.debug(
                 "Failed to build evolution lesson overlay for stage %s: %s",
                 stage_name,
@@ -478,7 +487,7 @@ def _get_evolution_overlay(
             skills_text = registry.export_for_prompt(matched, max_chars=4000)
             if skills_text:
                 parts.append(f"\n## Matched Domain Skills\n{skills_text}")
-    except Exception as exc:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.debug(
             "Failed to build matched skill overlay for stage %s: %s",
             stage_name,
@@ -886,7 +895,15 @@ def _generate_framework_diagram_prompt(
                     f"   - LaTeX: `\\includegraphics[width=\\textwidth]{{charts/framework_diagram.png}}`\n"
                     f"   - Markdown: `![Framework Overview](charts/framework_diagram.png)`\n"
                 )
-        except Exception:
+        except (
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            urllib.error.URLError,
+        ):
             logger.debug("Framework prompt LLM generation failed, using template")
 
     # Fallback: template-based prompt without LLM
@@ -1074,7 +1091,15 @@ def _multi_perspective_generate(
                 resp.content, encoding="utf-8"
             )
             logger.info("Debate perspective '%s' generated (%d chars)", role_name, len(resp.content))
-        except Exception as exc:  # noqa: BLE001
+        except (
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            urllib.error.URLError,
+        ) as exc:
             logger.warning("Debate perspective '%s' failed: %s", role_name, exc, exc_info=True)
     if len(results) < 2:
         logger.error("Multi-perspective debate: only %d/%d roles succeeded", len(results), len(roles))

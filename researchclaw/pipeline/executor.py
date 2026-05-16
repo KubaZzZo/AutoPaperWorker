@@ -283,7 +283,7 @@ def _run_hitl_post_stage(
                     error="Aborted due to cost",
                     decision="abort",
                 )
-    except Exception as _cg_exc:
+    except (ImportError, json.JSONDecodeError, OSError, RuntimeError, TypeError, ValueError) as _cg_exc:
         logger.debug("CostGuard check skipped: %s", _cg_exc)
 
     _smart_pause_triggered = False
@@ -308,7 +308,7 @@ def _run_hitl_post_stage(
                 return result
             # SmartPause triggered - fall through to pause logic
             _smart_pause_triggered = True
-        except Exception as _sp_exc:
+        except (ImportError, json.JSONDecodeError, OSError, RuntimeError, TypeError, ValueError) as _sp_exc:
             logger.debug("SmartPause check skipped: %s", _sp_exc)
             return result
 
@@ -428,7 +428,7 @@ def _run_hitl_post_stage(
                 config=config,
                 output=getattr(adapters.hitl, "display", print),
             )
-        except Exception as _collab_exc:
+        except (RuntimeError, OSError, ValueError, TypeError, AttributeError) as _collab_exc:
             logger.warning("Collaboration failed: %s", _collab_exc, exc_info=True)
         session.exit_collaboration()
         return result
@@ -479,7 +479,7 @@ def _run_collaboration_loop(
             topic = topic_obj.topic if topic_obj else "Research"
         else:
             topic = "Research"
-    except Exception:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         topic = "Research"
 
     collab.initialize(
@@ -653,7 +653,7 @@ def execute_stage(
             candidate = LLMClient.from_rc_config(config)
             if candidate.config.base_url and candidate.config.api_key:
                 llm = candidate
-    except Exception as _llm_exc:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as _llm_exc:
         logger.warning("LLM client creation failed: %s", _llm_exc, exc_info=True)
         llm = None
 
@@ -678,7 +678,15 @@ def execute_stage(
             ):
                 raise
             result = executor(stage_dir, run_dir, config, adapters, llm=llm)
-    except Exception as exc:  # noqa: BLE001
+    except (
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        LookupError,
+    ) as exc:
         logger.exception("Stage %s failed", stage.name)
         result = StageResult(
             stage=stage,
@@ -779,7 +787,7 @@ def execute_stage(
                                     decision="retry",
                                     evidence_refs=result.evidence_refs,
                                 )
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.warning("MetaClaw PRM evaluation failed (non-blocking)", exc_info=True)
 
     if gate_required(stage, config.security.hitl_required_stages):

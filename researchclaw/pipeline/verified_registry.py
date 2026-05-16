@@ -281,7 +281,7 @@ class VerifiedRegistry:
                         sub = cls.from_experiment(best_data, metric_direction=metric_direction)
                         _merge_into(target, sub)
                         logger.debug("from_run_dir(best_only): using experiment_summary_best.json (%d values)", len(sub.values))
-                except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
+                except (OSError, _json_rd.JSONDecodeError, TypeError, ValueError):
                     logger.debug("from_run_dir(best_only): failed to load experiment_summary_best.json", exc_info=True)
             if not target.values:
                 # Fallback: no best.json or it was empty — use stage-14/ (non-versioned)
@@ -292,7 +292,7 @@ class VerifiedRegistry:
                         if isinstance(es_data, dict):
                             sub = cls.from_experiment(es_data, metric_direction=metric_direction)
                             _merge_into(target, sub)
-                    except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
+                    except (OSError, _json_rd.JSONDecodeError, TypeError, ValueError):
                         logger.debug(
                             "from_run_dir(best_only): failed to load stage-14 experiment_summary.json",
                             exc_info=True,
@@ -307,7 +307,7 @@ class VerifiedRegistry:
                     sub = cls.from_experiment(es_data, metric_direction=metric_direction)
                     _merge_into(target, sub)
                     logger.debug("from_run_dir: merged %s (%d values)", es_path.name, len(sub.values))
-                except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
+                except (OSError, _json_rd.JSONDecodeError, TypeError, ValueError):
                     logger.debug("from_run_dir: skipping %s", es_path, exc_info=True)
 
             # --- 2. experiment_summary_best.json (repair cycle output) ---
@@ -319,7 +319,7 @@ class VerifiedRegistry:
                         sub = cls.from_experiment(best_data, metric_direction=metric_direction)
                         _merge_into(target, sub)
                         logger.debug("from_run_dir: merged experiment_summary_best.json (%d values)", len(sub.values))
-                except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
+                except (OSError, _json_rd.JSONDecodeError, TypeError, ValueError):
                     logger.debug("from_run_dir: skipping experiment_summary_best.json", exc_info=True)
 
             # --- 3. All refinement logs (enrichment) ---
@@ -329,7 +329,7 @@ class VerifiedRegistry:
                     if isinstance(rl_data, dict):
                         _enrich_from_refinement_log(target, rl_data)
                         logger.debug("from_run_dir: enriched from %s", rl_path.name)
-                except (OSError, _json_rd.JSONDecodeError, Exception):  # noqa: BLE001
+                except (OSError, _json_rd.JSONDecodeError, TypeError, ValueError):
                     logger.debug("from_run_dir: skipping %s", rl_path, exc_info=True)
 
         # Recompute per-condition stats after merging

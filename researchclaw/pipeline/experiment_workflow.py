@@ -64,7 +64,7 @@ def run_experiment_diagnosis(
                 import yaml as _yaml_diag
 
                 plan = _yaml_diag.safe_load(candidate.read_text(encoding="utf-8"))
-            except Exception:
+            except (OSError, TypeError, ValueError, UnicodeError):
                 logger.warning(
                     "Experiment diagnosis plan YAML load failed: %s",
                     candidate,
@@ -168,7 +168,7 @@ def run_experiment_diagnosis(
                 f"[{run_id}] Experiment diagnosis: {qa.mode.value} - quality OK",
             )
 
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("Experiment diagnosis failed: %s", exc, exc_info=True)
 
 
@@ -255,7 +255,7 @@ def run_experiment_repair(
                 repair_result.total_cycles,
             )
 
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
         logger.warning("[%s] Experiment repair failed: %s", run_id, exc, exc_info=True)
         _report_progress(
             progress_reporter,

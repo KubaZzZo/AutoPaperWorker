@@ -184,7 +184,7 @@ def _execute_experiment_run(
                 "Stage 12: Reproducibility artifacts - %s",
                 list(_artifacts.keys()),
             )
-        except Exception:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
             logger.debug("Environment capture failed (non-fatal)", exc_info=True)
 
         persist_sandbox_run_result(

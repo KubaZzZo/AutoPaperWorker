@@ -112,7 +112,7 @@ def write_progress_snapshot(
 
         cost_summary_path = write_cost_summary(run_dir)
         cost_summary = json.loads(cost_summary_path.read_text(encoding="utf-8"))
-    except Exception:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         cost_summary = None
 
     last = results[-1] if results else None
