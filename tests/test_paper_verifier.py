@@ -13,7 +13,7 @@ from researchclaw.pipeline.paper_verifier import (
 )
 from researchclaw.pipeline.verified_registry import VerifiedRegistry
 
-ARTIFACTS = Path(__file__).resolve().parent.parent / "artifacts"
+ARTIFACTS = Path(__file__).resolve().parent / "fixtures" / "artifacts"
 
 # ---------------------------------------------------------------------------
 # Helpers

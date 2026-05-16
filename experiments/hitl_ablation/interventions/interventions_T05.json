@@ -1,0 +1,22 @@
+{
+  "topic_id": "T05",
+  "topic": "Ablation study for domain transfer",
+  "expert_profile": "Domain adaptation specialist",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Expand domain transfer references.",
+      "guidance": "Collect papers on transferability, domain shift, and failure modes that explain when the method should or should not work."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Clarify transfer evaluation.",
+      "guidance": "Define source and target domains, the transfer metric, and a control condition that isolates the domain shift effect."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The paper does not yet separate transfer gains from plain dataset overlap or leakage."
+    }
+  }
+}

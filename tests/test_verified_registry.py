@@ -18,7 +18,7 @@ from researchclaw.pipeline.verified_registry import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-ARTIFACTS = Path(__file__).resolve().parent.parent / "artifacts"
+ARTIFACTS = Path(__file__).resolve().parent / "fixtures" / "artifacts"
 
 
 def _load_experiment_summary(run_id: str) -> dict:

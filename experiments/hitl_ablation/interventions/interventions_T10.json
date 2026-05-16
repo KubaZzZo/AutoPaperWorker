@@ -1,0 +1,22 @@
+{
+  "topic_id": "T10",
+  "topic": "Ablation study for scaling laws",
+  "expert_profile": "Scaling and optimization researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Anchor the scaling discussion.",
+      "guidance": "Add scaling-law references, resource-efficiency papers, and any evidence that constrains the expected trend."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Make the scale sweep reproducible.",
+      "guidance": "Specify the exact sizes, checkpoints, and evaluation windows before generating code or running experiments."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The evidence is still too thin to support the scaling claim at the end of the pipeline."
+    }
+  }
+}

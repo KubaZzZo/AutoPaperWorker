@@ -1,0 +1,22 @@
+{
+  "topic_id": "T04",
+  "topic": "Ablation study for low-resource adaptation",
+  "expert_profile": "Applied machine learning researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Search for low-resource baselines.",
+      "guidance": "Include compact models, efficiency papers, and recent low-data adaptation work that can anchor the experiment."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Define resource constraints clearly.",
+      "guidance": "State the compute budget, memory budget, and stopping criteria before coding the training loop."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The current draft does not yet show that the gains hold under the stated resource limits."
+    }
+  }
+}

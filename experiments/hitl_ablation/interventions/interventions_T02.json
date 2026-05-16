@@ -1,0 +1,22 @@
+{
+  "topic_id": "T02",
+  "topic": "Ablation study for retrieval quality",
+  "expert_profile": "Information retrieval specialist",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Broaden the paper set.",
+      "guidance": "Include retrieval-focused papers, benchmark reports, and any known failure analyses that can justify the design choices."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Make the benchmark protocol explicit.",
+      "guidance": "Specify dataset splits, retrieval metrics, and a fixed evaluation budget so the experiment can be reproduced exactly."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The reported gains are not yet supported by a sufficiently strict evaluation protocol."
+    }
+  }
+}

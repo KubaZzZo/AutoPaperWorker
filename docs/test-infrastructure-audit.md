@@ -28,17 +28,17 @@ python -m pytest -q -rs --no-cov
 Latest local result:
 
 ```text
-3113 passed, 52 skipped, 29 warnings in 194.38s
+3158 passed, 7 skipped, 29 warnings in 188.68s
 ```
 
 Skip categories:
 
 | Category | Count | Current assessment |
 | --- | ---: | --- |
-| Missing HITL ablation intervention fixtures | 30 | Expected for a clean checkout unless `experiments/hitl_ablation/interventions/` fixture files are restored or generated. |
-| Missing historical artifact fixtures | 12 | Expected for artifact-regression tests that depend on local run IDs under `artifacts/`. These should either get committed minimal fixtures or be converted to generated fixtures. |
+| Missing HITL ablation intervention fixtures | 0 | Resolved by committing deterministic fixtures under `experiments/hitl_ablation/interventions/`. |
+| Missing historical artifact fixtures | 0 | Resolved by moving artifact-regression tests to committed minimal fixtures under `tests/fixtures/artifacts/`. |
 | Missing external API credentials | 4 | Expected in local/CI runs without `ANTHROPIC_API_KEY` or `MINIMAX_API_KEY`. Keep skipped unless a credentialed integration job is configured. |
 | Platform/tooling unavailable | 3 | Expected on this Windows environment: symlink privilege test and two Bash sentinel tests. |
-| Optional/generated profile or harness fixture missing | 3 | Review whether these should use generated temporary fixtures instead of runtime skips. |
+| Optional/generated profile or harness fixture missing | 0 | No longer present in the latest local audit. |
 
-Priority follow-up: reduce artifact and HITL fixture skips first. They account for most skipped tests and can likely be made deterministic without external services.
+Remaining skips are external-service or platform/tooling dependent. They should stay skipped in ordinary local runs and be covered by credentialed or POSIX-capable jobs when needed.

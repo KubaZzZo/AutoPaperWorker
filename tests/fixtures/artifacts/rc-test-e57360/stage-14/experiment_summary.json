@@ -1,0 +1,21 @@
+{
+  "condition_summaries": {
+    "DQN": {"metrics": {"return": 156.1}},
+    "DQN+Abstraction": {"metrics": {"return": 278.9333}},
+    "DQN+RawCount": {"metrics": {"return": 146.4139}}
+  },
+  "metrics_summary": {
+    "return": {"min": 146.4139, "max": 278.9333, "mean": 193.8157}
+  },
+  "best_run": {
+    "metrics": {
+      "DQN/0/metric": 156.1,
+      "DQN+Abstraction/0/metric": 278.9333,
+      "DQN+RawCount/0/metric": 146.4139,
+      "primary_metric": 278.9333,
+      "primary_metric_std": 146.4139
+    },
+    "stdout": "BOX2D_WARNING: Box2D/LunarLander-v3 not available; skipping",
+    "stderr": ""
+  }
+}

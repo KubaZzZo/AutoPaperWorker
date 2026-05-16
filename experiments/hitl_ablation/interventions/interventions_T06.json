@@ -1,0 +1,22 @@
+{
+  "topic_id": "T06",
+  "topic": "Ablation study for sparse supervision",
+  "expert_profile": "Optimization and learning researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Use sparse supervision literature.",
+      "guidance": "Add references on sample efficiency, partial labels, and weak supervision so the experiment rationale is grounded."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Set a stable supervision schedule.",
+      "guidance": "Fix the supervision budget, report the label allocation strategy, and hold the evaluation seed constant across ablations."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The current results do not yet justify the claimed benefit under limited supervision."
+    }
+  }
+}

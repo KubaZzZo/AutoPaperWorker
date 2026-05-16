@@ -16,7 +16,7 @@ from researchclaw.pipeline.experiment_diagnosis import (
     diagnose_experiment,
 )
 
-ARTIFACTS = Path(__file__).resolve().parent.parent / "artifacts"
+ARTIFACTS = Path(__file__).resolve().parent / "fixtures" / "artifacts"
 
 
 # ---------------------------------------------------------------------------

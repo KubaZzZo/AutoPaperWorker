@@ -1,0 +1,7 @@
+{
+  "condition_summaries": {
+    "StudentKD": {"metrics": {"accuracy": 74.52}}
+  },
+  "metrics_summary": {"accuracy": {"min": 74.52, "max": 74.52, "mean": 74.52}},
+  "best_run": {"metrics": {"StudentKD/0/metric": 74.52, "primary_metric": 74.52}}
+}

@@ -1,0 +1,22 @@
+{
+  "topic_id": "T07",
+  "topic": "Ablation study for long-context behavior",
+  "expert_profile": "NLP and evaluation researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Ground the context-length claims.",
+      "guidance": "Include long-context benchmarks, retrieval over long inputs, and papers on attention degradation or truncation effects."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Define the context window test.",
+      "guidance": "Fix the maximum context length, describe the truncation policy, and compare short and long sequences with the same prompt template."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The evidence does not yet show that the proposed method remains stable at the target context length."
+    }
+  }
+}

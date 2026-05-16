@@ -1,0 +1,22 @@
+{
+  "topic_id": "T09",
+  "topic": "Ablation study for explainability",
+  "expert_profile": "Interpretable ML researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Broaden the explainability context.",
+      "guidance": "Add interpretability papers, explanation fidelity discussions, and examples of where explanations fail to reflect model behavior."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Lock the explanation protocol.",
+      "guidance": "Define the explanation method, the evaluation metric, and the exact comparison set so the results are easy to inspect."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The explanations are not yet evaluated against a strong enough fidelity criterion."
+    }
+  }
+}

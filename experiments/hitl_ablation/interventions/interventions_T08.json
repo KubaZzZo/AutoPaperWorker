@@ -1,0 +1,22 @@
+{
+  "topic_id": "T08",
+  "topic": "Ablation study for robustness to noise",
+  "expert_profile": "Robust ML specialist",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Include robustness baselines.",
+      "guidance": "Collect papers on label noise, input corruption, and adversarial resilience so the experiment is positioned correctly."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Spell out the corruption protocol.",
+      "guidance": "List the noise levels, corruption types, and repeated runs in a reproducible schedule before implementation."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The current ablation does not yet demonstrate reliable gains across the full noise schedule."
+    }
+  }
+}

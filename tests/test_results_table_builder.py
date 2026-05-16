@@ -14,7 +14,7 @@ from researchclaw.templates.results_table_builder import (
     build_results_tables,
 )
 
-ARTIFACTS = Path(__file__).resolve().parent.parent / "artifacts"
+ARTIFACTS = Path(__file__).resolve().parent / "fixtures" / "artifacts"
 
 
 def _make_registry(

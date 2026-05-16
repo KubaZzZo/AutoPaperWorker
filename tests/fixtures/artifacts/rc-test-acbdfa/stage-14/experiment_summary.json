@@ -1,0 +1,23 @@
+{
+  "condition_summaries": {
+    "ResNet": {"metrics": {"top1_accuracy": 69.99}},
+    "CNN": {"metrics": {"top1_accuracy": 69.93}},
+    "S4D": {"metrics": {"top1_accuracy": 58.66}},
+    "CTS": {"metrics": {"std": 2.75}}
+  },
+  "metrics_summary": {
+    "top1_accuracy": {"min": 58.66, "max": 69.99, "mean": 66.1933},
+    "std": {"min": 2.75, "max": 2.75, "mean": 2.75}
+  },
+  "best_run": {
+    "metrics": {
+      "ResNet/0/metric": 69.99,
+      "CNN/0/metric": 69.93,
+      "S4D/0/metric": 58.66,
+      "CTS/0/std": 2.75,
+      "primary_metric": 66.1933
+    },
+    "stdout": "",
+    "stderr": ""
+  }
+}

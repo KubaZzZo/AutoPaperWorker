@@ -1,0 +1,22 @@
+{
+  "topic_id": "T03",
+  "topic": "Ablation study for reasoning consistency",
+  "expert_profile": "LLM systems researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Add reasoning-specific background.",
+      "guidance": "Cover chain-of-thought style evaluation, consistency metrics, and any papers that explain variance across runs."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Harden the ablation matrix.",
+      "guidance": "Enumerate each factor change separately, keep the prompt fixed across conditions, and record the random seed in every run."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The experiment still conflates multiple variables, so the causal interpretation is not trustworthy."
+    }
+  }
+}

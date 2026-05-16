@@ -15,6 +15,8 @@ workspaces/
 
 # Experiment run artifacts (local only)
 artifacts/
+!tests/fixtures/artifacts/
+!tests/fixtures/artifacts/**
 output/
 experiment_metaclaw/
 promotional/

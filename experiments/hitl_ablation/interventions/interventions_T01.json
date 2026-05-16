@@ -1,0 +1,22 @@
+{
+  "topic_id": "T01",
+  "topic": "Ablation study for calibration robustness",
+  "expert_profile": "Experimental ML researcher",
+  "interventions": {
+    "5": {
+      "action": "inject",
+      "message": "Strengthen the literature screen.",
+      "guidance": "Add recent calibration and reliability papers, and explicitly note how they shape the downstream experiment design."
+    },
+    "9": {
+      "action": "inject",
+      "message": "Tighten the experiment plan.",
+      "guidance": "Use at least ten seeds, separate ablations cleanly, and define the comparison baseline before any code is generated."
+    },
+    "20": {
+      "action": "reject",
+      "message": "Quality gate failed.",
+      "guidance": "The ablation coverage is incomplete and the analysis does not yet justify the reported conclusion."
+    }
+  }
+}
