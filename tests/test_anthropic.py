@@ -1,4 +1,4 @@
-"""测试 Anthropic Messages 兼容 API 是否可用。"""
+"""Live Anthropic API smoke test."""
 
 from __future__ import annotations
 
@@ -8,10 +8,15 @@ from typing import Any
 import httpx
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    "ANTHROPIC_API_KEY" not in os.environ,
-    reason="ANTHROPIC_API_KEY not set",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.live_api,
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        "ANTHROPIC_API_KEY" not in os.environ,
+        reason="ANTHROPIC_API_KEY not set",
+    ),
+]
 
 BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -50,7 +55,7 @@ def test_anthropic_api() -> None:
 
     assert message.get("type") == "message"
     assert len(content) > 0
-    print("\n✅ API 可用!")
+    print("\nAPI available!")
 
 
 if __name__ == "__main__":

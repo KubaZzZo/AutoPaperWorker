@@ -1,7 +1,7 @@
 [project]
 name = "researchclaw"
 version = "0.3.1"
-description = "ResearchClaw — Autonomous Research Pipeline. Turn any research idea into a paper."
+description = "ResearchClaw - Autonomous Research Pipeline. Turn any research idea into a paper."
 requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",
@@ -30,7 +30,14 @@ all = [
     "matplotlib>=3.7",
     "scipy>=1.10",
 ]
-dev = ["pytest>=7.0", "pytest-asyncio>=0.21", "pytest-cov>=5.0", "httpx>=0.24"]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=5.0",
+    "httpx>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
 
 [project.scripts]
 researchclaw = "researchclaw.cli:main"
@@ -38,6 +45,23 @@ researchclaw = "researchclaw.cli:main"
 [tool.pytest.ini_options]
 addopts = "--cov=researchclaw --cov-report=term-missing:skip-covered --cov-report=html"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: tests that exercise multiple components, external processes, or environment-specific behavior",
+    "slow: tests that are slower than typical unit tests or rely on heavyweight setup",
+    "live_api: tests that call real external APIs and require credentials",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["researchclaw"]

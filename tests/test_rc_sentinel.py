@@ -23,7 +23,7 @@ def _bash_available() -> bool:
     return result.returncode == 0
 
 
-# ── Heartbeat writing tests ──
+# Heartbeat writing tests
 
 
 class TestHeartbeatWriting:
@@ -102,7 +102,7 @@ class TestHeartbeatInPipeline:
         assert data_out["run_id"] == "hb-test"
 
 
-# ── Sentinel script syntax check ──
+# Sentinel script syntax check
 
 
 class TestSentinelScript:
@@ -110,6 +110,7 @@ class TestSentinelScript:
         script = Path(__file__).parent.parent / "sentinel.sh"
         assert script.exists()
 
+    @pytest.mark.integration
     def test_sentinel_script_is_valid_bash(self) -> None:
         if not _bash_available():
             pytest.skip("bash is not available in this environment")
@@ -131,6 +132,7 @@ class TestSentinelScript:
         first_line = script.read_text(encoding="utf-8").splitlines()[0]
         assert first_line.startswith("#!/")
 
+    @pytest.mark.integration
     def test_sentinel_prints_usage_on_no_args(self) -> None:
         if not _bash_available():
             pytest.skip("bash is not available in this environment")

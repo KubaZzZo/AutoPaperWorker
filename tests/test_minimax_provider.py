@@ -54,7 +54,7 @@ def _make_minimax_client(
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — provider preset
+# Unit tests - provider preset
 # ---------------------------------------------------------------------------
 
 
@@ -69,7 +69,7 @@ class TestMiniMaxPreset:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — from_rc_config wiring
+# Unit tests - from_rc_config wiring
 # ---------------------------------------------------------------------------
 
 
@@ -125,7 +125,7 @@ class TestMiniMaxFromRCConfig:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — temperature clamping
+# Unit tests - temperature clamping
 # ---------------------------------------------------------------------------
 
 
@@ -198,7 +198,7 @@ class TestMiniMaxTemperatureClamping:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — model chain
+# Unit tests - model chain
 # ---------------------------------------------------------------------------
 
 
@@ -222,7 +222,7 @@ class TestMiniMaxModelChain:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — raw call body structure
+# Unit tests - raw call body structure
 # ---------------------------------------------------------------------------
 
 
@@ -261,7 +261,7 @@ class TestMiniMaxRawCall:
         assert resp.model == "MiniMax-M2.5"
 
     def test_json_mode_uses_system_prompt_fallback(self, monkeypatch):
-        """MiniMax models don't support response_format — json_mode should
+        """MiniMax models do not support response_format; json_mode should
         fall back to a system-prompt hint instead of sending the parameter."""
         client = _make_minimax_client()
         captured: dict[str, Any] = {}
@@ -288,7 +288,7 @@ class TestMiniMaxRawCall:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — CLI provider registration
+# Unit tests - CLI provider registration
 # ---------------------------------------------------------------------------
 
 
@@ -315,7 +315,7 @@ class TestMiniMaxCLI:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — factory function
+# Unit tests - factory function
 # ---------------------------------------------------------------------------
 
 
@@ -342,7 +342,7 @@ class TestMiniMaxFactory:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — chat fallback with MiniMax models
+# Unit tests - chat fallback with MiniMax models
 # ---------------------------------------------------------------------------
 
 
@@ -372,11 +372,13 @@ class TestMiniMaxChatFallback:
         assert resp.model == "MiniMax-M2.5-highspeed"
 
 
-# ---------------------------------------------------------------------------
-# Integration tests — live MiniMax API (skipped without key)
+# Integration tests - live MiniMax API (skipped without key)
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
+@pytest.mark.live_api
+@pytest.mark.slow
 @pytest.mark.skipif(
     not os.environ.get("MINIMAX_API_KEY"),
     reason="MINIMAX_API_KEY not set",

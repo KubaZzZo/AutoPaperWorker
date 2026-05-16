@@ -16,11 +16,11 @@ from researchclaw.experiment.sandbox import (
 import pytest
 
 
-# ── Unit tests: validate_entry_point (syntax) ─────────────────────────
+# Unit tests: validate_entry_point (syntax)
 
 
 class TestValidateEntryPoint:
-    """Syntax-only checks — no filesystem needed."""
+    """Syntax-only checks; no filesystem needed."""
 
     def test_valid_entry_point(self) -> None:
         assert validate_entry_point("main.py") is None
@@ -69,16 +69,17 @@ class TestValidateEntryPoint:
         assert "empty" in err.lower()
 
 
-# ── Unit tests: validate_entry_point_resolved (containment) ───────────
+# Unit tests: validate_entry_point_resolved (containment)
 
 
 class TestValidateEntryPointResolved:
-    """Resolve-based checks — needs a real staging directory."""
+    """Resolve-based checks; needs a real staging directory."""
 
     def test_valid_path_passes(self, tmp_path: Path) -> None:
         (tmp_path / "main.py").write_text("pass")
         assert validate_entry_point_resolved(tmp_path, "main.py") is None
 
+    @pytest.mark.integration
     @pytest.mark.skipif(
         sys.platform == "win32" and not os.environ.get("CI"),
         reason="Creating symlinks on Windows requires admin privileges or Developer Mode",
@@ -104,7 +105,7 @@ class TestValidateEntryPointResolved:
         assert validate_entry_point_resolved(tmp_path, "src/train.py") is None
 
 
-# ── Integration tests: ExperimentSandbox.run_project() ────────────────
+# Integration tests: ExperimentSandbox.run_project()
 
 
 class TestExperimentSandboxEntryPointValidation:
