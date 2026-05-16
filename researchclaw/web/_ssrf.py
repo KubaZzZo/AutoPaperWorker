@@ -6,13 +6,10 @@ import ipaddress
 import socket
 from http.client import HTTPConnection, HTTPSConnection
 from typing import Any
-from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPHandler, HTTPSHandler, Request, build_opener
 
-
-class SSRFBlockedError(URLError):
-    """Raised when a URL or connected socket targets a blocked address."""
+from researchclaw.exceptions import SSRFBlockedError
 
 
 def _is_blocked_address(value: str) -> bool:

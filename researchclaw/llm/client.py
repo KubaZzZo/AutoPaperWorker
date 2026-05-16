@@ -20,6 +20,12 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+from researchclaw.exceptions import (
+    LLMError,
+    LLMRateLimitError,
+    MalformedLLMResponseError,
+)
+
 logger = logging.getLogger(__name__)
 
 # Models that require max_completion_tokens instead of max_tokens
@@ -261,7 +267,12 @@ class LLMClient:
                 logger.warning("Model %s failed: %s. Trying next.", m, exc)
                 last_error = exc
 
-        raise RuntimeError(
+        error_cls = (
+            LLMRateLimitError
+            if isinstance(last_error, LLMRateLimitError)
+            else LLMError
+        )
+        raise error_cls(
             f"All models failed. Last error: {last_error}"
         ) from last_error
 
@@ -294,6 +305,8 @@ class LLMClient:
             return False, msg
         except (urllib.error.URLError, OSError) as e:
             return False, f"Connection failed: {e}"
+        except LLMRateLimitError:
+            return False, "Rate limited - try again in a moment"
         except RuntimeError as e:
             # chat() wraps errors in RuntimeError; extract original HTTPError
             cause = e.__cause__
@@ -318,6 +331,7 @@ class LLMClient:
     ) -> LLMResponse:
         """Call with exponential backoff retry."""
         last_err = "unknown"
+        last_status: int | None = None
         for attempt in range(self.config.max_retries):
             try:
                 return self._raw_call(
@@ -325,6 +339,7 @@ class LLMClient:
                 )
             except urllib.error.HTTPError as e:
                 status = e.code
+                last_status = status
                 body = ""
                 try:
                     body = e.read().decode()[:500]
@@ -407,8 +422,10 @@ class LLMClient:
                 raise
 
         # All retries exhausted
-        raise RuntimeError(
-            f"LLM call failed after {self.config.max_retries} retries for model {model}. Last error: {last_err}"
+        error_cls = LLMRateLimitError if last_status == 429 else LLMError
+        raise error_cls(
+            f"LLM call failed after {self.config.max_retries} retries for model "
+            f"{model}. Last error: {last_err}"
         )
 
     def _raw_call(
@@ -539,7 +556,7 @@ class LLMClient:
                     raise
 
         if not isinstance(data, dict):
-            raise ValueError(
+            raise MalformedLLMResponseError(
                 f"Malformed API response: expected JSON object, got {type(data).__name__}: {data}"
             )
 
@@ -601,7 +618,9 @@ class LLMClient:
         self, data: dict[str, Any], model: str
     ) -> LLMResponse:
         if "choices" not in data or not data["choices"]:
-            raise ValueError(f"Malformed API response: missing choices. Got: {data}")
+            raise MalformedLLMResponseError(
+                f"Malformed API response: missing choices. Got: {data}"
+            )
 
         choice = data["choices"][0]
         usage = data.get("usage", {})
@@ -625,7 +644,7 @@ class LLMClient:
     ) -> LLMResponse:
         output_items = data.get("output")
         if not isinstance(output_items, list):
-            raise ValueError(
+            raise MalformedLLMResponseError(
                 f"Malformed responses API payload: missing output. Got: {data}"
             )
         if not output_items:

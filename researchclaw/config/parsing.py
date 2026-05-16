@@ -61,6 +61,7 @@ from researchclaw.config.schema import (
     WebSearchConfig,
 )
 from researchclaw.config.validation import validate_config
+from researchclaw.exceptions import ConfigValidationError
 
 
 def _safe_int(val: Any, default: int) -> int:
@@ -128,7 +129,7 @@ def build_config_from_dict(
         data, project_root=project_root, check_paths=check_paths
     )
     if not result.ok:
-        raise ValueError("; ".join(result.errors))
+        raise ConfigValidationError("; ".join(result.errors))
 
     project = data["project"]
     research = data["research"]
@@ -763,7 +764,7 @@ def load_config(
     with config_path.open(encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
     if not isinstance(data, dict):
-        raise ValueError(
+        raise ConfigValidationError(
             f"Config root must be a mapping, got {type(data).__name__}. "
             f"Check that {config_path} is valid YAML."
         )

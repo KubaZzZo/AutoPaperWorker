@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import Iterable
 
+from researchclaw.exceptions import PipelineTransitionError
+
 
 class Stage(IntEnum):
     """23-stage research pipeline."""
@@ -334,6 +336,6 @@ def advance(
             decision="block",
         )
 
-    raise ValueError(
+    raise PipelineTransitionError(
         f"Unsupported transition: {status.value} + {event.value} for stage {int(stage)}"
     )

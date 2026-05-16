@@ -290,6 +290,12 @@ The second optimization round is complete. The implemented slices are:
      entry point and exposing named section helpers for abstract,
      introduction, method, experiments, and conclusion handling.
      Marker: Phase 3.19 implemented.
+   - 2026-05-16 slice: project-wide custom exception hierarchy added in
+     `researchclaw/exceptions.py`, with specific catch points for config
+     validation, LLM failures/rate limits, sandbox setup, and pipeline
+     transitions while preserving legacy `ValueError`/`RuntimeError`
+     compatibility.
+     Marker: Phase 3.20 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

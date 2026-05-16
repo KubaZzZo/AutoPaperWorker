@@ -8,6 +8,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from researchclaw.config import ExperimentConfig
+from researchclaw.exceptions import SandboxConfigurationError
 from researchclaw.experiment.sandbox import ExperimentSandbox, SandboxProtocol
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
             return ExperimentSandbox(config.sandbox, workdir)
 
         if not DockerSandbox.ensure_image(docker_cfg.image):
-            raise RuntimeError(
+            raise SandboxConfigurationError(
                 f"Docker image '{docker_cfg.image}' not found locally. "
                 f"Build it: docker build -t {docker_cfg.image} researchclaw/docker/"
             )
@@ -50,18 +51,18 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
 
         ssh_cfg = replace(config.ssh_remote, distributed=config.distributed)
         if not ssh_cfg.host:
-            raise RuntimeError(
+            raise SandboxConfigurationError(
                 "ssh_remote mode requires experiment.ssh_remote.host in config."
             )
         if not ssh_cfg.use_docker:
-            raise RuntimeError(
+            raise SandboxConfigurationError(
                 "ssh_remote mode requires Docker execution; set "
                 "experiment.ssh_remote.use_docker: true."
             )
 
         ok, msg = SshRemoteSandbox.check_ssh_available(ssh_cfg)
         if not ok:
-            raise RuntimeError(f"SSH connectivity check failed: {msg}")
+            raise SandboxConfigurationError(f"SSH connectivity check failed: {msg}")
 
         logger.info("SSH remote sandbox: %s", msg)
         return SshRemoteSandbox(ssh_cfg, workdir)
@@ -72,7 +73,7 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
         colab_cfg = config.colab_drive
         ok, msg = ColabDriveSandbox.check_drive_available(colab_cfg)
         if not ok:
-            raise RuntimeError(f"Colab Drive check failed: {msg}")
+            raise SandboxConfigurationError(f"Colab Drive check failed: {msg}")
 
         logger.info("Colab Drive sandbox: %s", msg)
 
@@ -89,7 +90,7 @@ def create_sandbox(config: ExperimentConfig, workdir: Path) -> SandboxProtocol:
         return ColabDriveSandbox(colab_cfg, workdir)
 
     if config.mode != "sandbox":
-        raise RuntimeError(
+        raise SandboxConfigurationError(
             f"Unsupported experiment mode for create_sandbox(): {config.mode}"
         )
 
@@ -108,7 +109,7 @@ def create_agentic_sandbox(
     from researchclaw.experiment.agentic_sandbox import AgenticSandbox
 
     if not AgenticSandbox.check_docker_available():
-        raise RuntimeError(
+        raise SandboxConfigurationError(
             "Docker daemon is not reachable. "
             "Agentic mode requires Docker. Start Docker first."
         )
