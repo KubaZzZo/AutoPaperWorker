@@ -238,7 +238,7 @@ def _ensure_sandbox_deps(code: str, python_path: str) -> list[str]:
                 )
                 installed.append(pip_name)
         except Exception as exc:
-            logger.warning("Sandbox: failed to check/install '%s': %s", pkg, exc)
+            logger.warning("Sandbox: failed to check/install '%s': %s", pkg, exc, exc_info=True)
 
     if installed:
         logger.info("Sandbox: auto-installed packages: %s", ", ".join(installed))
@@ -409,7 +409,8 @@ def _chat_with_prompt(
             if _effective_json_mode and "400" in _err_str:
                 logger.warning(
                     "HTTP 400 with json_mode=True — disabling json_mode for retry "
-                    "(provider may not support response_format)."
+                    "(provider may not support response_format).",
+                    exc_info=True,
                 )
                 _effective_json_mode = False
             if attempt < retries:
@@ -420,6 +421,7 @@ def _chat_with_prompt(
                     1 + retries,
                     exc,
                     delay,
+                    exc_info=True,
                 )
                 time.sleep(delay)
             else:
@@ -1073,7 +1075,7 @@ def _multi_perspective_generate(
             )
             logger.info("Debate perspective '%s' generated (%d chars)", role_name, len(resp.content))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Debate perspective '%s' failed: %s", role_name, exc)
+            logger.warning("Debate perspective '%s' failed: %s", role_name, exc, exc_info=True)
     if len(results) < 2:
         logger.error("Multi-perspective debate: only %d/%d roles succeeded", len(results), len(roles))
     return results

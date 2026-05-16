@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import builtins
+import ast
 from pathlib import Path
 from typing import Any, cast
 
@@ -90,6 +91,83 @@ def test_write_checkpoint_sets_stable_file_permissions(
     assert chmod_calls[-1][1] == 0o644
 
 
+def test_pipeline_warning_error_exception_logs_include_tracebacks() -> None:
+    offenders: list[str] = []
+
+    for path in Path("researchclaw/pipeline").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+            )
+            if not catches_exception:
+                continue
+            for call in (n for n in ast.walk(node) if isinstance(n, ast.Call)):
+                if not (
+                    isinstance(call.func, ast.Attribute)
+                    and call.func.attr in {"warning", "error"}
+                    and isinstance(call.func.value, ast.Name)
+                    and call.func.value.id == "logger"
+                ):
+                    continue
+                has_exc_info = any(
+                    kw.arg == "exc_info"
+                    and isinstance(kw.value, ast.Constant)
+                    and kw.value.value is True
+                    for kw in call.keywords
+                )
+                if not has_exc_info:
+                    offenders.append(f"{path}:{node.lineno}")
+
+    assert offenders == []
+
+
+def test_pipeline_second_round_expected_exception_handlers_are_specific() -> None:
+    expected_specific_handlers = {
+        ("researchclaw/pipeline/deliverables.py", "paper.tex regeneration from verified md failed"),
+        ("researchclaw/pipeline/deliverables.py", "Style file bundling skipped"),
+        ("researchclaw/pipeline/deliverables.py", "Cite key verification/repair skipped"),
+        ("researchclaw/pipeline/deliverables.py", "IMP-18: LaTeX compilation skipped"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "dataset_guidance"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "rl_step_guidance"),
+        ("researchclaw/pipeline/stage_impls/_experiment_design.py", "HITL guidance application failed"),
+        ("researchclaw/pipeline/stage_impls/_synthesis.py", "HITL guidance application failed"),
+    }
+    broad_handlers: list[str] = []
+
+    for path_text, marker in expected_specific_handlers:
+        path = Path(path_text)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            handler_src = ast.get_source_segment(path.read_text(encoding="utf-8"), node) or ""
+            catches_exception = (
+                node.type is None
+                or (
+                    isinstance(node.type, ast.Name)
+                    and node.type.id == "Exception"
+                )
+                or (
+                    isinstance(node.type, ast.Tuple)
+                    and any(
+                        isinstance(item, ast.Name) and item.id == "Exception"
+                        for item in node.type.elts
+                    )
+                )
+            )
+            if catches_exception and marker in handler_src:
+                broad_handlers.append(f"{path_text}:{node.lineno}:{marker}")
+
+    assert broad_handlers == []
+
+
 def test_execute_pipeline_runs_stages_in_sequence(
     monkeypatch: pytest.MonkeyPatch,
     run_dir: Path,
@@ -139,6 +217,37 @@ def test_execute_pipeline_stops_on_failed_stage(
     assert results[-1].stage == fail_stage
     assert results[-1].status == StageStatus.FAILED
     assert len(results) == int(fail_stage)
+
+
+def test_execute_pipeline_logs_deliverable_packaging_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def mock_execute_stage(stage: Stage, **kwargs: object) -> StageResult:
+        _ = kwargs
+        return _done(stage)
+
+    def fail_package(*_args: object, **_kwargs: object) -> None:
+        raise PermissionError("cannot write deliverables")
+
+    monkeypatch.setattr(rc_runner, "execute_stage", mock_execute_stage)
+    monkeypatch.setattr(rc_runner, "_package_deliverables", fail_package)
+
+    with caplog.at_level("WARNING", logger="researchclaw.pipeline.runner"):
+        rc_runner.execute_pipeline(
+            run_dir=run_dir,
+            run_id="run-deliverables",
+            config=rc_config,
+            adapters=adapters,
+            to_stage=Stage.TOPIC_INIT,
+        )
+
+    assert "Deliverables packaging failed (non-blocking)" in caplog.text
+    assert "Traceback" in caplog.text
+    assert "PermissionError: cannot write deliverables" in caplog.text
 
 
 def test_execute_pipeline_stops_on_paused_stage(

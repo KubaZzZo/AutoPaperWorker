@@ -169,7 +169,7 @@ def run_experiment_diagnosis(
             )
 
     except Exception as exc:
-        logger.warning("Experiment diagnosis failed: %s", exc)
+        logger.warning("Experiment diagnosis failed: %s", exc, exc_info=True)
 
 
 def run_experiment_repair(
@@ -256,7 +256,7 @@ def run_experiment_repair(
             )
 
     except Exception as exc:
-        logger.warning("[%s] Experiment repair failed: %s", run_id, exc)
+        logger.warning("[%s] Experiment repair failed: %s", run_id, exc, exc_info=True)
         _report_progress(
             progress_reporter,
             f"[{run_id}] Experiment repair failed: {exc}",

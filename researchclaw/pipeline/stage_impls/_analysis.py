@@ -700,7 +700,7 @@ Generated: {_utcnow_iso()}
             else:
                 logger.warning("Stage 14: FigureAgent produced no charts, falling back")
         except Exception as _fa_exc:
-            logger.warning("Stage 14: FigureAgent failed (%s), falling back to visualize.py", _fa_exc)
+            logger.warning("Stage 14: FigureAgent failed (%s), falling back to visualize.py", _fa_exc, exc_info=True)
 
     # Fallback: legacy visualize.py chart generation
     if not _figure_plan_saved:
@@ -723,7 +723,7 @@ Generated: {_utcnow_iso()}
                     len(_early_charts),
                 )
         except Exception as _chart_exc:
-            logger.warning("Stage 14: Early chart generation failed: %s", _chart_exc)
+            logger.warning("Stage 14: Early chart generation failed: %s", _chart_exc, exc_info=True)
 
     return StageResult(
         stage=Stage.RESULT_ANALYSIS,

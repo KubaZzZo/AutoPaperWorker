@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import urllib.error
 from pathlib import Path
 from typing import Any
 
@@ -120,7 +121,7 @@ def _execute_experiment_design(
         # Pass dataset_guidance block for experiment design
         try:
             _dg_block = _pm.block("dataset_guidance")
-        except (KeyError, Exception):  # noqa: BLE001
+        except KeyError:
             _dg_block = ""
         # I-08: Inject RL step guidance for RL topics
         _rl_kws = ("reinforcement learning", "ppo", "sac", "td3", "ddpg",
@@ -130,7 +131,7 @@ def _execute_experiment_design(
         if _is_rl_topic:
             try:
                 _dg_block += _pm.block("rl_step_guidance")
-            except Exception:  # noqa: BLE001
+            except KeyError:
                 logger.debug("Stage 09: rl_step_guidance prompt block unavailable", exc_info=True)
             # Improvement G: For RL with short budget, constrain to classic control
             if config.experiment.time_budget_sec <= 3600:
@@ -156,7 +157,7 @@ def _execute_experiment_design(
                 _fw_docs = load_framework_docs(_fw_ids, max_chars=4000, use_live_fetch=_use_live)
                 if _fw_docs:
                     _dg_block += _fw_docs
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, UnicodeError, yaml.YAMLError):
             logger.debug("Stage 09: Framework doc injection skipped", exc_info=True)
         # Improvement A: Compute hardware profile + per-condition budget
         _hw_profile_str = (
@@ -410,7 +411,7 @@ def _execute_experiment_design(
                 _benchmark_plan.elapsed_sec,
             )
         except Exception as _ba_exc:
-            logger.warning("BenchmarkAgent failed (non-fatal): %s", _ba_exc)
+            logger.warning("BenchmarkAgent failed (non-fatal): %s", _ba_exc, exc_info=True)
 
     # Save benchmark plan for code_generation stage
     if _benchmark_plan is not None:
@@ -496,7 +497,7 @@ def _execute_experiment_design(
                         plan = parsed_update
                 except yaml.YAMLError:
                     logger.debug("Stage 09: HITL guidance YAML update parse failed", exc_info=True)
-        except Exception:
+        except (OSError, RuntimeError, urllib.error.URLError):
             logger.debug("HITL guidance application failed (non-blocking)")
 
     # --- HITL: Baseline Navigator data persistence ---
@@ -519,7 +520,7 @@ def _execute_experiment_design(
             if isinstance(metrics, list):
                 nav.metrics = [str(m) for m in metrics]
         nav.save()
-    except Exception:
+    except (ImportError, OSError, TypeError, ValueError):
         logger.debug("Stage 09: Baseline Navigator persistence failed", exc_info=True)
 
     (stage_dir / "exp_plan.yaml").write_text(

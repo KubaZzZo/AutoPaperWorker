@@ -800,7 +800,19 @@ class TestFastAPIApp:
             )
             assert resp.status_code == 200
             data = resp.json()
-            assert data["project"] == "test"
+            assert data == {
+                "version": data["version"],
+                "features": {
+                    "voice_enabled": False,
+                    "dashboard_enabled": True,
+                },
+            }
+            assert "project" not in data
+            assert "topic" not in data
+            assert "mode" not in data
+            assert "llm" not in data
+            assert "base_url" not in json.dumps(data).lower()
+            assert "model" not in json.dumps(data).lower()
 
     @pytest.mark.asyncio
     async def test_config_endpoint_accepts_query_token(self, app: object) -> None:
@@ -811,7 +823,9 @@ class TestFastAPIApp:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/config", params={"token": token})
             assert resp.status_code == 200
-            assert resp.json()["project"] == "test"
+            data = resp.json()
+            assert set(data) == {"version", "features"}
+            assert data["features"]["dashboard_enabled"] is True
 
     def test_events_websocket_rejects_missing_token(self, app: object) -> None:
         from fastapi.testclient import TestClient

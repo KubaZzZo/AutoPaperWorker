@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from researchclaw.config import RCConfig
@@ -99,7 +101,7 @@ def package_deliverables(
                     bool(_has_abstract),
                     _section_count,
                 )
-        except Exception:  # noqa: BLE001
+        except (ImportError, KeyError, OSError, TypeError, ValueError):
             logger.debug("paper.tex regeneration from verified md failed")
     elif _was_sanitized:
         logger.info(
@@ -172,7 +174,7 @@ def package_deliverables(
                 len(style_files),
                 tpl.display_name,
             )
-    except Exception:  # noqa: BLE001
+    except (ImportError, KeyError, OSError):
         logger.debug("Style file bundling skipped (template lookup failed)")
 
     # --- 8. Verify & repair cite key coverage (IMP-12 + IMP-14) ---
@@ -241,7 +243,7 @@ def package_deliverables(
                     "Deliverables: all %d cite keys verified in references.bib",
                     len(all_cite_keys),
                 )
-        except Exception:  # noqa: BLE001
+        except (OSError, UnicodeError, re.error):
             logger.debug("Cite key verification/repair skipped")
 
     # --- 9. IMP-18: Compile LaTeX to verify paper.tex ---
@@ -269,7 +271,7 @@ def package_deliverables(
                     len(compile_result.fixes_applied),
                     compile_result.fixes_applied,
                 )
-        except Exception:  # noqa: BLE001
+        except (ImportError, OSError, RuntimeError, subprocess.SubprocessError):
             logger.debug("IMP-18: LaTeX compilation skipped (non-blocking)")
 
     if not packaged:

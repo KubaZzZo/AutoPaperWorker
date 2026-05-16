@@ -1237,7 +1237,7 @@ def execute_iterative_pipeline(
         if deliverables_dir is not None:
             logger.info("[%s] Deliverables packaged -> %s", run_id, deliverables_dir)
     except Exception:  # noqa: BLE001
-        logger.warning("Deliverables packaging failed (non-blocking)")
+        logger.warning("Deliverables packaging failed (non-blocking)", exc_info=True)
 
     return summary
 

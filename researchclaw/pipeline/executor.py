@@ -429,7 +429,7 @@ def _run_hitl_post_stage(
                 output=getattr(adapters.hitl, "display", print),
             )
         except Exception as _collab_exc:
-            logger.warning("Collaboration failed: %s", _collab_exc)
+            logger.warning("Collaboration failed: %s", _collab_exc, exc_info=True)
         session.exit_collaboration()
         return result
 
@@ -654,7 +654,7 @@ def execute_stage(
             if candidate.config.base_url and candidate.config.api_key:
                 llm = candidate
     except Exception as _llm_exc:  # noqa: BLE001
-        logger.warning("LLM client creation failed: %s", _llm_exc)
+        logger.warning("LLM client creation failed: %s", _llm_exc, exc_info=True)
         llm = None
 
     try:
@@ -780,7 +780,7 @@ def execute_stage(
                                     evidence_refs=result.evidence_refs,
                                 )
     except Exception:  # noqa: BLE001
-        logger.warning("MetaClaw PRM evaluation failed (non-blocking)")
+        logger.warning("MetaClaw PRM evaluation failed (non-blocking)", exc_info=True)
 
     if gate_required(stage, config.security.hitl_required_stages):
         if auto_approve_gates:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.error
 from pathlib import Path
 from typing import Any
 
@@ -137,7 +138,7 @@ def _execute_hypothesis_gen(
                     max_tokens=4096,
                 )
                 hypotheses_md = resp.content
-        except Exception:
+        except (OSError, RuntimeError, urllib.error.URLError):
             logger.debug("HITL guidance application failed (non-blocking)")
 
     # --- HITL: Idea Workshop data persistence ---

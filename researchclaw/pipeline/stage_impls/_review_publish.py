@@ -2033,7 +2033,7 @@ def _execute_export_publish(
                 artifacts.append("charts/")
                 logger.info("Stage 22: Generated %d chart(s) total", len(charts))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Chart generation failed: %s", exc)
+            logger.warning("Chart generation failed: %s", exc, exc_info=True)
 
         # BUG-99: Fix \includegraphics paths that don't match actual chart files
         try:

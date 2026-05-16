@@ -957,7 +957,7 @@ def _execute_paper_draft(
                     len(_verified_registry.condition_names),
                 )
             except Exception as _vr_exc:
-                logger.warning("Stage 17: Failed to build VerifiedRegistry: %s", _vr_exc)
+                logger.warning("Stage 17: Failed to build VerifiedRegistry: %s", _vr_exc, exc_info=True)
         if isinstance(exp_summary, dict) and exp_summary.get("metrics_summary"):
             has_real_metrics = True
             exp_metrics_instruction = (
@@ -1392,7 +1392,7 @@ def _execute_paper_draft(
                     + "\nDo NOT discuss conditions not in this list. Do NOT invent new conditions.\n"
                 )
         except Exception as _tb_exc:
-            logger.warning("Stage 17: Failed to build pre-built tables: %s", _tb_exc)
+            logger.warning("Stage 17: Failed to build pre-built tables: %s", _tb_exc, exc_info=True)
 
     # R4-2: Anti-fabrication data integrity instruction
     exp_metrics_instruction += (
@@ -1572,7 +1572,7 @@ def _execute_paper_draft(
                     _kept, _pre_report.total, _removed,
                 )
         except Exception as exc:
-            logger.warning("P3: Pre-verification failed, using original bib: %s", exc)
+            logger.warning("P3: Pre-verification failed, using original bib: %s", exc, exc_info=True)
 
     candidates_text = _read_prior_artifact(run_dir, "candidates.jsonl")
     if candidates_text:

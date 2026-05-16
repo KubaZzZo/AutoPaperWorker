@@ -345,7 +345,7 @@ def run_repair_loop(
         from researchclaw.llm import create_llm_client
         llm = create_llm_client(config)
     except Exception as exc:
-        logger.error("[%s] Repair loop: cannot create LLM client: %s", run_id, exc)
+        logger.error("[%s] Repair loop: cannot create LLM client: %s", run_id, exc, exc_info=True)
         return ExperimentRepairResult(
             success=False, total_cycles=0, final_mode=qa.mode,
         )
@@ -722,7 +722,7 @@ def _repair_via_opencode(
             return merged
 
     except Exception as exc:
-        logger.warning("OpenCode repair failed: %s", exc)
+        logger.warning("OpenCode repair failed: %s", exc, exc_info=True)
 
     return None
 
@@ -751,7 +751,7 @@ def _repair_via_llm(
         )
         content = resp.content
     except Exception as exc:
-        logger.warning("LLM repair call failed: %s", exc)
+        logger.warning("LLM repair call failed: %s", exc, exc_info=True)
         return None
 
     if not content or not content.strip():
@@ -843,7 +843,7 @@ def _run_experiment_in_sandbox(
         }
 
     except Exception as exc:
-        logger.warning("Sandbox execution failed: %s", exc)
+        logger.warning("Sandbox execution failed: %s", exc, exc_info=True)
         return None
 
 

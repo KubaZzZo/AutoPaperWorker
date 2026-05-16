@@ -84,10 +84,8 @@ def create_app(
     @app.get("/api/config")
     async def config_summary() -> dict[str, Any]:
         return {
-            "project": config.project.name,
-            "topic": config.research.topic,
-            "mode": config.experiment.mode,
-            "server": {
+            "version": __version__,
+            "features": {
                 "voice_enabled": config.server.voice_enabled,
                 "dashboard_enabled": config.dashboard.enabled,
             },
