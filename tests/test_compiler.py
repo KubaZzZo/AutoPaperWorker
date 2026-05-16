@@ -16,8 +16,12 @@ import pytest
 from researchclaw.templates.compiler import (
     CompileResult,
     _is_fatal_error,
+    _parse_log,
+    _sanitize_bib_file,
     _sanitize_tex_unicode,
+    check_compiled_quality,
     fix_common_latex_errors,
+    remove_missing_figures,
 )
 
 
@@ -170,6 +174,45 @@ class TestSanitizeBibFile:
         assert "A. I. Kolesnikov" in result
         assert "J. Doe" in result  # Latin unchanged
 
+    def test_escapes_bare_ampersands_in_field_values_but_not_urls(self, tmp_path: Path):
+        """Bare ampersands in BibTeX fields should be escaped conservatively."""
+        bib = tmp_path / "references.bib"
+        bib.write_text(
+            "@article{smith2024,\n"
+            "  title = {Science & Technology},\n"
+            "  journal = {AI & Society},\n"
+            "  url = {https://example.test/?a=1&b=2},\n"
+            "  doi = {10.1000/a&b},\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
+        _sanitize_bib_file(bib)
+
+        result = bib.read_text(encoding="utf-8")
+        assert "Science \\& Technology" in result
+        assert "AI \\& Society" in result
+        assert "https://example.test/?a=1&b=2" in result
+        assert "10.1000/a&b" in result
+
+    def test_strips_literal_escape_sequences_from_field_values(self, tmp_path: Path):
+        """Literal Python-style whitespace escapes are not valid BibTeX content."""
+        bib = tmp_path / "references.bib"
+        bib.write_text(
+            "@article{smith2024,\n"
+            "  title = {Line\\n Break and Tab\\t Gap and Return\\r Gone},\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
+        _sanitize_bib_file(bib)
+
+        result = bib.read_text(encoding="utf-8")
+        assert "\\n " not in result
+        assert "\\t " not in result
+        assert "\\r " not in result
+        assert "Line  Break and Tab  Gap and Return Gone" in result
+
 
 # ---------------------------------------------------------------------------
 # fix_common_latex_errors — Unicode handler
@@ -209,6 +252,210 @@ class TestFixUnicodeErrors:
         assert fixed == tex
         # No fix should be applied since the char isn't in the text
         assert not any("U+202F" in f for f in fixes)
+
+
+class TestFixCommonLatexErrors:
+    """Test automated LaTeX text repair rules."""
+
+    def test_structural_preflight_repairs_tabular_caption_and_clearpage(self):
+        tex = (
+            "\\begin{tabular}\\{lc\\}\n"
+            "Method \\& Score \\\\\n"
+            "A \\& 1.0 \\\\\n"
+            "\\end{tabular}\n"
+            "\\caption{Results.\\}\n"
+            "\\clearpage\n\\clearpage\n"
+            "\\end{figure}\n"
+            "\\textbf{Figure 1. Duplicate caption}\n"
+        )
+
+        fixed, fixes = fix_common_latex_errors(tex, [])
+
+        assert "\\begin{tabular}{lc}" in fixed
+        assert "Method & Score" in fixed
+        assert "\\caption{Results.}" in fixed
+        assert fixed.count("\\clearpage") == 1
+        assert "\\textbf{Figure 1." not in fixed
+        assert "Fixed escaped braces in tabular column specs" in fixes
+        assert any("tabular data" in fix for fix in fixes)
+        assert "Fixed escaped \\} in \\caption arguments" in fixes
+        assert "Collapsed multiple \\clearpage commands" in fixes
+        assert "Removed duplicate bold Figure captions after \\end{figure}" in fixes
+
+    def test_algorithmic_pseudocode_comments_and_identifiers_are_latex_safe(self):
+        tex = (
+            "\\begin{algorithmic}\n"
+            "\\STATE best_score = current_score # keep best\n"
+            "\\end{algorithmic}\n"
+        )
+
+        fixed, fixes = fix_common_latex_errors(tex, [])
+
+        assert "best_score = current_score" in fixed
+        assert "\\COMMENT{keep best}" in fixed
+        assert "Fixed Python-style pseudocode in algorithmic environment" in fixes
+
+    def test_undefined_safe_control_sequence_is_unwrapped(self):
+        tex = "This is \\textsc{Small Caps} and \\unknown{kept}."
+        fixed, fixes = fix_common_latex_errors(
+            tex,
+            ["! Undefined control sequence. \\textsc"],
+        )
+
+        assert "Small Caps" in fixed
+        assert "\\textsc" not in fixed
+        assert "\\unknown{kept}" in fixed
+        assert "Removed undefined \\textsc" in fixes
+
+    def test_missing_dollar_and_unsupported_k_command_are_repaired(self):
+        tex = "metric\\\\_name and bare_value and \\k{a}"
+        fixed, fixes = fix_common_latex_errors(
+            tex,
+            ["! Missing $ inserted.", "! LaTeX Error: Command \\k unavailable"],
+        )
+
+        assert "metric\\_name" in fixed
+        assert "bare\\_value" in fixed
+        assert "\\k" not in fixed
+        assert "Collapsed double-escaped underscores" in fixes
+        assert "Escaped bare underscores outside math" in fixes
+        assert "Removed unsupported \\k command" in fixes
+
+    def test_missing_package_and_float_overflow_repairs_are_applied(self):
+        tex = (
+            "\\documentclass{article}\n"
+            "\\usepackage{missingpkg}\n"
+            "\\begin{document}\n"
+            "\\begin{figure}[t]\\resizebox{\\textwidth}{!}{x}\\end{figure}\n"
+            "\\begin{table}[ht]x\\end{table}\n"
+            "\\end{document}\n"
+        )
+        fixed, fixes = fix_common_latex_errors(
+            tex,
+            ["File `missingpkg.sty' not found.", "Too many unprocessed floats"],
+        )
+
+        assert "% IMP-18: Removed missing package missingpkg" in fixed
+        assert "\\extrafloats{200}" in fixed
+        assert "\\resizebox{\\columnwidth}" in fixed
+        assert "\\begin{figure}[htbp!]" in fixed
+        assert "\\clearpage\n\\begin{table}" in fixed
+        assert "Removed missing package missingpkg" in fixes
+        assert "Added \\extrafloats{200} for float overflow" in fixes
+        assert "Replaced \\textwidth with \\columnwidth in resizebox" in fixes
+
+
+class TestParseLogAndQualityChecks:
+    """Test log parsing and post-compilation quality checks."""
+
+    def test_parse_log_collects_errors_and_warnings_once(self):
+        errors, warnings = _parse_log(
+            "\n".join(
+                [
+                    "! Undefined control sequence.",
+                    "LaTeX Warning: Citation `x' undefined.",
+                    "Missing $ inserted.",
+                    "File `missing.sty' not found.",
+                    "Float(s) lost.",
+                    "Too many unprocessed floats.",
+                ]
+            )
+        )
+
+        assert errors == [
+            "! Undefined control sequence.",
+            "Missing $ inserted.",
+            "File `missing.sty' not found.",
+            "Float(s) lost.",
+            "Too many unprocessed floats.",
+        ]
+        assert warnings == ["LaTeX Warning: Citation `x' undefined."]
+
+    def test_check_compiled_quality_summarizes_log_aux_and_figure_refs(self, tmp_path: Path):
+        tex = tmp_path / "paper.tex"
+        tex.write_text(
+            "\\begin{figure}\\label{fig:unused}\\end{figure}\n"
+            "See Figure~\\ref{fig:missing}.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "paper.aux").write_text(
+            "\\newlabel{LastPage}{{12}{1}}\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "paper.log").write_text(
+            "\n".join(
+                [
+                    "LaTeX Warning: Reference `fig:missing' undefined.",
+                    "LaTeX Warning: Citation `smith2024' undefined.",
+                    "Overfull \\hbox (2.5pt too wide) in paragraph",
+                    "Overfull \\hbox (0.5pt too wide) in paragraph",
+                    "Underfull \\hbox (badness 7000) in paragraph",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = check_compiled_quality(tex, page_limit=10)
+
+        assert result.has_critical_issues
+        assert len(result.unresolved_refs) == 1
+        assert len(result.unresolved_cites) == 1
+        assert len(result.overfull_hboxes) == 1
+        assert len(result.underfull_hboxes) == 1
+        assert result.page_count == 12
+        assert result.orphan_labels == ["fig:unused"]
+        assert result.orphan_figures == ["fig:missing"]
+        assert "Page count 12 exceeds limit 10" in result.warnings_summary
+
+    def test_check_compiled_quality_falls_back_to_page_count_from_log(self, tmp_path: Path):
+        tex = tmp_path / "paper.tex"
+        tex.write_text("No figures here.", encoding="utf-8")
+        (tmp_path / "paper.log").write_text(
+            "Output written on paper.pdf (3 pages)",
+            encoding="utf-8",
+        )
+
+        result = check_compiled_quality(tex, page_limit=10)
+
+        assert result.page_count == 3
+        assert not result.has_critical_issues
+        assert result.warnings_summary == []
+
+
+class TestRemoveMissingFigures:
+    """Test figure block removal and automatic image remapping."""
+
+    def test_removes_missing_figure_and_rewrites_orphan_references(self, tmp_path: Path):
+        tex = (
+            "See Figure~\\ref{fig:missing} for details.\n"
+            "\\begin{figure}\n"
+            "\\includegraphics{figures/missing.png}\n"
+            "\\caption{Missing}\\label{fig:missing}\n"
+            "\\end{figure}\n"
+        )
+
+        fixed, removed = remove_missing_figures(tex, tmp_path)
+
+        assert removed == ["figures/missing.png"]
+        assert "\\begin{figure}" not in fixed
+        assert "(figure omitted)" in fixed
+
+    def test_remaps_single_prefix_match_instead_of_removing(self, tmp_path: Path):
+        figures = tmp_path / "figures"
+        figures.mkdir()
+        (figures / "main_results_comparison.png").write_bytes(b"png")
+        tex = (
+            "\\begin{figure}\n"
+            "\\includegraphics{figures/main_results.png}\n"
+            "\\caption{Results}\\label{fig:results}\n"
+            "\\end{figure}\n"
+        )
+
+        fixed, removed = remove_missing_figures(tex, tmp_path)
+
+        assert removed == []
+        assert "main_results_comparison.png" in fixed
+        assert "\\begin{figure}" in fixed
 
 
 # ---------------------------------------------------------------------------
