@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: lint and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package with dev tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Collect changed files for PR lint
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          git diff --name-only --diff-filter=ACMRT "origin/${{ github.base_ref }}...HEAD" \
+            | grep -E '(^pyproject\.toml$|\.py$)' > changed-lint-files.txt || true
+          cat changed-lint-files.txt
+
+      - name: Lint changed files
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -s changed-lint-files.txt ]; then
+            xargs -a changed-lint-files.txt ruff check
+          else
+            echo "No Python or pyproject.toml changes to lint."
+          fi
+
+      - name: Generate full lint report
+        if: github.event_name == 'push'
+        run: |
+          ruff check . --statistics > ruff-report.txt || true
+          cat ruff-report.txt
+
+      - name: Run non-integration tests
+        run: pytest -m "not integration" --cov-report=xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/
+
+      - name: Upload lint report
+        if: github.event_name == 'push' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-report
+          path: ruff-report.txt

@@ -37,6 +37,7 @@ dev = [
     "httpx>=0.24",
     "ruff>=0.8",
     "mypy>=1.13",
+    "bandit[toml]>=1.7",
 ]
 
 [project.scripts]
