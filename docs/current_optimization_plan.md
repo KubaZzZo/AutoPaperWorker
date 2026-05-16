@@ -285,6 +285,11 @@ The second optimization round is complete. The implemented slices are:
      `_review_publish.py` path now acts as a compatibility facade for existing
      executor and test imports.
      Marker: Phase 3.18 implemented.
+   - 2026-05-16 slice: Stage 17 paper draft orchestration moved behind
+     `PaperDraftBuilder`, leaving `_execute_paper_draft()` as a compatibility
+     entry point and exposing named section helpers for abstract,
+     introduction, method, experiments, and conclusion handling.
+     Marker: Phase 3.19 implemented.
 
 4. **Long-run performance backends**
    - `progress.json` and artifact scanning are enough for local runs, but not

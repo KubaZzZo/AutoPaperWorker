@@ -1,7 +1,7 @@
 # Stage Implementations Refactor Plan
 
 > Created: 2026-05-15
-> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 implemented; Phase 3.18 implemented
+> Status: Phase 3.15 implemented; Phase 3.16 implemented; Phase 3.17 implemented; Phase 3.18 implemented; Phase 3.19 implemented
 > Scope: three large-module reduction rounds for selected `researchclaw/pipeline/stage_impls/` modules.
 
 ## Goal
@@ -36,6 +36,7 @@ document and in `docs/current_optimization_plan.md`.
 | 3.16 | Review/publish citation workflow extraction | Implemented | 2026-05-15: `review_publish_citations.py` owns missing-citation resolution, seminal-paper lookup, BibTeX generation, API result validation, and conservative wrong-paper rejection. |
 | 3.17 | Paper draft-quality workflow extraction | Implemented | 2026-05-15: `paper_draft_quality.py` owns Stage 17 draft section balance, bullet-density, citation-count, recency, length, raw-path, writing-quality, boilerplate, related-work, and statistical-rigor checks. |
 | 3.18 | Review/revision/publish stage ownership split | Implemented | 2026-05-16: `_review.py` owns peer review and evidence collection, `_revision.py` owns paper revision and the quality gate, `_publish.py` owns knowledge archive, export/publish, sanitization, and citation verification; `_review_publish.py` remains a compatibility facade. |
+| 3.19 | Paper draft builder extraction | Implemented | 2026-05-16: `PaperDraftBuilder` owns Stage 17 paper draft orchestration, `_execute_paper_draft()` remains a thin compatibility entry point, and named section helpers cover abstract, introduction, method, experiments, and conclusion sections. |
 
 ## Round 1: Phase 3.15 - Execution Repair Workflow
 
@@ -142,11 +143,26 @@ focused ownership modules:
 - `pytest tests\test_rc_runner.py::test_pipeline_final_round_prompt_and_file_handlers_are_specific tests\test_rc_runner.py::test_pipeline_third_round_handlers_are_specific -q`
 - `pytest tests\test_rc_executor.py tests\test_rc_citation_resolve.py tests\test_rc_citation_verify.py tests\test_rc_sanitization.py tests\test_review_publish_architecture.py -q`
 
+## Round 5: Phase 3.19 - Paper Draft Builder
+
+**Primary file:** `researchclaw/pipeline/stage_impls/_paper_writing.py`
+
+**Completed extraction:** Moved Stage 17 paper draft orchestration behind
+`PaperDraftBuilder`, preserving `_execute_paper_draft()` as the legacy stage
+entry point. The builder exposes section methods for abstract, introduction,
+method, experiments, and conclusion sections so later rounds can deepen
+section-specific generation without changing executor imports.
+
+**Verification completed:**
+
+- `pytest tests/test_paper_draft_builder_architecture.py -q`
+- `pytest tests\test_rc_executor.py::TestWritePaperSections tests\test_rc_executor.py::TestDataIntegrityBlock tests\test_rc_executor.py::TestTitleGuidelines::test_title_guidelines_injected_into_paper_draft tests\test_rc_runner.py::test_pipeline_final_round_prompt_and_file_handlers_are_specific tests\test_paper_draft_builder_architecture.py -q`
+
 ## Completion Definition
 
 The stage_impls refactor is complete when:
 
-- Phases 3.15, 3.16, 3.17, and 3.18 are all marked implemented in this document.
+- Phases 3.15, 3.16, 3.17, 3.18, and 3.19 are all marked implemented in this document.
 - `docs/current_optimization_plan.md` contains matching implemented markers.
 - Each phase has its own commit pushed to the active work branch.
 - The final local worktree is clean and tracks the active remote branch.
