@@ -31,6 +31,7 @@ from researchclaw.pipeline._helpers import (
     _safe_json_loads,
     _utcnow_iso,
 )
+from researchclaw.pipeline.contracts import RefinementLogContract
 from researchclaw.pipeline.stage_impls._execution_run import (
     _execute_experiment_run,
     _execute_resource_planning,
@@ -126,7 +127,6 @@ def _execute_iterative_refine(
         Tries exact match first, then looks for aggregate keys that contain
         the metric name (e.g. 'primary_metric_mean' when key='primary_metric').
         """
-        # Exact match
         val = _to_float(metrics.get(key))
         if val is not None:
             return val
@@ -147,7 +147,6 @@ def _execute_iterative_refine(
                 if "mean" in ck:
                     return cv
             return candidates[0][1]
-        # Last resort: if there's an "overall" or root-level aggregate
         for mk, mv in metrics.items():
             fv = _to_float(mv)
             if fv is not None and key in mk and "/" not in mk and "seed" not in mk:
@@ -325,8 +324,12 @@ def _execute_iterative_refine(
     }
 
     def _write_refinement_log() -> None:
+        refinement_log = RefinementLogContract.from_payload(
+            log,
+            generated=_utcnow_iso(),
+        ).to_payload()
         (stage_dir / "refinement_log.json").write_text(
-            json.dumps(log, indent=2), encoding="utf-8"
+            json.dumps(refinement_log, indent=2), encoding="utf-8"
         )
 
     def _pause_refinement(
@@ -395,7 +398,7 @@ def _execute_iterative_refine(
 
     for iteration in range(1, max_iterations + 1):
         # BUG-57: Check wall-clock time before starting a new iteration
-        _elapsed = _time_bug57.monotonic() - _refine_start_time
+        _elapsed = time.monotonic() - _refine_start_time
         if _elapsed > _max_refine_wall_sec:
             logger.warning(
                 "Stage 13: Wall-clock time cap reached (%.0fs > %ds). "

@@ -421,6 +421,11 @@ def _execute_quality_gate(
                 _rl20_path,
                 exc_info=True,
             )
+            logging.getLogger("researchclaw.pipeline.stage_impls._publish").debug(
+                "Failed to read refinement log for quality gate fabrication checks: %s",
+                _rl20_path,
+                exc_info=True,
+            )
     try:
         from researchclaw.pipeline.verified_registry import VerifiedRegistry as _VR20
         _vr20 = _VR20.from_run_dir(run_dir, metric_direction=config.experiment.metric_direction, best_only=True) if isinstance(_exp_summary, dict) else None
@@ -429,6 +434,10 @@ def _execute_quality_gate(
             _fabrication_info["verified_conditions"] = sorted(_vr20.condition_names)
     except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):
         logger.debug(
+            "Verified registry quality gate enrichment failed",
+            exc_info=True,
+        )
+        logging.getLogger("researchclaw.pipeline.stage_impls._publish").debug(
             "Verified registry quality gate enrichment failed",
             exc_info=True,
         )

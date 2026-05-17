@@ -6,6 +6,9 @@ from researchclaw.pipeline.contracts import (
     CONTRACTS,
     ExperimentRunContract,
     ExperimentSummaryContract,
+    RefinementLogContract,
+    ResourceScheduleContract,
+    ResourceScheduleTaskContract,
     StageContract,
 )
 from researchclaw.pipeline.stages import GATE_STAGES, STAGE_SEQUENCE, Stage
@@ -239,4 +242,200 @@ def test_experiment_run_contract_rejects_negative_elapsed_seconds():
             timed_out=False,
             completed_at="2026-05-17T12:00:00+00:00",
             environment={},
+        )
+
+
+def test_resource_schedule_contract_serializes_stage_11_payload():
+    schedule = ResourceScheduleContract(
+        tasks=(
+            ResourceScheduleTaskContract(
+                id="baseline",
+                name="Run baseline",
+                depends_on=(),
+                gpu_count=1,
+                estimated_minutes=20,
+                priority="high",
+            ),
+            ResourceScheduleTaskContract(
+                id="proposed",
+                name="Run proposed method",
+                depends_on=("baseline",),
+                gpu_count=2,
+                estimated_minutes=30.5,
+                priority="normal",
+            ),
+        ),
+        total_gpu_budget=2,
+        generated="2026-05-17T12:00:00+00:00",
+    )
+
+    assert schedule.to_payload() == {
+        "tasks": [
+            {
+                "id": "baseline",
+                "name": "Run baseline",
+                "depends_on": [],
+                "gpu_count": 1,
+                "estimated_minutes": 20,
+                "priority": "high",
+            },
+            {
+                "id": "proposed",
+                "name": "Run proposed method",
+                "depends_on": ["baseline"],
+                "gpu_count": 2,
+                "estimated_minutes": 30.5,
+                "priority": "normal",
+            },
+        ],
+        "total_gpu_budget": 2,
+        "generated": "2026-05-17T12:00:00+00:00",
+    }
+
+
+def test_resource_schedule_contract_normalizes_llm_payload():
+    schedule = ResourceScheduleContract.from_payload(
+        {
+            "tasks": [
+                {
+                    "id": 7,
+                    "name": "Run generated task",
+                    "depends_on": ["baseline", 8],
+                    "gpu_count": "2",
+                    "estimated_minutes": "15.5",
+                }
+            ],
+            "total_gpu_budget": "4",
+        },
+        generated="2026-05-17T12:00:00+00:00",
+    )
+
+    assert schedule.to_payload() == {
+        "tasks": [
+            {
+                "id": "7",
+                "name": "Run generated task",
+                "depends_on": ["baseline", "8"],
+                "gpu_count": 2,
+                "estimated_minutes": 15.5,
+                "priority": "normal",
+            }
+        ],
+        "total_gpu_budget": 4,
+        "generated": "2026-05-17T12:00:00+00:00",
+    }
+
+
+@pytest.mark.parametrize(
+    "task_kwargs",
+    (
+        {"id": "", "name": "Run baseline", "gpu_count": 1, "estimated_minutes": 20},
+        {"id": "baseline", "name": "", "gpu_count": 1, "estimated_minutes": 20},
+        {"id": "baseline", "name": "Run baseline", "gpu_count": -1},
+        {"id": "baseline", "name": "Run baseline", "estimated_minutes": -1},
+    ),
+)
+def test_resource_schedule_task_contract_rejects_invalid_fields(task_kwargs):
+    with pytest.raises(ValueError):
+        ResourceScheduleTaskContract(depends_on=(), priority="high", **task_kwargs)
+
+
+def test_resource_schedule_contract_rejects_non_mapping_tasks():
+    with pytest.raises(ValueError, match="tasks"):
+        ResourceScheduleContract.from_payload(
+            {"tasks": ["baseline"]},
+            generated="2026-05-17T12:00:00+00:00",
+        )
+
+
+def test_refinement_log_contract_serializes_stage_13_payload():
+    log = RefinementLogContract(
+        generated="2026-05-17T12:00:00+00:00",
+        mode="sandbox",
+        metric_key="accuracy",
+        metric_direction="maximize",
+        max_iterations_requested=5,
+        max_iterations_executed=3,
+        baseline_metric=0.72,
+        project_files=("main.py", "requirements.txt"),
+        iterations=(
+            {
+                "iteration": 1,
+                "version_dir": "experiment_v1/",
+                "metric": 0.81,
+                "improved": True,
+            },
+        ),
+        converged=True,
+        stop_reason="no_improvement_for_2_iterations",
+        best_metric=0.81,
+        best_version="experiment_v1/",
+        final_version="experiment_final/",
+    )
+
+    assert log.to_payload() == {
+        "generated": "2026-05-17T12:00:00+00:00",
+        "mode": "sandbox",
+        "metric_key": "accuracy",
+        "metric_direction": "maximize",
+        "max_iterations_requested": 5,
+        "max_iterations_executed": 3,
+        "baseline_metric": 0.72,
+        "project_files": ["main.py", "requirements.txt"],
+        "iterations": [
+            {
+                "iteration": 1,
+                "version_dir": "experiment_v1/",
+                "metric": 0.81,
+                "improved": True,
+            }
+        ],
+        "converged": True,
+        "stop_reason": "no_improvement_for_2_iterations",
+        "best_metric": 0.81,
+        "best_version": "experiment_v1/",
+        "final_version": "experiment_final/",
+    }
+
+
+def test_refinement_log_contract_normalizes_simulated_payload():
+    log = RefinementLogContract.from_payload(
+        {
+            "mode": "simulated",
+            "metric_key": "accuracy",
+            "skipped": True,
+            "skip_reason": "not meaningful",
+        },
+        generated="2026-05-17T12:00:00+00:00",
+    )
+
+    assert log.to_payload() == {
+        "generated": "2026-05-17T12:00:00+00:00",
+        "mode": "simulated",
+        "metric_key": "accuracy",
+        "iterations": [],
+        "skipped": True,
+        "skip_reason": "not meaningful",
+    }
+
+
+def test_refinement_log_contract_rejects_invalid_iterations():
+    with pytest.raises(ValueError, match="iterations"):
+        RefinementLogContract.from_payload(
+            {
+                "mode": "sandbox",
+                "metric_key": "accuracy",
+                "iterations": ["bad"],
+            },
+            generated="2026-05-17T12:00:00+00:00",
+        )
+
+
+def test_refinement_log_contract_rejects_negative_counts():
+    with pytest.raises(ValueError, match="max_iterations_executed"):
+        RefinementLogContract(
+            generated="2026-05-17T12:00:00+00:00",
+            mode="sandbox",
+            metric_key="accuracy",
+            max_iterations_executed=-1,
         )

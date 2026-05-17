@@ -21,11 +21,41 @@ from researchclaw.pipeline._helpers import (
     _safe_json_loads,
     _utcnow_iso,
 )
+from researchclaw.pipeline.contracts import (
+    ResourceScheduleContract,
+    ResourceScheduleTaskContract,
+)
 from researchclaw.pipeline.stage_impls.execution_run import persist_sandbox_run_result
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._execution")
+
+
+def _default_resource_schedule(generated: str) -> ResourceScheduleContract:
+    return ResourceScheduleContract(
+        tasks=(
+            ResourceScheduleTaskContract(
+                id="baseline",
+                name="Run baseline",
+                depends_on=(),
+                gpu_count=1,
+                estimated_minutes=20,
+                priority="high",
+            ),
+            ResourceScheduleTaskContract(
+                id="proposed",
+                name="Run proposed method",
+                depends_on=("baseline",),
+                gpu_count=1,
+                estimated_minutes=30,
+                priority="high",
+            ),
+        ),
+        total_gpu_budget=1,
+        generated=generated,
+    )
+
 
 def _execute_resource_planning(
     stage_dir: Path,
@@ -37,7 +67,7 @@ def _execute_resource_planning(
     prompts: PromptManager | None = None,
 ) -> StageResult:
     exp_plan = _read_prior_artifact(run_dir, "exp_plan.yaml") or ""
-    schedule: dict[str, Any] | None = None
+    schedule_payload: dict[str, Any] | None = None
     if llm is not None:
         _pm = prompts or PromptManager()
         _overlay = _get_evolution_overlay(run_dir, "resource_planning")
@@ -51,33 +81,26 @@ def _execute_resource_planning(
         )
         parsed = _safe_json_loads(resp.content, {})
         if isinstance(parsed, dict):
-            schedule = parsed
-    if schedule is None:
-        schedule = {
-            "tasks": [
-                {
-                    "id": "baseline",
-                    "name": "Run baseline",
-                    "depends_on": [],
-                    "gpu_count": 1,
-                    "estimated_minutes": 20,
-                    "priority": "high",
-                },
-                {
-                    "id": "proposed",
-                    "name": "Run proposed method",
-                    "depends_on": ["baseline"],
-                    "gpu_count": 1,
-                    "estimated_minutes": 30,
-                    "priority": "high",
-                },
-            ],
-            "total_gpu_budget": 1,
-            "generated": _utcnow_iso(),
-        }
-    schedule.setdefault("generated", _utcnow_iso())
+            schedule_payload = parsed
+
+    generated = _utcnow_iso()
+    if schedule_payload is None:
+        schedule_contract = _default_resource_schedule(generated)
+    else:
+        try:
+            schedule_contract = ResourceScheduleContract.from_payload(
+                schedule_payload,
+                generated=generated,
+            )
+        except ValueError:
+            logger.warning(
+                "Stage 11: invalid resource schedule payload; using fallback",
+                exc_info=True,
+            )
+            schedule_contract = _default_resource_schedule(generated)
+
     (stage_dir / "schedule.json").write_text(
-        json.dumps(schedule, indent=2), encoding="utf-8"
+        json.dumps(schedule_contract.to_payload(), indent=2), encoding="utf-8"
     )
     return StageResult(
         stage=Stage.RESOURCE_PLANNING,
@@ -187,9 +210,19 @@ def _execute_experiment_run(
         )
     elif mode == "simulated":
         schedule = _safe_json_loads(schedule_text, {})
-        tasks = schedule.get("tasks", []) if isinstance(schedule, dict) else []
-        if not isinstance(tasks, list):
-            tasks = []
+        tasks: list[dict[str, Any]] = []
+        if isinstance(schedule, dict):
+            try:
+                schedule_contract = ResourceScheduleContract.from_payload(
+                    schedule,
+                    generated=_utcnow_iso(),
+                )
+                tasks = [task.to_payload() for task in schedule_contract.tasks]
+            except ValueError:
+                logger.warning(
+                    "Stage 12: invalid resource schedule payload; simulating default task",
+                    exc_info=True,
+                )
         for idx, task in enumerate(tasks or [{"id": "task-1", "name": "simulated"}]):
             task_id = (
                 str(task.get("id", f"task-{idx + 1}"))

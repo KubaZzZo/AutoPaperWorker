@@ -10,6 +10,7 @@ from typing import Any
 
 from researchclaw.config import RCConfig
 from researchclaw.pipeline._helpers import StageResult, _utcnow_iso
+from researchclaw.pipeline.contracts import RefinementLogContract
 from researchclaw.pipeline.stages import Stage, StageStatus
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._execution")
@@ -60,7 +61,14 @@ def _handle_simulated_iterative_refine(
         "metric_key": config.experiment.metric_key,
     }
     (stage_dir / "refinement_log.json").write_text(
-        json.dumps(log, indent=2), encoding="utf-8"
+        json.dumps(
+            RefinementLogContract.from_payload(
+                log,
+                generated=_utcnow_iso(),
+            ).to_payload(),
+            indent=2,
+        ),
+        encoding="utf-8",
     )
     return StageResult(
         stage=Stage.ITERATIVE_REFINE,
@@ -100,7 +108,14 @@ def _handle_llm_unavailable_iterative_refine(
         }
     )
     (stage_dir / "refinement_log.json").write_text(
-        json.dumps(log, indent=2), encoding="utf-8"
+        json.dumps(
+            RefinementLogContract.from_payload(
+                log,
+                generated=_utcnow_iso(),
+            ).to_payload(),
+            indent=2,
+        ),
+        encoding="utf-8",
     )
     artifacts = ("refinement_log.json", "experiment_final/")
     return StageResult(

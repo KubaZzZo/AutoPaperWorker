@@ -126,6 +126,301 @@ class ExperimentRunContract:
         return payload
 
 
+@dataclass(frozen=True)
+class ResourceScheduleTaskContract:
+    """One executable task in the Stage 11 resource schedule."""
+
+    id: str
+    name: str
+    depends_on: tuple[str, ...] = ()
+    gpu_count: int | float = 1
+    estimated_minutes: int | float = 0
+    priority: str = "normal"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.id, str) or not self.id.strip():
+            raise ValueError("task id must be non-empty")
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("task name must be non-empty")
+        if self.gpu_count < 0:
+            raise ValueError("gpu_count must be non-negative")
+        if self.estimated_minutes < 0:
+            raise ValueError("estimated_minutes must be non-negative")
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> ResourceScheduleTaskContract:
+        depends_on = payload.get("depends_on", ())
+        if depends_on is None:
+            depends_on_values: tuple[str, ...] = ()
+        elif isinstance(depends_on, list | tuple):
+            depends_on_values = tuple(str(item) for item in depends_on)
+        else:
+            depends_on_values = (str(depends_on),)
+
+        return cls(
+            id=str(payload.get("id", "")).strip(),
+            name=str(payload.get("name", "")).strip(),
+            depends_on=depends_on_values,
+            gpu_count=_coerce_number(payload.get("gpu_count", 1), "gpu_count"),
+            estimated_minutes=_coerce_number(
+                payload.get("estimated_minutes", 0),
+                "estimated_minutes",
+            ),
+            priority=str(payload.get("priority", "normal")).strip() or "normal",
+        )
+
+    def to_payload(self) -> dict[str, Any]:
+        """Return the JSON-compatible Stage 11 task payload."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "depends_on": list(self.depends_on),
+            "gpu_count": self.gpu_count,
+            "estimated_minutes": self.estimated_minutes,
+            "priority": self.priority,
+        }
+
+
+@dataclass(frozen=True)
+class ResourceScheduleContract:
+    """Structured payload written by Stage 11 as schedule.json."""
+
+    tasks: tuple[ResourceScheduleTaskContract, ...]
+    total_gpu_budget: int | float
+    generated: str
+
+    def __post_init__(self) -> None:
+        if self.total_gpu_budget < 0:
+            raise ValueError("total_gpu_budget must be non-negative")
+        if not self.generated:
+            raise ValueError("generated must be non-empty")
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        *,
+        generated: str,
+    ) -> ResourceScheduleContract:
+        raw_tasks = payload.get("tasks", ())
+        if raw_tasks is None:
+            raw_tasks = ()
+        if not isinstance(raw_tasks, list | tuple):
+            raise ValueError("tasks must be a list")
+
+        tasks = []
+        for raw_task in raw_tasks:
+            if not isinstance(raw_task, dict):
+                raise ValueError("tasks must contain mappings")
+            tasks.append(ResourceScheduleTaskContract.from_payload(raw_task))
+
+        default_budget = max((task.gpu_count for task in tasks), default=0)
+        total_gpu_budget = _coerce_number(
+            payload.get("total_gpu_budget", default_budget),
+            "total_gpu_budget",
+        )
+        return cls(
+            tasks=tuple(tasks),
+            total_gpu_budget=total_gpu_budget,
+            generated=str(payload.get("generated") or generated),
+        )
+
+    def to_payload(self) -> dict[str, Any]:
+        """Return the JSON-compatible Stage 11 schedule payload."""
+        return {
+            "tasks": [task.to_payload() for task in self.tasks],
+            "total_gpu_budget": self.total_gpu_budget,
+            "generated": self.generated,
+        }
+
+
+@dataclass(frozen=True)
+class RefinementLogContract:
+    """Structured payload written by Stage 13 as refinement_log.json."""
+
+    generated: str
+    mode: str
+    metric_key: str
+    iterations: tuple[dict[str, Any], ...] = ()
+    metric_direction: str | None = None
+    max_iterations_requested: int | None = None
+    max_iterations_executed: int | None = None
+    baseline_metric: int | float | None = None
+    project_files: tuple[str, ...] = ()
+    converged: bool | None = None
+    stop_reason: str | None = None
+    best_metric: int | float | None = None
+    best_version: str | None = None
+    final_version: str | None = None
+    skipped: bool | None = None
+    skip_reason: str | None = None
+    paused: bool | None = None
+    pause_reason: str | None = None
+    pause_iteration: int | None = None
+    iterations_completed: int | None = None
+    ablation_identical_warning: bool | None = None
+
+    def __post_init__(self) -> None:
+        if not self.generated:
+            raise ValueError("generated must be non-empty")
+        if not self.mode:
+            raise ValueError("mode must be non-empty")
+        if not self.metric_key:
+            raise ValueError("metric_key must be non-empty")
+        _validate_optional_count(
+            self.max_iterations_requested,
+            "max_iterations_requested",
+        )
+        _validate_optional_count(
+            self.max_iterations_executed,
+            "max_iterations_executed",
+        )
+        _validate_optional_count(self.pause_iteration, "pause_iteration")
+        _validate_optional_count(self.iterations_completed, "iterations_completed")
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        *,
+        generated: str,
+    ) -> RefinementLogContract:
+        raw_iterations = payload.get("iterations", ())
+        if raw_iterations is None:
+            raw_iterations = ()
+        if not isinstance(raw_iterations, list | tuple):
+            raise ValueError("iterations must be a list")
+        iterations = []
+        for raw_iteration in raw_iterations:
+            if not isinstance(raw_iteration, dict):
+                raise ValueError("iterations must contain mappings")
+            iterations.append(dict(raw_iteration))
+
+        project_files = payload.get("project_files", ())
+        if project_files is None:
+            project_files_values: tuple[str, ...] = ()
+        elif isinstance(project_files, list | tuple):
+            project_files_values = tuple(str(path) for path in project_files)
+        else:
+            project_files_values = (str(project_files),)
+
+        return cls(
+            generated=str(payload.get("generated") or generated),
+            mode=str(payload.get("mode", "")).strip(),
+            metric_key=str(payload.get("metric_key", "")).strip(),
+            metric_direction=_optional_string(payload.get("metric_direction")),
+            max_iterations_requested=_optional_count(
+                payload.get("max_iterations_requested"),
+                "max_iterations_requested",
+            ),
+            max_iterations_executed=_optional_count(
+                payload.get("max_iterations_executed"),
+                "max_iterations_executed",
+            ),
+            baseline_metric=payload.get("baseline_metric"),
+            project_files=project_files_values,
+            iterations=tuple(iterations),
+            converged=_optional_bool(payload.get("converged")),
+            stop_reason=_optional_string(payload.get("stop_reason")),
+            best_metric=payload.get("best_metric"),
+            best_version=_optional_string(payload.get("best_version")),
+            final_version=_optional_string(payload.get("final_version")),
+            skipped=_optional_bool(payload.get("skipped")),
+            skip_reason=_optional_string(payload.get("skip_reason")),
+            paused=_optional_bool(payload.get("paused")),
+            pause_reason=_optional_string(payload.get("pause_reason")),
+            pause_iteration=_optional_count(
+                payload.get("pause_iteration"),
+                "pause_iteration",
+            ),
+            iterations_completed=_optional_count(
+                payload.get("iterations_completed"),
+                "iterations_completed",
+            ),
+            ablation_identical_warning=_optional_bool(
+                payload.get("ablation_identical_warning")
+            ),
+        )
+
+    def to_payload(self) -> dict[str, Any]:
+        """Return the JSON-compatible Stage 13 refinement log payload."""
+        payload: dict[str, Any] = {
+            "generated": self.generated,
+            "mode": self.mode,
+            "metric_key": self.metric_key,
+        }
+        _put_optional(payload, "metric_direction", self.metric_direction)
+        _put_optional(
+            payload,
+            "max_iterations_requested",
+            self.max_iterations_requested,
+        )
+        _put_optional(payload, "max_iterations_executed", self.max_iterations_executed)
+        _put_optional(payload, "baseline_metric", self.baseline_metric)
+        if self.project_files:
+            payload["project_files"] = list(self.project_files)
+        payload["iterations"] = [dict(iteration) for iteration in self.iterations]
+        _put_optional(payload, "converged", self.converged)
+        _put_optional(payload, "stop_reason", self.stop_reason)
+        _put_optional(payload, "best_metric", self.best_metric)
+        _put_optional(payload, "best_version", self.best_version)
+        _put_optional(payload, "final_version", self.final_version)
+        _put_optional(payload, "skipped", self.skipped)
+        _put_optional(payload, "skip_reason", self.skip_reason)
+        _put_optional(payload, "paused", self.paused)
+        _put_optional(payload, "pause_reason", self.pause_reason)
+        _put_optional(payload, "pause_iteration", self.pause_iteration)
+        _put_optional(payload, "iterations_completed", self.iterations_completed)
+        _put_optional(
+            payload,
+            "ablation_identical_warning",
+            self.ablation_identical_warning,
+        )
+        return payload
+
+
+def _coerce_number(value: Any, field_name: str) -> int | float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be numeric") from exc
+    if number < 0:
+        raise ValueError(f"{field_name} must be non-negative")
+    if number.is_integer():
+        return int(number)
+    return number
+
+
+def _optional_count(value: Any, field_name: str) -> int | None:
+    if value is None:
+        return None
+    number = _coerce_number(value, field_name)
+    return int(number)
+
+
+def _optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if value is None:
+        return None
+    return bool(value)
+
+
+def _validate_optional_count(value: int | None, field_name: str) -> None:
+    if value is not None and value < 0:
+        raise ValueError(f"{field_name} must be non-negative")
+
+
+def _put_optional(payload: dict[str, Any], key: str, value: Any) -> None:
+    if value is not None:
+        payload[key] = value
+
+
 CONTRACTS: dict[Stage, StageContract] = {
     # Phase A: Research Scoping
     Stage.TOPIC_INIT: StageContract(

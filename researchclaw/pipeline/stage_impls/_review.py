@@ -88,6 +88,12 @@ def _collect_experiment_evidence(run_dir: Path) -> str:
                 "Failed to parse refinement log for experiment evidence",
                 exc_info=True,
             )
+            logging.getLogger(
+                "researchclaw.pipeline.stage_impls._stage22_code_package"
+            ).debug(
+                "Failed to parse refinement log for experiment evidence",
+                exc_info=True,
+            )
 
     # 4. Count actual number of experiment runs
     actual_run_count = 0
