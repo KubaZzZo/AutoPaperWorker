@@ -1092,6 +1092,33 @@ class TestFastAPIApp:
         assert 1 <= int(second.headers["retry-after"]) <= 60
 
     @pytest.mark.asyncio
+    async def test_voice_upload_is_rate_limited(self, _skip_if_no_fastapi: None) -> None:
+        from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+
+        from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
+
+        app = FastAPI()
+        app.add_middleware(
+            RateLimitMiddleware,
+            max_requests=1,
+            window_seconds=60,
+        )
+
+        @app.post("/api/voice/transcribe")
+        async def _transcribe() -> dict[str, str]:
+            return {"status": "ok"}
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.post("/api/voice/transcribe", content=b"a")
+            second = await ac.post("/api/voice/transcribe", content=b"b")
+
+        assert first.status_code == 200
+        assert second.status_code == 429
+
+    @pytest.mark.asyncio
     async def test_rate_limit_ignores_spoofed_forwarded_for_by_default(
         self,
         _skip_if_no_fastapi: None,

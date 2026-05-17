@@ -57,6 +57,7 @@ _DEFAULT_USER_AGENT = (
 )
 
 _MAX_BACKOFF_SEC = 300  # 5-minute ceiling for retry delays
+_MAX_HTTP_ERROR_BODY_BYTES = 4096
 
 
 @dataclass
@@ -354,7 +355,7 @@ class LLMClient:
                 last_status = status
                 body = ""
                 try:
-                    body = e.read().decode()[:500]
+                    body = e.read(_MAX_HTTP_ERROR_BODY_BYTES).decode(errors="replace")[:500]
                 except Exception:  # noqa: BLE001
                     logger.debug("Failed to read HTTP error response body", exc_info=True)
 

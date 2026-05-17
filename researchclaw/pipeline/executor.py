@@ -624,7 +624,24 @@ def execute_stage(
     _t_health_start = _time.monotonic()
     contract: StageContract = CONTRACTS[stage]
 
-    if contract.input_files:
+    if contract.alternative_input_groups:
+        missing_groups: list[tuple[str, ...]] = []
+        for input_group in contract.alternative_input_groups:
+            if all(_read_prior_artifact(run_dir, input_file) is not None for input_file in input_group):
+                break
+            missing_groups.append(input_group)
+        else:
+            required = " or ".join(" + ".join(group) for group in missing_groups)
+            result = StageResult(
+                stage=stage,
+                status=StageStatus.FAILED,
+                artifacts=(),
+                error=f"Missing input: {required} (required by {stage.name})",
+                decision="retry",
+            )
+            _write_stage_meta(stage_dir, stage, run_id, result)
+            return result
+    elif contract.input_files:
         for input_file in contract.input_files:
             found = _read_prior_artifact(run_dir, input_file)
             if found is None:

@@ -27,6 +27,7 @@ from researchclaw.pipeline.checkpoint import (
 )
 from researchclaw.pipeline.deliverables import package_deliverables
 from researchclaw.pipeline.executor import StageResult, execute_stage
+from researchclaw.pipeline.artifact_io import _stage_sort_key
 from researchclaw.pipeline.experiment_workflow import (
     run_experiment_diagnosis,
     run_experiment_repair,
@@ -834,7 +835,7 @@ def _promote_best_stage14(run_dir: Path, config: RCConfig) -> None:
     metric_dir = config.experiment.metric_direction or "maximize"
 
     candidates: list[tuple[float, Path]] = []
-    for d in sorted(run_dir.glob("stage-14*")):
+    for d in sorted(run_dir.glob("stage-14*"), key=_stage_sort_key):
         summary_path = d / "experiment_summary.json"
         if not summary_path.exists():
             continue
@@ -888,8 +889,14 @@ def _promote_best_stage14(run_dir: Path, config: RCConfig) -> None:
 
     current_dir = run_dir / "stage-14"
 
-    # Sort: best first
-    candidates.sort(key=lambda x: x[0], reverse=(metric_dir == "maximize"))
+    # Sort: best metric first; when tied, prefer the newest numeric stage version.
+    def _candidate_rank(item: tuple[float, Path]) -> tuple[float, tuple[str, int]]:
+        value, path = item
+        metric_rank = value if metric_dir == "maximize" else -value
+        base, neg_version = _stage_sort_key(path)
+        return (metric_rank, (base, -neg_version))
+
+    candidates.sort(key=_candidate_rank, reverse=True)
 
     # BUG-226: Detect degenerate near-zero metrics (broken normalization or
     # collapsed training).  When minimising, a value >1000x smaller than the

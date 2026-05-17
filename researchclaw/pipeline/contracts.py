@@ -23,6 +23,7 @@ class StageContract:
     dod: str
     error_code: str
     max_retries: int = 1
+    alternative_input_groups: tuple[tuple[str, ...], ...] = ()
 
 
 CONTRACTS: dict[Stage, StageContract] = {
@@ -132,10 +133,11 @@ CONTRACTS: dict[Stage, StageContract] = {
     # Phase F: Analysis & Decision
     Stage.RESULT_ANALYSIS: StageContract(
         stage=Stage.RESULT_ANALYSIS,
-        input_files=("runs/",),
+        input_files=("experiment_final/", "runs/"),
         output_files=("analysis.md",),
         dod="Metrics analyzed with statistical tests and conclusions",
         error_code="E14_ANALYSIS_ERR",
+        alternative_input_groups=(("experiment_final/",), ("runs/",)),
     ),
     Stage.RESEARCH_DECISION: StageContract(
         stage=Stage.RESEARCH_DECISION,

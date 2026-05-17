@@ -611,7 +611,8 @@ def test_call_with_retry_retries_transient_400_provider_overload(
     attempts = 0
 
     class ErrorBody:
-        def read(self) -> bytes:
+        def read(self, size: int = -1) -> bytes:
+            _ = size
             return b'{"error":"provider temporarily overloaded; retry later"}'
 
         def close(self) -> None:
@@ -644,6 +645,43 @@ def test_call_with_retry_retries_transient_400_provider_overload(
 
     assert response.content == "ok"
     assert attempts == 2
+
+
+def test_call_with_retry_reads_bounded_http_error_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    read_sizes: list[int] = []
+
+    class LargeErrorBody:
+        def read(self, size: int = -1) -> bytes:
+            read_sizes.append(size)
+            return b'{"error":"bad request"}' + (b"x" * 1_000_000)
+
+        def close(self) -> None:
+            return None
+
+    def fake_raw_call(*_args: object, **_kwargs: object) -> LLMResponse:
+        raise urllib.error.HTTPError(
+            url="https://api.example.com/v1/chat/completions",
+            code=400,
+            msg="Bad Request",
+            hdrs=HTTPMessage(),
+            fp=LargeErrorBody(),
+        )
+
+    monkeypatch.setattr(LLMClient, "_raw_call", fake_raw_call)
+    client = _make_client(primary_model="gpt-5.2", fallback_models=[])
+
+    with pytest.raises(urllib.error.HTTPError):
+        client._call_with_retry(
+            "gpt-5.2",
+            [{"role": "user", "content": "x"}],
+            100,
+            0.1,
+            False,
+        )
+
+    assert read_sizes == [4096]
 
 
 def test_llm_package_exposes_shared_structural_protocols():

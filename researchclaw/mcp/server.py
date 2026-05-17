@@ -15,6 +15,17 @@ from researchclaw.mcp.tools import TOOL_DEFINITIONS, list_tool_names
 logger = logging.getLogger(__name__)
 
 _VALID_RUN_ID = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_SENSITIVE_ARGUMENT_MARKERS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "auth_token",
+    "bearer",
+    "credential",
+    "password",
+    "secret",
+    "token",
+)
 _REQUIRED_PAPER_SECTIONS = {
     "abstract": ("abstract",),
     "introduction": ("introduction",),
@@ -53,6 +64,21 @@ def _validated_artifact_file(path: str) -> Path:
     return resolved
 
 
+def _redact_mcp_arguments(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key).lower()
+            if any(marker in key_text for marker in _SENSITIVE_ARGUMENT_MARKERS):
+                redacted[str(key)] = "[REDACTED]"
+            else:
+                redacted[str(key)] = _redact_mcp_arguments(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_mcp_arguments(item) for item in value]
+    return value
+
+
 class ResearchClawMCPServer:
     """MCP Server that exposes AutoResearchClaw capabilities as tools.
 
@@ -74,7 +100,8 @@ class ResearchClawMCPServer:
         if name not in list_tool_names():
             return {"error": f"Unknown tool: {name}", "success": False}
 
-        logger.info("MCP tool call: %s(%s)", name, json.dumps(arguments, default=str)[:200])
+        safe_arguments = _redact_mcp_arguments(arguments)
+        logger.info("MCP tool call: %s(%s)", name, json.dumps(safe_arguments, default=str)[:200])
 
         try:
             if name == "run_pipeline":

@@ -1456,6 +1456,90 @@ def test_contracts_stage13_includes_experiment_final() -> None:
     assert "experiment_final/" in CONTRACTS[Stage.ITERATIVE_REFINE].output_files
 
 
+def test_contracts_stage14_accepts_refined_or_raw_runs() -> None:
+    contract = CONTRACTS[Stage.RESULT_ANALYSIS]
+    assert "experiment_final/" in contract.input_files
+    assert "runs/" in contract.input_files
+    assert ("experiment_final/",) in contract.alternative_input_groups
+    assert ("runs/",) in contract.alternative_input_groups
+
+
+def test_execute_stage_accepts_stage14_refined_input_without_raw_runs(
+    monkeypatch: pytest.MonkeyPatch,
+    run_dir: Path,
+    rc_config: RCConfig,
+    adapters: AdapterBundle,
+) -> None:
+    final_dir = run_dir / "stage-13" / "experiment_final"
+    final_dir.mkdir(parents=True)
+    (final_dir / "run-final.json").write_text(
+        json.dumps({"metrics": {"accuracy": 0.9}}), encoding="utf-8"
+    )
+
+    def good_executor(
+        stage_dir: Path,
+        _run_dir: Path,
+        _config: RCConfig,
+        _adapters: AdapterBundle,
+        *,
+        llm: object = None,
+        prompts: object = None,
+    ):
+        _ = (llm, prompts)
+        (stage_dir / "analysis.md").write_text("# Analysis", encoding="utf-8")
+        return rc_executor.StageResult(
+            stage=Stage.RESULT_ANALYSIS,
+            status=StageStatus.DONE,
+            artifacts=("analysis.md",),
+        )
+
+    monkeypatch.setitem(rc_executor._STAGE_EXECUTORS, Stage.RESULT_ANALYSIS, good_executor)
+    result = rc_executor.execute_stage(
+        Stage.RESULT_ANALYSIS,
+        run_dir=run_dir,
+        run_id="run-refined",
+        config=rc_config,
+        adapters=adapters,
+        auto_approve_gates=True,
+    )
+
+    assert result.status is StageStatus.DONE
+
+
+def test_promote_best_stage14_tie_prefers_numeric_latest_version(
+    tmp_path: Path,
+    rc_config: RCConfig,
+) -> None:
+    from dataclasses import replace
+    from researchclaw.pipeline.runner import _promote_best_stage14
+
+    cfg = replace(
+        rc_config,
+        experiment=replace(
+            rc_config.experiment,
+            metric_key="accuracy",
+            metric_direction="maximize",
+        ),
+    )
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    for name in ("stage-14_v1", "stage-14_v2", "stage-14_v10"):
+        stage_dir = run_dir / name
+        stage_dir.mkdir()
+        (stage_dir / "experiment_summary.json").write_text(
+            json.dumps({"metrics_summary": {"accuracy": {"mean": 0.8}}, "source": name}),
+            encoding="utf-8",
+        )
+
+    _promote_best_stage14(run_dir, cfg)
+
+    promoted = json.loads(
+        (run_dir / "stage-14" / "experiment_summary.json").read_text(encoding="utf-8")
+    )
+    assert promoted["source"] == "stage-14_v10"
+
+
 def test_contracts_stage22_includes_code_dir() -> None:
     assert "code/" in CONTRACTS[Stage.EXPORT_PUBLISH].output_files
 

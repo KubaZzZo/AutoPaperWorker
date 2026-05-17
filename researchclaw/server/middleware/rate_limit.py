@@ -15,6 +15,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """Limit state-changing API requests per client IP."""
 
     LIMITED_PATHS = frozenset({"/api/pipeline/start"})
+    LIMITED_PREFIXES = ("/api/voice/", "/api/chat/", "/api/projects")
 
     def __init__(
         self,
@@ -37,7 +38,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
             return await call_next(request)
-        if request.url.path not in self.LIMITED_PATHS:
+        path = request.url.path
+        if path not in self.LIMITED_PATHS and not path.startswith(self.LIMITED_PREFIXES):
             return await call_next(request)
 
         now = time.monotonic()

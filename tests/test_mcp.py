@@ -82,6 +82,25 @@ class TestMCPServer:
         assert "GNN" in result["message"]
         assert not result["run_id"].startswith("mcp-stub-")
 
+    def test_tool_call_logging_redacts_sensitive_arguments(self, caplog) -> None:
+        server = ResearchClawMCPServer()
+        with caplog.at_level("INFO", logger="researchclaw.mcp.server"):
+            result = asyncio.run(
+                server.handle_tool_call(
+                    "run_pipeline",
+                    {
+                        "topic": "GNN",
+                        "api_key": "sk-secret",
+                        "nested": {"auth_token": "tok-secret"},
+                    },
+                )
+            )
+
+        assert result["success"] is True
+        assert "sk-secret" not in caplog.text
+        assert "tok-secret" not in caplog.text
+        assert "[REDACTED]" in caplog.text
+
     def test_handle_run_pipeline_creates_trackable_run(self, tmp_path, monkeypatch) -> None:
         monkeypatch.chdir(tmp_path)
 
