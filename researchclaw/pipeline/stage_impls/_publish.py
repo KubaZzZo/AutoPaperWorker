@@ -11,17 +11,13 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-import yaml  # noqa: F401 — available for downstream use
-
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain  # noqa: F401
 from researchclaw.pipeline._helpers import (
     StageResult,
     _build_context_preamble,
     _chat_with_prompt,
-    _collect_experiment_results,  # noqa: F401
     _extract_paper_title,
     _generate_framework_diagram_prompt,
     _generate_neurips_checklist,
@@ -29,7 +25,6 @@ from researchclaw.pipeline._helpers import (
     _read_best_analysis,
     _read_prior_artifact,
     _safe_json_loads,
-    _topic_constraint_block,  # noqa: F401
     _utcnow_iso,
     reconcile_figure_refs,
 )

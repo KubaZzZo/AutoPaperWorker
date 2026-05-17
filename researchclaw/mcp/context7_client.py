@@ -314,4 +314,7 @@ class Context7MCPClient:
         self._stop()
 
     def __del__(self) -> None:
-        self._stop()
+        try:
+            self._stop()
+        except Exception:  # noqa: BLE001
+            logger.debug("Context7 MCP __del__ cleanup failed", exc_info=True)

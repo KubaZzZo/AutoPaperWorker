@@ -69,18 +69,22 @@ class ACPClient:
 
     # Track live instances for atexit cleanup (weak refs to avoid preventing GC)
     _live_instances: list[weakref.ref[ACPClient]] = []
+    _live_instances_lock = threading.Lock()
     _atexit_registered: bool = False
 
     def __init__(self, acp_config: ACPConfig) -> None:
         self.config = acp_config
         self._acpx: str | None = acp_config.acpx_command or None
         self._session_ready = False
-        # Prune dead weakrefs, then track this instance
-        ACPClient._live_instances = [r for r in ACPClient._live_instances if r() is not None]
-        ACPClient._live_instances.append(weakref.ref(self))
-        if not ACPClient._atexit_registered:
-            atexit.register(ACPClient._atexit_cleanup)
-            ACPClient._atexit_registered = True
+        # Prune dead weakrefs, then track this instance.
+        with ACPClient._live_instances_lock:
+            ACPClient._live_instances = [
+                r for r in ACPClient._live_instances if r() is not None
+            ]
+            ACPClient._live_instances.append(weakref.ref(self))
+            if not ACPClient._atexit_registered:
+                atexit.register(ACPClient._atexit_cleanup)
+                ACPClient._atexit_registered = True
 
     @classmethod
     def from_rc_config(cls, rc_config: Any) -> ACPClient:
@@ -190,14 +194,16 @@ class ACPClient:
     @classmethod
     def _atexit_cleanup(cls) -> None:
         """Close all live ACP sessions on interpreter shutdown."""
-        for ref in cls._live_instances:
+        with cls._live_instances_lock:
+            refs = list(cls._live_instances)
+            cls._live_instances.clear()
+        for ref in refs:
             inst = ref()
             if inst is not None:
                 try:
                     inst.close()
                 except Exception:  # noqa: BLE001
                     logger.debug("ACP atexit cleanup failed", exc_info=True)
-        cls._live_instances.clear()
 
     # ------------------------------------------------------------------
     # Internals

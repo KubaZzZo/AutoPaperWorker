@@ -6,22 +6,17 @@ import json
 import logging
 from pathlib import Path
 
-import yaml  # noqa: F401 — available for downstream use
-
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain  # noqa: F401
 from researchclaw.pipeline._helpers import (
     StageResult,
     _chat_with_prompt,
-    _collect_experiment_results,  # noqa: F401
     _find_prior_file,
     _get_evolution_overlay,
     _read_prior_artifact,
     _safe_json_loads,
-    _topic_constraint_block,  # noqa: F401
-    )
+)
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
