@@ -386,195 +386,197 @@ def _execute_result_analysis(
     # Second: from refinement_log iterations (Stage 13)
     if _refine_log_text:
         try:
-            _rl = json.loads(_refine_log_text)
-            for _it in _rl.get("iterations", []):
-                for _sbx_key in ("sandbox", "sandbox_after_fix"):
-                    _sbx_stdout = (_it.get(_sbx_key) or {}).get("stdout", "")
-                    if _sbx_stdout:
-                        _all_paired.extend(_extract_paired(_sbx_stdout))
+            refinement_log = json.loads(_refine_log_text)
+            for iteration in refinement_log.get("iterations", []):
+                for sandbox_key in ("sandbox", "sandbox_after_fix"):
+                    sandbox_stdout = (iteration.get(sandbox_key) or {}).get("stdout", "")
+                    if sandbox_stdout:
+                        _all_paired.extend(_extract_paired(sandbox_stdout))
         except (json.JSONDecodeError, OSError):
             logger.debug("R19-2: Failed to parse refinement stdout comparisons", exc_info=True)
 
     # --- R19-3: Build structured condition_summaries from metrics ---
     _condition_summaries: dict[str, dict[str, Any]] = {}
-    _ms = exp_data.get("metrics_summary", {})
-    _best_metrics = {}
+    metrics_summary = exp_data.get("metrics_summary", {})
+    best_metrics = {}
     if exp_data.get("best_run") and isinstance(exp_data["best_run"], dict):
-        _best_metrics = exp_data["best_run"].get("metrics", {})
+        best_metrics = exp_data["best_run"].get("metrics", {})
 
     # Group metrics by condition prefix (e.g., "ppo/primary_metric" → condition "ppo")
-    for _mk, _mv in _best_metrics.items():
-        parts = _mk.split("/")
+    for metric_key_name, metric_value in best_metrics.items():
+        parts = metric_key_name.split("/")
         if len(parts) >= 2:
-            cond = parts[0]
+            condition_name = parts[0]
             metric_name = parts[-1]
-            if cond not in _condition_summaries:
-                _condition_summaries[cond] = {"metrics": {}}
+            if condition_name not in _condition_summaries:
+                _condition_summaries[condition_name] = {"metrics": {}}
             try:
-                _condition_summaries[cond]["metrics"][metric_name] = float(_mv)
+                _condition_summaries[condition_name]["metrics"][metric_name] = float(metric_value)
             except (ValueError, TypeError):
-                logger.debug("Stage 14: Skipping non-numeric condition metric %s/%s", cond, metric_name, exc_info=True)
+                logger.debug("Stage 14: Skipping non-numeric condition metric %s/%s", condition_name, metric_name, exc_info=True)
 
     # BUG-09 fix: If no condition summaries were built (metrics don't use
     # condition/metric format), try to extract from metrics_summary or
     # structured_results so FigureAgent has data to work with.
-    if not _condition_summaries and _ms:
+    if not _condition_summaries and metrics_summary:
         # Try to parse condition data from metrics_summary keys
-        for _mk, _mv in _ms.items():
-            parts = _mk.split("/")
+        for metric_key_name, metric_value in metrics_summary.items():
+            parts = metric_key_name.split("/")
             if len(parts) >= 2:
-                cond = parts[0]
+                condition_name = parts[0]
                 metric_name = parts[-1]
-                if cond not in _condition_summaries:
-                    _condition_summaries[cond] = {"metrics": {}}
+                if condition_name not in _condition_summaries:
+                    _condition_summaries[condition_name] = {"metrics": {}}
                 try:
                     # BUG-182: metrics_summary values are dicts {min,max,mean,count},
                     # not plain floats. Extract the mean value.
-                    if isinstance(_mv, dict):
-                        _val = float(_mv["mean"]) if "mean" in _mv else None
+                    if isinstance(metric_value, dict):
+                        value = float(metric_value["mean"]) if "mean" in metric_value else None
                     else:
-                        _val = float(_mv)
-                    if _val is not None:
-                        _condition_summaries[cond]["metrics"][metric_name] = _val
+                        value = float(metric_value)
+                    if value is not None:
+                        _condition_summaries[condition_name]["metrics"][metric_name] = value
                 except (ValueError, TypeError, KeyError):
-                    logger.debug("Stage 14: Skipping malformed metrics_summary value %s", _mk, exc_info=True)
+                    logger.debug("Stage 14: Skipping malformed metrics_summary value %s", metric_key_name, exc_info=True)
     if not _condition_summaries:
         # Last resort: build from structured_results condition keys
-        _sr = exp_data.get("structured_results", {})
-        if isinstance(_sr, dict):
-            for _sk, _sv in _sr.items():
-                if isinstance(_sv, dict) and _sk not in ("metadata", "config"):
-                    _condition_summaries[_sk] = {"metrics": {}}
-                    for _smk, _smv in _sv.items():
+        structured_results = exp_data.get("structured_results", {})
+        if isinstance(structured_results, dict):
+            for condition_name, condition_summary in structured_results.items():
+                if isinstance(condition_summary, dict) and condition_name not in ("metadata", "config"):
+                    _condition_summaries[condition_name] = {"metrics": {}}
+                    for metric_key_name, metric_value in condition_summary.items():
                         try:
-                            _condition_summaries[_sk]["metrics"][_smk] = float(_smv)
+                            _condition_summaries[condition_name]["metrics"][metric_key_name] = float(metric_value)
                         except (ValueError, TypeError):
-                            logger.debug("Stage 14: Skipping non-numeric structured result %s/%s", _sk, _smk, exc_info=True)
+                            logger.debug("Stage 14: Skipping non-numeric structured result %s/%s", condition_name, metric_key_name, exc_info=True)
 
     # R33: Build per-seed data structure (needed for CIs and paired tests below)
-    _seed_data: dict[str, dict[int, float]] = {}  # {condition: {seed: value}}
-    for _mk, _mv in _best_metrics.items():
-        parts = _mk.split("/")
+    seed_data: dict[str, dict[int, float]] = {}  # {condition: {seed: value}}
+    for metric_key_name, metric_value in best_metrics.items():
+        parts = metric_key_name.split("/")
         # Pattern: condition/regime/seed_id/primary_metric
         if len(parts) >= 4 and parts[-1] == config.experiment.metric_key:
-            cond = parts[0]
+            condition_name = parts[0]
             try:
                 seed_id = int(parts[2])
-                val = float(_mv)
-                _seed_data.setdefault(cond, {})[seed_id] = val
+                value = float(metric_value)
+                seed_data.setdefault(condition_name, {})[seed_id] = value
             except (ValueError, TypeError):
-                logger.debug("Stage 14: Skipping malformed seed metric key=%s value=%r", _mk, _mv, exc_info=True)
+                logger.debug("Stage 14: Skipping malformed seed metric key=%s value=%r", metric_key_name, metric_value, exc_info=True)
 
     # Enrich condition summaries with seed counts, success rates, and CIs
-    for _ck, _cv in _condition_summaries.items():
+    for condition_name, condition_summary in _condition_summaries.items():
         # Look for success_rate in metrics
-        sr_key = f"{_ck}/success_rate"
-        if sr_key in _best_metrics:
+        success_rate_key = f"{condition_name}/success_rate"
+        if success_rate_key in best_metrics:
             try:
-                _cv["success_rate"] = float(_best_metrics[sr_key])
+                condition_summary["success_rate"] = float(best_metrics[success_rate_key])
             except (ValueError, TypeError):
-                logger.debug("Stage 14: Skipping non-numeric success_rate for %s", _ck, exc_info=True)
+                logger.debug("Stage 14: Skipping non-numeric success_rate for %s", condition_name, exc_info=True)
         # Count seed-level entries to estimate n_seeds
-        _seed_count = 0
-        for _mk in _best_metrics:
-            if _mk.startswith(f"{_ck}/") and "seed" in _mk.lower():
-                _seed_count += 1
-        if _seed_count > 0:
-            _cv["n_seed_metrics"] = _seed_count
+        seed_metric_count = 0
+        for metric_key_name in best_metrics:
+            if metric_key_name.startswith(f"{condition_name}/") and "seed" in metric_key_name.lower():
+                seed_metric_count += 1
+        if seed_metric_count > 0:
+            condition_summary["n_seed_metrics"] = seed_metric_count
 
         # R33: Compute mean ± std and bootstrap 95% CI from per-seed data
-        if _ck in _seed_data and len(_seed_data[_ck]) >= 3:
-            _vals = list(_seed_data[_ck].values())
-            _mean, _std, _ci_low, _ci_high = _compute_bootstrap_ci(_vals, _ck)
-            _cv["metrics"][f"{config.experiment.metric_key}_mean"] = round(_mean, 6)
-            _cv["metrics"][f"{config.experiment.metric_key}_std"] = round(_std, 6)
-            _cv["n_seeds"] = len(_vals)
-            _cv["ci95_low"] = _ci_low
-            _cv["ci95_high"] = _ci_high
+        if condition_name in seed_data and len(seed_data[condition_name]) >= 3:
+            seed_values = list(seed_data[condition_name].values())
+            mean_value, std_value, ci_low, ci_high = _compute_bootstrap_ci(seed_values, condition_name)
+            condition_summary["metrics"][f"{config.experiment.metric_key}_mean"] = round(mean_value, 6)
+            condition_summary["metrics"][f"{config.experiment.metric_key}_std"] = round(std_value, 6)
+            condition_summary["n_seeds"] = len(seed_values)
+            condition_summary["ci95_low"] = ci_low
+            condition_summary["ci95_high"] = ci_high
 
     # Count totals
-    _total_conditions = len(_condition_summaries) if _condition_summaries else None
-    _total_metrics = len(_best_metrics) if _best_metrics else None
+    total_conditions = len(_condition_summaries) if _condition_summaries else None
+    total_metrics = len(best_metrics) if best_metrics else None
 
     # --- R33: Pipeline-level paired computation as fallback ---
     # If the experiment code's PAIRED lines are sparse or suspicious (e.g.,
     # all identical t-stats), compute fresh paired tests from per-seed data.
-    # (_seed_data was built above before condition summary enrichment)
-    if len(_seed_data) >= 2:
+    # (seed_data was built above before condition summary enrichment)
+    if len(seed_data) >= 2:
         # Find common seeds across conditions
-        _all_seeds_sets = [set(v.keys()) for v in _seed_data.values()]
-        _common_seeds = set.intersection(*_all_seeds_sets) if _all_seeds_sets else set()
+        all_seed_sets = [set(values.keys()) for values in seed_data.values()]
+        common_seeds = set.intersection(*all_seed_sets) if all_seed_sets else set()
 
-        if len(_common_seeds) >= 3:
-            _cond_names_sorted = sorted(_seed_data.keys())
-            _pipeline_paired: list[dict[str, object]] = []
+        if len(common_seeds) >= 3:
+            sorted_condition_names = sorted(seed_data.keys())
+            pipeline_paired: list[dict[str, object]] = []
             # Compare each condition against the first baseline (alphabetically)
-            _baseline_cond = _cond_names_sorted[0]
-            for _other_cond in _cond_names_sorted[1:]:
-                _diffs = []
-                for _sid in sorted(_common_seeds):
-                    _diffs.append(
-                        _seed_data[_other_cond][_sid] - _seed_data[_baseline_cond][_sid]
+            baseline_condition = sorted_condition_names[0]
+            for other_condition in sorted_condition_names[1:]:
+                diffs = []
+                for seed_id in sorted(common_seeds):
+                    diffs.append(
+                        seed_data[other_condition][seed_id] - seed_data[baseline_condition][seed_id]
                     )
-                if _diffs:
-                    _n = len(_diffs)
-                    _mean_d = statistics.mean(_diffs)
-                    _std_d = statistics.stdev(_diffs) if _n > 1 else 0.0
-                    _t = (_mean_d / (_std_d / (_n ** 0.5))) if _std_d > 0 else 0.0
-                    _df = _n - 1
+                if diffs:
+                    sample_size = len(diffs)
+                    mean_difference = statistics.mean(diffs)
+                    std_difference = statistics.stdev(diffs) if sample_size > 1 else 0.0
+                    t_stat = (
+                        mean_difference / (std_difference / (sample_size ** 0.5))
+                    ) if std_difference > 0 else 0.0
+                    degrees_freedom = sample_size - 1
                     # Two-tailed p-value using t-distribution
                     try:
-                        from scipy.stats import t as _t_dist
-                        _p = float(2 * _t_dist.sf(abs(_t), _df))
+                        from scipy.stats import t as t_dist
+                        p_value = float(2 * t_dist.sf(abs(t_stat), degrees_freedom))
                     except ImportError:
-                        _p = 2 * (1 - 0.5 * (1 + math.erf(abs(_t) / (2 ** 0.5))))
-                        if _df < 30:
-                            _p = min(1.0, _p * (1 + 2.5 / max(_df, 1)))
-                    _pipeline_paired.append({
-                        "method": _other_cond,
-                        "baseline": _baseline_cond,
-                        "mean_diff": round(_mean_d, 6),
-                        "std_diff": round(_std_d, 6),
-                        "t_stat": round(_t, 4),
-                        "p_value": round(_p, 6),
-                        "n_seeds": _n,
+                        p_value = 2 * (1 - 0.5 * (1 + math.erf(abs(t_stat) / (2 ** 0.5))))
+                        if degrees_freedom < 30:
+                            p_value = min(1.0, p_value * (1 + 2.5 / max(degrees_freedom, 1)))
+                    pipeline_paired.append({
+                        "method": other_condition,
+                        "baseline": baseline_condition,
+                        "mean_diff": round(mean_difference, 6),
+                        "std_diff": round(std_difference, 6),
+                        "t_stat": round(t_stat, 4),
+                        "p_value": round(p_value, 6),
+                        "n_seeds": sample_size,
                         "source": "pipeline_computed",
                     })
 
             # Use pipeline-computed if experiment code's are suspicious
-            _exp_t_stats = {round(p.get("t_stat", 0), 4) for p in _all_paired}
-            _all_identical = len(_exp_t_stats) <= 1 and len(_all_paired) > 1
-            if _pipeline_paired and (_all_identical or len(_all_paired) < len(_pipeline_paired)):
+            experiment_t_stats = {round(p.get("t_stat", 0), 4) for p in _all_paired}
+            all_identical = len(experiment_t_stats) <= 1 and len(_all_paired) > 1
+            if pipeline_paired and (all_identical or len(_all_paired) < len(pipeline_paired)):
                 logger.info(
                     "R33: Using %d pipeline-computed paired tests (experiment code had %d, identical=%s)",
-                    len(_pipeline_paired), len(_all_paired), _all_identical,
+                    len(pipeline_paired), len(_all_paired), all_identical,
                 )
-                _all_paired = _pipeline_paired
+                _all_paired = pipeline_paired
 
     # --- P8: Detect identical conditions (broken ablations) ---
-    _ablation_warnings = _detect_ablation_failures(_condition_summaries)
+    ablation_warnings = _detect_ablation_failures(_condition_summaries)
 
     # --- Improvement B: Validate seed counts ---
-    _seed_insufficiency_warnings: list[str] = []
-    for _sc_name, _sc_seeds in _seed_data.items():
-        _n_seeds = len(_sc_seeds)
-        if 0 < _n_seeds < 3:
-            _warn = (
-                f"SEED_INSUFFICIENCY: Condition '{_sc_name}' has only "
-                f"{_n_seeds} seed(s) (minimum 3 required for statistical validity)"
+    seed_insufficiency_warnings: list[str] = []
+    for condition_name, condition_seeds in seed_data.items():
+        seed_count = len(condition_seeds)
+        if 0 < seed_count < 3:
+            warning = (
+                f"SEED_INSUFFICIENCY: Condition '{condition_name}' has only "
+                f"{seed_count} seed(s) (minimum 3 required for statistical validity)"
             )
-            _seed_insufficiency_warnings.append(_warn)
-            logger.warning("B: %s", _warn)
+            seed_insufficiency_warnings.append(warning)
+            logger.warning("B: %s", warning)
 
     # --- Write structured experiment summary ---
     summary_payload = _build_analysis_summary(
         exp_data,
         _condition_summaries,
-        _seed_insufficiency_warnings,
-        _ablation_warnings,
+        seed_insufficiency_warnings,
+        ablation_warnings,
         _all_paired,
-        _total_conditions,
-        _total_metrics,
+        total_conditions,
+        total_metrics,
     )
     (stage_dir / "experiment_summary.json").write_text(
         json.dumps(summary_payload, indent=2, default=str), encoding="utf-8"
@@ -591,11 +593,12 @@ def _execute_result_analysis(
     data_context = ""
     if exp_data["metrics_summary"]:
         lines = ["\n## Quantitative Results"]
-        for mk, mv in exp_data["metrics_summary"].items():
-            if isinstance(mv, dict):
+        for metric_key_name, metric_value in exp_data["metrics_summary"].items():
+            if isinstance(metric_value, dict):
                 lines.append(
-                    f"- {mk}: mean={mv.get('mean', '?')}, min={mv.get('min', '?')}, "
-                    f"max={mv.get('max', '?')}, n={mv.get('count', '?')}"
+                    f"- {metric_key_name}: mean={metric_value.get('mean', '?')}, "
+                    f"min={metric_value.get('min', '?')}, "
+                    f"max={metric_value.get('max', '?')}, n={metric_value.get('count', '?')}"
                 )
         data_context = "\n".join(lines)
 
@@ -613,10 +616,10 @@ def _execute_result_analysis(
         )
 
     # P8: Inject ablation warnings into data context
-    if _ablation_warnings:
+    if ablation_warnings:
         data_context += "\n\nCRITICAL ABLATION WARNINGS:\n"
-        for _aw in _ablation_warnings:
-            data_context += f"- {_aw}\n"
+        for warning in ablation_warnings:
+            data_context += f"- {warning}\n"
         data_context += (
             "\nYou MUST address these in your analysis. Identical conditions "
             "mean the ablation design is broken and the comparison is meaningless.\n"
@@ -645,11 +648,12 @@ def _execute_result_analysis(
         ms = exp_data["metrics_summary"]
         metrics_block = ""
         if ms:
-            for mk, mv in ms.items():
-                if isinstance(mv, dict):
+            for metric_key_name, metric_value in ms.items():
+                if isinstance(metric_value, dict):
                     metrics_block += (
-                        f"- **{mk}**: mean={mv.get('mean')}, "
-                        f"min={mv.get('min')}, max={mv.get('max')}, n={mv.get('count')}\n"
+                        f"- **{metric_key_name}**: mean={metric_value.get('mean')}, "
+                        f"min={metric_value.get('min')}, max={metric_value.get('max')}, "
+                        f"n={metric_value.get('count')}\n"
                     )
         else:
             metrics_block = f"- Primary metric key: `{config.experiment.metric_key}`\n- No quantitative data yet.\n"
@@ -711,8 +715,8 @@ Generated: {_utcnow_iso()}
             # BUG-09 fix: pass best_run metrics as fallback data if
             # structured_results is empty, so Planner has some data to chart
             _fa_exp_results = exp_data.get("structured_results", {})
-            if not _fa_exp_results and _best_metrics:
-                _fa_exp_results = {"best_run_metrics": _best_metrics}
+            if not _fa_exp_results and best_metrics:
+                _fa_exp_results = {"best_run_metrics": best_metrics}
 
             # Read paper draft for Decision Agent analysis
             _paper_draft = (
@@ -847,20 +851,26 @@ def _execute_research_decision(
     analysis = _read_prior_artifact(run_dir, "analysis.md") or ""
 
     # P6: Detect degenerate REFINE cycles — inject warning if metrics stagnate
-    _degenerate_hint = ""
-    _refine_log = _read_prior_artifact(run_dir, "refinement_log.json")
-    if _refine_log:
+    degenerate_hint = ""
+    refine_log_text = _read_prior_artifact(run_dir, "refinement_log.json")
+    if refine_log_text:
         try:
-            _rl = json.loads(_refine_log)
-            _iters = _rl.get("iterations", [])
-            _metrics = [it.get("metric") for it in _iters if isinstance(it, dict)]
-            _valid = [m for m in _metrics if m is not None]
-            _all_saturated = _valid and all(m <= 0.001 or m >= 0.999 for m in _valid)
-            _all_identical = len(set(_valid)) <= 1 and len(_valid) >= 2
-            if _all_saturated or _all_identical:
-                _degenerate_hint = (
+            refinement_log = json.loads(refine_log_text)
+            iterations = refinement_log.get("iterations", [])
+            metrics = [
+                iteration.get("metric")
+                for iteration in iterations
+                if isinstance(iteration, dict)
+            ]
+            valid_metrics = [metric for metric in metrics if metric is not None]
+            all_saturated = valid_metrics and all(
+                metric <= 0.001 or metric >= 0.999 for metric in valid_metrics
+            )
+            all_identical = len(set(valid_metrics)) <= 1 and len(valid_metrics) >= 2
+            if all_saturated or all_identical:
+                degenerate_hint = (
                     "\n\nSYSTEM WARNING — DEGENERATE REFINE CYCLE DETECTED:\n"
-                    f"Metrics across {len(_valid)} iterations: {_valid}\n"
+                    f"Metrics across {len(valid_metrics)} iterations: {valid_metrics}\n"
                     "All iterations produce identical/saturated results. Further REFINE "
                     "cycles CANNOT fix this — the underlying benchmark design is too "
                     "easy/hard. You SHOULD choose PROCEED with a quality caveat rather "
@@ -935,7 +945,7 @@ def _execute_research_decision(
         _pm = prompts or PromptManager()
         _overlay = _get_evolution_overlay(run_dir, "research_decision")
         sp = _pm.for_stage("research_decision", evolution_overlay=_overlay, analysis=analysis)
-        _user = sp.user + _degenerate_hint + _diagnosis_hint + _ablation_refine_hint
+        _user = sp.user + degenerate_hint + _diagnosis_hint + _ablation_refine_hint
         resp = _chat_with_prompt(llm, sp.system, _user)
         decision_md = resp.content
     else:
