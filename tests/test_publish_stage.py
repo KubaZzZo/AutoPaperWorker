@@ -238,6 +238,39 @@ def test_sanitize_fabricated_data_uses_best_summary_and_sanitizes_markdown_table
     assert "44.4" in report["replaced_samples"]
 
 
+def test_sanitize_fabricated_data_zero_verified_value_does_not_divide_by_zero(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run"
+    _write_summary(
+        run_dir / "experiment_summary_best.json",
+        {
+            "metrics_summary": {
+                "zero_rate": 0.0,
+                "accuracy": 0.912,
+            },
+        },
+    )
+    paper = """# Results
+
+The verified zero-rate was 0.0 and reported 12.3.
+"""
+
+    sanitized, report = _publish._sanitize_fabricated_data(paper, run_dir)
+
+    assert "zero-rate was 0.0" in sanitized
+    assert "reported [value removed]" in sanitized
+    assert report["prose_numbers_replaced"] == 1
+
+
+def test_sanitize_verified_zero_branch_skips_relative_ratio_comparison() -> None:
+    source = Path("researchclaw/pipeline/stage_impls/_publish.py").read_text(
+        encoding="utf-8"
+    )
+    assert "if v == 0.0:" in source
+    assert "continue  # cannot compare ratios against zero" in source
+
+
 def test_sanitize_fabricated_data_sanitizes_latex_tables_and_results_prose(
     tmp_path: Path,
 ) -> None:

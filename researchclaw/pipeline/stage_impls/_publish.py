@@ -253,7 +253,13 @@ def _sanitize_fabricated_data(
             if v == 0.0:
                 if abs(num) < 1e-9:
                     return True
-            elif abs(num - v) / abs(v) <= 0.01 or v != 0.0 and abs(num / 100.0 - v) / abs(v) <= 0.01 or v != 0.0 and abs(num - v * 100.0) / abs(v * 100.0) <= 0.01:
+                continue  # cannot compare ratios against zero
+            rel_tol = 0.01
+            if abs(num - v) / abs(v) <= rel_tol:
+                return True
+            if abs(num / 100.0 - v) / abs(v) <= rel_tol:
+                return True
+            if abs(num - v * 100.0) / abs(v * 100.0) <= rel_tol:
                 return True
         return False
 
