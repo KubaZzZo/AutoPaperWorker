@@ -4129,7 +4129,7 @@ class TestConsecutiveEmptyMetrics:
 
 
 # ===================================================================
-# R7 Tests 鈥?Experiment-Paper Quality Alignment
+# R7 Tests — Experiment-Paper Quality Alignment
 # ===================================================================
 
 
@@ -4328,7 +4328,7 @@ class TestConditionCoverageDetection:
 
 
 # ===================================================================
-# R8 Tests 鈥?AutoBench Round 1 Fixes
+# R8 Tests — AutoBench Round 1 Fixes
 # ===================================================================
 
 
@@ -4417,7 +4417,7 @@ class TestRefineFilePreservation:
 
 
 # ===================================================================
-# R9 Tests 鈥?AutoBench Round 2 Fixes
+# R9 Tests — AutoBench Round 2 Fixes
 # ===================================================================
 
 
@@ -4515,7 +4515,7 @@ def _make_comparative_prose(word_count: int) -> str:
 def _make_results_prose(word_count: int) -> str:
     """Generate results prose with statistical measures."""
     sentence = (
-        "Our method achieves 85.3 卤 1.2 accuracy averaged over 5 seeds. "
+        "Our method achieves 85.3 ± 1.2 accuracy averaged over 5 seeds. "
         "The baseline comparison yields a p-value of 0.003, confirming "
         "statistical significance with 95% confidence interval. "
     )

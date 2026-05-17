@@ -18,6 +18,7 @@ from researchclaw.config import (
 )
 from researchclaw.experiment.docker_sandbox import (
     DockerSandbox,
+    _decode_subprocess_output,
     _docker_mount_path,
     _next_container_name,
 )
@@ -39,6 +40,10 @@ def test_sandbox_result_fields():
     assert r.returncode == 0
     assert r.metrics["primary_metric"] == 0.95
     assert r.timed_out is False
+
+
+def test_docker_subprocess_decode_replaces_invalid_utf8() -> None:
+    assert _decode_subprocess_output(b"ok\xffdone") == "ok\ufffddone"
 
 
 # ── DockerSandbox command building ─────────────────────────────────────
@@ -418,7 +423,7 @@ def test_docker_run_success(mock_run, tmp_path: Path):
 
 
 @patch("subprocess.run")
-def test_docker_run_preserves_undecodable_output_bytes(mock_run, tmp_path: Path):
+def test_docker_run_replaces_undecodable_output_bytes(mock_run, tmp_path: Path):
     mock_run.return_value = subprocess.CompletedProcess(
         args=["docker", "run"],
         returncode=0,
@@ -430,10 +435,10 @@ def test_docker_run_preserves_undecodable_output_bytes(mock_run, tmp_path: Path)
 
     result = sandbox.run("print('hello')", timeout_sec=60)
 
-    assert "\ufffd" not in result.stdout
-    assert "\ufffd" not in result.stderr
-    assert "\udcff" in result.stdout
-    assert "\udcfe" in result.stderr
+    assert "\ufffd" in result.stdout
+    assert "\ufffd" in result.stderr
+    assert "\udcff" not in result.stdout
+    assert "\udcfe" not in result.stderr
     assert result.metrics.get("metric") == 0.5
 
 
@@ -485,7 +490,7 @@ def test_docker_run_timeout(mock_run, tmp_path: Path):
 
 
 @patch("subprocess.run")
-def test_docker_timeout_preserves_undecodable_output_bytes(mock_run, tmp_path: Path):
+def test_docker_timeout_replaces_undecodable_output_bytes(mock_run, tmp_path: Path):
     mock_run.side_effect = subprocess.TimeoutExpired(
         cmd="docker run",
         timeout=10,
@@ -498,10 +503,10 @@ def test_docker_timeout_preserves_undecodable_output_bytes(mock_run, tmp_path: P
     result = sandbox.run("import time; time.sleep(999)", timeout_sec=10)
 
     assert result.timed_out is True
-    assert "\ufffd" not in result.stdout
-    assert "\ufffd" not in result.stderr
-    assert "\udcff" in result.stdout
-    assert "\udcfe" in result.stderr
+    assert "\ufffd" in result.stdout
+    assert "\ufffd" in result.stderr
+    assert "\udcff" not in result.stdout
+    assert "\udcfe" not in result.stderr
 
 
 def test_detect_pip_packages(tmp_path: Path):

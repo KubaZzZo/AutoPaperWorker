@@ -665,3 +665,41 @@ def test_print_doctor_report_cp936_uses_ascii_icons(
     assert "[OK] python_version: ok" in out
     assert "[FAIL] config_valid: bad" in out
     assert "[WARN] matplotlib: missing" in out
+
+
+@pytest.mark.parametrize("encoding", ["cp950", "cp949", "cp874"])
+def test_print_doctor_report_non_utf8_code_pages_use_ascii_icons(
+    monkeypatch: pytest.MonkeyPatch, encoding: str
+) -> None:
+    report = health.DoctorReport(
+        timestamp="2026-01-01T00:00:00+00:00",
+        checks=[
+            health.CheckResult("python_version", "pass", "ok"),
+            health.CheckResult("config_valid", "fail", "bad"),
+            health.CheckResult("matplotlib", "warn", "missing"),
+        ],
+        overall="fail",
+    )
+
+    class _CodePageStdout:
+        def __init__(self) -> None:
+            self.encoding = encoding
+            self.parts: list[str] = []
+
+        def write(self, text: str) -> int:
+            text.encode(self.encoding)
+            self.parts.append(text)
+            return len(text)
+
+        def flush(self) -> None:
+            return None
+
+    fake_stdout = _CodePageStdout()
+    monkeypatch.setattr(health.sys, "stdout", fake_stdout)
+
+    health.print_doctor_report(report)
+
+    out = "".join(fake_stdout.parts)
+    assert "[OK] python_version: ok" in out
+    assert "[FAIL] config_valid: bad" in out
+    assert "[WARN] matplotlib: missing" in out

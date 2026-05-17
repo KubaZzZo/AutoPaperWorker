@@ -45,10 +45,6 @@ def websocket_expected_token(websocket: WebSocket) -> str:
 async def require_websocket_token(websocket: WebSocket) -> bool:
     """Close unauthorized WebSockets and return whether they may continue."""
     expected = websocket_expected_token(websocket)
-    if not expected:
-        # Direct unit tests and intentionally unauthenticated ad hoc apps do
-        # not carry app.state.auth_token.
-        return True
     if token_matches(websocket_token(websocket), expected):
         return True
     await websocket.close(code=WEBSOCKET_UNAUTHORIZED_CODE)

@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from researchclaw.hitl.config import (
     HITLConfig,
+    HITLTimeoutsConfig,
     InterventionMode,
     StagePolicy,
     _default_policy_for_mode,
@@ -369,6 +371,60 @@ class TestHITLSession:
         entry = json.loads(lines[0])
         assert entry["type"] == "approve"
         assert entry["stage"] == 8
+
+    def test_persistence_failures_are_warning_level(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        config = HITLConfig(enabled=True, mode="co-pilot")
+        session = HITLSession(run_id="rc-test", config=config, run_dir=tmp_path)
+        session.pause(8, "HYPOTHESIS_GEN", PauseReason.POST_STAGE)
+
+        def fail_write(*_: object, **__: object) -> None:
+            raise OSError("disk full")
+
+        def fail_open(*_: object, **__: object) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(Path, "write_text", fail_write)
+        monkeypatch.setattr("builtins.open", fail_open)
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.session"):
+            session._persist_session()
+            session._persist_waiting()
+            session._persist_interventions(session.interventions[0] if session.interventions else Intervention(
+                type=InterventionType.APPROVE,
+                stage=8,
+                stage_name="HYPOTHESIS_GEN",
+                human_input=HumanInput(action=HumanAction.APPROVE),
+            ))
+
+        assert "Failed to persist HITL session" in caplog.text
+        assert "Failed to persist waiting state" in caplog.text
+        assert "Failed to persist intervention" in caplog.text
+
+    def test_wait_for_human_logs_long_file_poll_warning(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        config = HITLConfig(
+            enabled=True,
+            mode="co-pilot",
+            timeouts=HITLTimeoutsConfig(
+                default_human_timeout_sec=7200,
+                auto_proceed_on_timeout=True,
+            ),
+        )
+        session = HITLSession(run_id="rc-test", config=config, run_dir=tmp_path)
+        session.pause(8, "HYPOTHESIS_GEN", PauseReason.POST_STAGE)
+
+        monkeypatch.setattr(
+            "researchclaw.hitl.file_wait.poll_for_response",
+            lambda *args, **kwargs: HumanInput(action=HumanAction.APPROVE),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="researchclaw.hitl.session"):
+            session.wait_for_human()
+
+        assert "may block this worker" in caplog.text
 
     def test_abort(self) -> None:
         session = HITLSession()

@@ -47,6 +47,27 @@ _ACTION_MAP: dict[str, HumanAction] = {
 }
 
 
+def _parse_action(action: Any, *, stage_num: int) -> HumanAction:
+    action_str = str(action or "inject").lower()
+    try:
+        return _ACTION_MAP[action_str]
+    except KeyError as exc:
+        known = ", ".join(sorted(_ACTION_MAP))
+        raise ValueError(
+            f"Unknown scripted HITL action '{action_str}' at stage {stage_num}. "
+            f"Expected one of: {known}"
+        ) from exc
+
+
+def _validate_intervention(stage_num: int, intervention_data: Any) -> dict[str, Any]:
+    if not isinstance(intervention_data, dict):
+        raise ValueError(
+            f"Scripted HITL intervention for stage {stage_num} must be an object"
+        )
+    _parse_action(intervention_data.get("action", "inject"), stage_num=stage_num)
+    return intervention_data
+
+
 class ScriptedHITLAdapter:
     """Non-interactive adapter that injects pre-written expert interventions.
 
@@ -92,7 +113,7 @@ class ScriptedHITLAdapter:
                     "Skipping non-numeric stage key: %s", stage_str
                 )
                 continue
-            interventions[stage_num] = intervention_data
+            interventions[stage_num] = _validate_intervention(stage_num, intervention_data)
 
         logger.info(
             "Loaded %d scripted interventions for topic %s from %s",
@@ -113,7 +134,7 @@ class ScriptedHITLAdapter:
                 stage_num = int(stage_str)
             except ValueError:
                 continue
-            interventions[stage_num] = intervention_data
+            interventions[stage_num] = _validate_intervention(stage_num, intervention_data)
         return cls(
             interventions,
             topic_id=topic_id or data.get("topic_id", ""),
@@ -135,8 +156,7 @@ class ScriptedHITLAdapter:
             )
             return HumanInput(action=self.default_action)
 
-        action_str = intervention.get("action", "inject").lower()
-        action = _ACTION_MAP.get(action_str, HumanAction.INJECT)
+        action = _parse_action(intervention.get("action", "inject"), stage_num=stage)
         message = intervention.get("message", "")
         guidance = intervention.get("guidance", "")
 

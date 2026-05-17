@@ -151,6 +151,15 @@ class TestKnowledgeGraphBuilder:
         papers = populated_graph.get_entities_by_type(EntityType.PAPER)
         assert len(papers) == 3
 
+    def test_get_all_entities_returns_public_snapshot(
+        self, populated_graph: KnowledgeGraphBuilder
+    ) -> None:
+        original_count = populated_graph.entity_count
+        entities = populated_graph.get_all_entities()
+        assert len(entities) == original_count
+        entities.clear()
+        assert populated_graph.entity_count == original_count
+
     def test_get_relations_for(self, populated_graph: KnowledgeGraphBuilder) -> None:
         rels = populated_graph.get_relations_for("p2")
         assert len(rels) >= 2  # outgoing + incoming
@@ -232,6 +241,24 @@ class TestKnowledgeGraphQuery:
         query = KnowledgeGraphQuery(populated_graph)
         topics = query.suggest_topics(["transformer", "vision"], top_k=3)
         assert isinstance(topics, list)
+
+    def test_suggest_topics_uses_public_entity_api(
+        self, populated_graph: KnowledgeGraphBuilder, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called = False
+        original = populated_graph.get_all_entities
+
+        def tracked_entities():
+            nonlocal called
+            called = True
+            return original()
+
+        monkeypatch.setattr(populated_graph, "get_all_entities", tracked_entities)
+
+        query = KnowledgeGraphQuery(populated_graph)
+        query.suggest_topics(["transformer"], top_k=1)
+
+        assert called
 
     def test_suggest_topics_empty_interests(self, populated_graph: KnowledgeGraphBuilder) -> None:
         query = KnowledgeGraphQuery(populated_graph)

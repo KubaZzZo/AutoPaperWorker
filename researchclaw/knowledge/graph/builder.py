@@ -101,6 +101,10 @@ class KnowledgeGraphBuilder:
             e for e in self._entities.values() if e.entity_type == entity_type
         ]
 
+    def get_all_entities(self) -> list[Entity]:
+        """Get a snapshot of all entities in the graph."""
+        return list(self._entities.values())
+
     def get_relations_for(
         self,
         entity_id: str,

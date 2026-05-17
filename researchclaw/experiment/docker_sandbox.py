@@ -64,11 +64,11 @@ def _docker_mount_path(path: Path) -> str:
 
 
 def _decode_subprocess_output(value: bytes | str | None) -> str:
-    """Decode subprocess output while preserving undecodable bytes."""
+    """Decode subprocess output consistently with other sandbox backends."""
     if value is None:
         return ""
     if isinstance(value, bytes):
-        return value.decode("utf-8", errors="surrogateescape")
+        return value.decode("utf-8", errors="replace")
     return value
 
 

@@ -626,9 +626,19 @@ def run_doctor(config_path: str | Path) -> DoctorReport:
 def print_doctor_report(report: DoctorReport) -> None:
     """Pretty-print doctor report to stdout."""
     encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    ascii_icon_encodings = {
+        "cp874",
+        "cp932",
+        "cp936",
+        "cp949",
+        "cp950",
+        "gb2312",
+        "gbk",
+        "shift_jis",
+    }
     icon_by_status = (
         {"pass": "[OK]", "fail": "[FAIL]", "warn": "[WARN]"}
-        if encoding.lower() in {"cp936", "cp932", "gbk", "gb2312", "shift_jis"}
+        if encoding.lower() in ascii_icon_encodings
         else {"pass": "✅", "fail": "❌", "warn": "⚠️"}
     )
     try:

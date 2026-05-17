@@ -143,6 +143,23 @@ class TestMemoryStoreCRUD:
         confidences = [e.confidence for e in entries]
         assert min(confidences) >= 0.4  # lowest 2 (0.0, 0.2) should be pruned
 
+    def test_capacity_enforcement_does_not_sort_entire_category(
+        self, tmp_store_dir: Path
+    ) -> None:
+        class NoSortList(list):
+            def sort(self, *_: object, **__: object) -> None:
+                raise AssertionError("full category sort should not be used")
+
+        store = MemoryStore(tmp_store_dir, max_entries_per_category=3)
+        store._entries["ideation"] = NoSortList()
+
+        for i in range(5):
+            store.add("ideation", f"entry {i}", confidence=i * 0.2)
+
+        entries = store.get_all("ideation")
+        assert len(entries) == 3
+        assert min(entry.confidence for entry in entries) >= 0.4
+
     def test_count_empty(self, store: MemoryStore) -> None:
         assert store.count() == 0
         assert store.count("ideation") == 0

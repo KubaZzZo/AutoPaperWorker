@@ -23,6 +23,7 @@ from researchclaw.hitl.intervention import (
 )
 
 logger = logging.getLogger(__name__)
+_LONG_FILE_POLL_WARNING_SEC = 300
 
 
 class SessionState:
@@ -211,13 +212,21 @@ class HITLSession:
                 "at %s/hitl/response.json",
                 self.run_dir,
             )
+            timeout_sec = self.config.timeouts.default_human_timeout_sec
+            if timeout_sec >= _LONG_FILE_POLL_WARNING_SEC:
+                logger.warning(
+                    "HITL wait for stage %d (%s) may block this worker for up to %ds",
+                    self._waiting.stage,
+                    self._waiting.stage_name,
+                    timeout_sec,
+                )
             print(
                 f"  Waiting for input... "
                 f"Use 'researchclaw attach {self.run_dir}' to respond."
             )
             human_input = poll_for_response(
                 self.run_dir / "hitl",
-                timeout_sec=self.config.timeouts.default_human_timeout_sec,
+                timeout_sec=timeout_sec,
                 auto_proceed_on_timeout=(
                     self.config.timeouts.auto_proceed_on_timeout
                 ),
@@ -377,7 +386,7 @@ class HITLSession:
                 json.dumps(self.to_dict(), indent=2), encoding="utf-8"
             )
         except OSError:
-            logger.debug("Failed to persist HITL session")
+            logger.warning("Failed to persist HITL session", exc_info=True)
 
     def _persist_waiting(self) -> None:
         d = self._hitl_dir()
@@ -389,7 +398,7 @@ class HITLSession:
                 encoding="utf-8",
             )
         except OSError:
-            logger.debug("Failed to persist waiting state")
+            logger.warning("Failed to persist waiting state", exc_info=True)
 
     def _clear_waiting(self) -> None:
         self._waiting = None
@@ -410,7 +419,7 @@ class HITLSession:
             ) as fh:
                 fh.write(json.dumps(intervention.to_dict()) + "\n")
         except OSError:
-            logger.debug("Failed to persist intervention")
+            logger.warning("Failed to persist intervention", exc_info=True)
 
     def _update_activity(self) -> None:
         self.last_activity = datetime.now(UTC).isoformat(

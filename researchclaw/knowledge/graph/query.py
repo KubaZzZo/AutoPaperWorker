@@ -157,7 +157,7 @@ class KnowledgeGraphQuery:
         suggestions: list[tuple[float, str]] = []
 
         # Score entities by relevance to interests
-        for entity in self._graph._entities.values():
+        for entity in self._graph.get_all_entities():
             score = 0.0
             name_lower = entity.name.lower()
             desc = entity.attributes.get("description", "").lower()

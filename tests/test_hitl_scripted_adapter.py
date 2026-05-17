@@ -69,12 +69,33 @@ class TestScriptedHITLAdapter:
         with pytest.raises(FileNotFoundError):
             ScriptedHITLAdapter.from_file("/nonexistent/file.json")
 
+    def test_from_file_rejects_unknown_action(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad_interventions.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "topic_id": "T01",
+                    "interventions": {"5": {"action": "aproove"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="Unknown scripted HITL action"):
+            ScriptedHITLAdapter.from_file(path)
+
     def test_from_dict(self, sample_interventions: dict) -> None:
         adapter = ScriptedHITLAdapter.from_dict(sample_interventions)
         assert adapter.topic_id == "T01"
         assert adapter.has_intervention(5)
         assert adapter.has_intervention(9)
         assert not adapter.has_intervention(7)
+
+    def test_from_dict_rejects_unknown_action(self, sample_interventions: dict) -> None:
+        sample_interventions["interventions"]["5"]["action"] = "aproove"
+
+        with pytest.raises(ValueError, match="Unknown scripted HITL action"):
+            ScriptedHITLAdapter.from_dict(sample_interventions)
 
     def test_collect_input_with_intervention(
         self, interventions_file: Path

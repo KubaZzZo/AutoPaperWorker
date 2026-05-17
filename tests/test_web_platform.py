@@ -670,6 +670,15 @@ class TestChatWebSocketRoute:
         from researchclaw.server.websocket.events import EventType
 
         class FakeWebSocket:
+            headers = {"authorization": "Bearer test-token"}
+            scope = {
+                "app": type(
+                    "App",
+                    (),
+                    {"state": type("State", (), {"auth_token": "test-token"})()},
+                )()
+            }
+
             def __init__(self) -> None:
                 self.sent: list[str] = []
                 self._received = False
@@ -920,6 +929,28 @@ class TestFastAPIApp:
             with client.websocket_connect("/ws/events"):
                 pass
         assert exc.value.code == 4001
+
+    @pytest.mark.asyncio
+    async def test_websocket_auth_rejects_when_configured_token_is_empty(self) -> None:
+        from researchclaw.server.middleware.auth import (
+            WEBSOCKET_UNAUTHORIZED_CODE,
+            require_websocket_token,
+        )
+
+        class FakeWebSocket:
+            headers: dict[str, str] = {}
+            scope = {"app": type("App", (), {"state": type("State", (), {"auth_token": ""})()})()}
+
+            def __init__(self) -> None:
+                self.closed_code: int | None = None
+
+            async def close(self, code: int) -> None:
+                self.closed_code = code
+
+        websocket = FakeWebSocket()
+
+        assert not await require_websocket_token(websocket)  # type: ignore[arg-type]
+        assert websocket.closed_code == WEBSOCKET_UNAUTHORIZED_CODE
 
     def test_events_websocket_rejects_query_token(self, app: object) -> None:
         from fastapi.testclient import TestClient

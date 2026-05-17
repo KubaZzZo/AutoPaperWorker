@@ -130,8 +130,11 @@ class MemoryStore:
         # Enforce capacity limit (remove lowest confidence)
         entries = self._entries[category]
         if len(entries) > self._max_per_category:
-            entries.sort(key=lambda e: e.confidence, reverse=True)
-            self._entries[category] = entries[: self._max_per_category]
+            min_index = min(
+                range(len(entries)),
+                key=lambda i: (entries[i].confidence, entries[i].created_at),
+            )
+            del entries[min_index]
 
         return entry_id
 
