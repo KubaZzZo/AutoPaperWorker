@@ -9,6 +9,7 @@ from typing import Any
 
 from researchclaw.config.defaults import DEFAULT_CORS_ORIGINS, DEFAULT_PYTHON_PATH
 
+
 @dataclass(frozen=True)
 class ValidationResult:
     ok: bool

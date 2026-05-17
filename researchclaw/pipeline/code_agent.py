@@ -371,11 +371,11 @@ class CodeAgent:
         bare ``:`` breaks YAML parsing.  We quote unquoted signature
         values before parsing.
         """
-        import yaml
-
         # Pre-process: sanitize values that contain Python type annotations,
         # unclosed quotes, or other patterns that break YAML parsing.
         import re as _bp_re
+
+        import yaml
         sanitized_lines = []
         for line in yaml_text.split("\n"):
             stripped = line.lstrip()
@@ -720,9 +720,9 @@ class CodeAgent:
         warnings: list[str] = []
 
         from researchclaw.experiment.validator import (
+            check_api_correctness,
             check_class_quality,
             check_code_complexity,
-            check_api_correctness,
             check_variable_scoping,
             validate_syntax,
         )
@@ -742,11 +742,7 @@ class CodeAgent:
         # 2. Class quality — some are critical
         class_warns = check_class_quality(files)
         for w in class_warns:
-            if "identical AST to parent" in w:
-                critical.append(w)
-            elif "NOT a real ablation" in w:
-                critical.append(w)
-            elif "creates nn.Module" in w and "inside forward()" in w:
+            if "identical AST to parent" in w or "NOT a real ablation" in w or "creates nn.Module" in w and "inside forward()" in w:
                 critical.append(w)
             elif "empty or trivial subclass" in w:
                 # Critical: ablation classes must have real implementations
@@ -760,9 +756,7 @@ class CodeAgent:
                 continue
             complexity_warns = check_code_complexity(code)
             for w in complexity_warns:
-                if "hardcoded metric" in w.lower():
-                    critical.append(f"[{fname}] {w}")
-                elif "trivial computation" in w.lower():
+                if "hardcoded metric" in w.lower() or "trivial computation" in w.lower():
                     critical.append(f"[{fname}] {w}")
                 else:
                     warnings.append(f"[{fname}] {w}")
@@ -773,9 +767,7 @@ class CodeAgent:
                 continue
             api_warns = check_api_correctness(code, fname)
             for w in api_warns:
-                if "NameError" in w or "Import-usage mismatch" in w:
-                    critical.append(w)
-                elif "does not exist" in w:
+                if "NameError" in w or "Import-usage mismatch" in w or "does not exist" in w:
                     critical.append(w)
                 else:
                     warnings.append(w)
@@ -819,9 +811,7 @@ class CodeAgent:
                                 continue
                             exported = set()
                             for tnode in ast.walk(target_tree):
-                                if isinstance(tnode, ast.ClassDef):
-                                    exported.add(tnode.name)
-                                elif isinstance(tnode, ast.FunctionDef):
+                                if isinstance(tnode, ast.ClassDef) or isinstance(tnode, ast.FunctionDef):
                                     exported.add(tnode.name)
                                 elif isinstance(tnode, ast.Assign):
                                     for t in tnode.targets:

@@ -15,7 +15,6 @@ from researchclaw.calendar.deadlines import Conference, ConferenceCalendar
 from researchclaw.calendar.planner import SubmissionPlanner
 from researchclaw.calendar.reminder import Reminder, ReminderCalculator
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

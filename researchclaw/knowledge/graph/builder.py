@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from researchclaw.knowledge.graph.entities import Entity, EntityType
-from researchclaw.knowledge.graph.relations import Relation, RelationType
+from researchclaw.knowledge.graph.relations import Relation
 
 logger = logging.getLogger(__name__)
 

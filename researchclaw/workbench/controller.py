@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from researchclaw.workbench.cnki_import import CNKIRecord, import_cnki_files
 from researchclaw.workbench.cs_project import ProjectAnalysis, analyze_project, create_project_plan
@@ -16,7 +16,11 @@ from researchclaw.workbench.remote import (
     save_profile_dict,
 )
 from researchclaw.workbench.run import build_workbench_config, run_workbench_pipeline
-from researchclaw.workbench.search import WorkbenchPaper, cnki_search_url, search_papers_for_workbench
+from researchclaw.workbench.search import (
+    WorkbenchPaper,
+    cnki_search_url,
+    search_papers_for_workbench,
+)
 
 
 class WorkbenchController:

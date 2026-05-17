@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import yaml
 from dataclasses import replace
 from pathlib import Path
+
+import yaml
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import ExperimentConfig, RCConfig

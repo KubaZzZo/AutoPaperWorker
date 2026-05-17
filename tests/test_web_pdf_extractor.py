@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from researchclaw.web.pdf_extractor import PDFContent, PDFExtractor
-
 
 # ---------------------------------------------------------------------------
 # PDFContent dataclass

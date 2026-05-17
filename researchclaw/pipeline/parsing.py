@@ -46,9 +46,7 @@ def extract_yaml_block(text: str) -> str:
         if not in_yaml and re.match(r"^[a-z_]+:", stripped):
             in_yaml = True
         if in_yaml:
-            if stripped and not stripped.startswith("#"):
-                yaml_lines.append(line)
-            elif not stripped and yaml_lines:
+            if stripped and not stripped.startswith("#") or not stripped and yaml_lines:
                 yaml_lines.append(line)
     if yaml_lines:
         return "\n".join(yaml_lines).strip()

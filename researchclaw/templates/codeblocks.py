@@ -6,7 +6,6 @@ import re
 import unicodedata
 from collections.abc import Callable
 
-
 _UNICODE_TO_ASCII: dict[str, str] = {
     "\u2190": "<-",   "\u2192": "->",   "\u21d0": "<=",   "\u21d2": "=>",
     "\u2264": "<=",   "\u2265": ">=",   "\u2260": "!=",   "\u2248": "~=",

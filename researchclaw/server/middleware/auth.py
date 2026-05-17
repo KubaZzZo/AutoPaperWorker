@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
 from fastapi import WebSocket
 from starlette.middleware.base import BaseHTTPMiddleware

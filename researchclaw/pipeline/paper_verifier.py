@@ -27,7 +27,7 @@ _ALWAYS_ALLOWED: set[float] = {
     8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0, 2048.0,
     224.0, 299.0, 384.0,  # Common image sizes
     # BUG-192: Common hyperparameter values
-    0.0003, 3e-4, 0.0005, 5e-4, 0.002, 2e-3,  # learning rates
+    0.0003, 0.0005, 0.002, 2e-3,  # learning rates
     0.2, 0.3, 0.25, 0.7, 0.6, 0.8,  # clip epsilon, dropout, gradient clip, GCE q, common HP
     0.9, 0.999, 0.9999,  # Adam betas, momentum
     0.02, 0.03,  # weight init std

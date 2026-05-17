@@ -124,22 +124,18 @@ class TestSearchDegradation:
         with patch(
             "researchclaw.literature.search.search_openalex",
             side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.search.search_semantic_scholar",
+            side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.search.search_arxiv",
+            side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
+        ), patch(
+            "researchclaw.literature.search.time.sleep", lambda _: None
         ):
-            with patch(
-                "researchclaw.literature.search.search_semantic_scholar",
-                side_effect=RuntimeError("API down"),
-            ):
-                with patch(
-                    "researchclaw.literature.search.search_arxiv",
-                    side_effect=RuntimeError("API down"),
-                ):
-                    with patch(
-                        "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
-                    ):
-                        with patch(
-                            "researchclaw.literature.search.time.sleep", lambda _: None
-                        ):
-                            results = search_papers("test query", limit=20)
+            results = search_papers("test query", limit=20)
 
         assert len(results) >= 1
         assert results[0].title == "Cached Paper"
@@ -157,15 +153,12 @@ class TestSearchDegradation:
         with patch(
             "researchclaw.literature.search.search_semantic_scholar",
             return_value=[mock_paper],
+        ), patch("researchclaw.literature.search.search_arxiv", return_value=[]), patch(
+            "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
+        ), patch(
+            "researchclaw.literature.search.time.sleep", lambda _: None
         ):
-            with patch("researchclaw.literature.search.search_arxiv", return_value=[]):
-                with patch(
-                    "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
-                ):
-                    with patch(
-                        "researchclaw.literature.search.time.sleep", lambda _: None
-                    ):
-                        _ = search_papers("test", limit=20)
+            _ = search_papers("test", limit=20)
 
         cached = get_cached("test", "semantic_scholar", 20, cache_base=tmp_path)
         assert cached is not None

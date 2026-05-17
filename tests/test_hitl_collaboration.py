@@ -14,10 +14,9 @@ from researchclaw.hitl.chat import ChatMessage, ChatSession, build_stage_context
 from researchclaw.hitl.collaboration import CollaborationSession
 from researchclaw.hitl.editor import StageEditor, StageReviewer
 from researchclaw.hitl.store import HITLStore
-from researchclaw.hitl.workshops.idea import IdeaCandidate, IdeaEvaluation, IdeaWorkshop
 from researchclaw.hitl.workshops.baseline import BaselineCandidate, BaselineNavigator
-from researchclaw.hitl.workshops.paper import PaperCoWriter, SectionDraft
-
+from researchclaw.hitl.workshops.idea import IdeaCandidate, IdeaWorkshop
+from researchclaw.hitl.workshops.paper import PaperCoWriter
 
 # ══════════════════════════════════════════════════════════════════
 # ChatSession tests

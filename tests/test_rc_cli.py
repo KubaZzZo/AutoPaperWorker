@@ -350,9 +350,9 @@ def test_cli_provider_defaults_are_derived_from_shared_llm_presets() -> None:
         provider_model_defaults,
     )
 
-    assert rc_cli._PROVIDER_CHOICES == cli_provider_choices()
-    assert rc_cli._PROVIDER_URLS == provider_base_urls()
-    assert rc_cli._PROVIDER_MODELS == provider_model_defaults()
+    assert cli_provider_choices() == rc_cli._PROVIDER_CHOICES
+    assert provider_base_urls() == rc_cli._PROVIDER_URLS
+    assert provider_model_defaults() == rc_cli._PROVIDER_MODELS
 
 
 def test_cli_uses_shared_default_artifacts_dir_constant() -> None:

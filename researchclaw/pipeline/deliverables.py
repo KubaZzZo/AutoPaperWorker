@@ -66,8 +66,8 @@ def package_deliverables(
         and verified_md.stat().st_size > 0
     ):
         try:
-            from researchclaw.templates import get_template, markdown_to_latex
             from researchclaw.pipeline.executor import _extract_paper_title
+            from researchclaw.templates import get_template, markdown_to_latex
 
             tpl = get_template(config.export.target_conference)
             v_text = verified_md.read_text(encoding="utf-8")

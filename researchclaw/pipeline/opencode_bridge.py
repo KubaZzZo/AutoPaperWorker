@@ -308,7 +308,7 @@ class OpenCodeBridge:
         opencode_cmd = shutil.which("opencode")
         if not opencode_cmd:
             return False
-            
+
         try:
             result = subprocess.run(
                 [opencode_cmd, "--version"],
@@ -348,7 +348,7 @@ class OpenCodeBridge:
 
         # Write guidance document
         guidance_parts = [
-            f"# Experiment Guidance\n",
+            "# Experiment Guidance\n",
             f"## Topic\n{topic}\n",
             f"## Primary Metric\n{metric}\n",
             f"## Time Budget\n{time_budget_sec} seconds\n",

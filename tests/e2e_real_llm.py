@@ -17,11 +17,8 @@ import yaml
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from researchclaw.config import RCConfig
 from researchclaw.adapters import AdapterBundle
-from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline.stages import Stage, STAGE_SEQUENCE
-from researchclaw.pipeline.executor import execute_stage, StageResult
+from researchclaw.config import RCConfig
 from researchclaw.pipeline.runner import execute_pipeline
 
 
@@ -51,12 +48,12 @@ def main() -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     run_id = f"e2e-real-{int(time.time())}"
 
-    print(f"=" * 70)
-    print(f"ResearchClaw E2E Test — Real LLM API")
+    print("=" * 70)
+    print("ResearchClaw E2E Test — Real LLM API")
     print(f"Topic: {config.research.topic}")
     print(f"Run ID: {run_id}")
     print(f"Output: {run_dir}")
-    print(f"=" * 70)
+    print("=" * 70)
 
     # --- Run full pipeline ---
     start = time.time()
@@ -143,7 +140,7 @@ def main() -> None:
 
     # Final verdict
     if passed == 22 and failed == 0:
-        print(f"\n🎉 ALL 22 STAGES PASSED!")
+        print("\n🎉 ALL 22 STAGES PASSED!")
         sys.exit(0)
     else:
         print(f"\n⚠️  {failed} stages did not pass.")

@@ -7,9 +7,8 @@ import json
 from pathlib import Path
 from typing import cast
 
-from researchclaw.pipeline.executor import StageResult
 from researchclaw.pipeline.checkpoint import write_checkpoint
-from researchclaw.pipeline.summary import build_pipeline_summary, collect_content_metrics
+from researchclaw.pipeline.executor import StageResult
 from researchclaw.pipeline.runner import (
     read_checkpoint,
     resume_from_checkpoint,
@@ -20,6 +19,7 @@ from researchclaw.pipeline.stages import (
     Stage,
     StageStatus,
 )
+from researchclaw.pipeline.summary import build_pipeline_summary, collect_content_metrics
 
 
 class TestCheckpoint:

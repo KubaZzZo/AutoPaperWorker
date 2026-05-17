@@ -12,21 +12,19 @@ Covers:
 
 from __future__ import annotations
 
-import json
 import math
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from researchclaw.memory.store import MemoryEntry, MemoryStore, VALID_CATEGORIES
-from researchclaw.memory.decay import time_decay_weight, confidence_update
-from researchclaw.memory.embeddings import EmbeddingProvider, _tokenize, _hash_token
-from researchclaw.memory.retriever import MemoryRetriever, cosine_similarity
-from researchclaw.memory.ideation_memory import IdeationMemory
+from researchclaw.memory.decay import confidence_update, time_decay_weight
+from researchclaw.memory.embeddings import EmbeddingProvider, _hash_token, _tokenize
 from researchclaw.memory.experiment_memory import ExperimentMemory
+from researchclaw.memory.ideation_memory import IdeationMemory
+from researchclaw.memory.retriever import MemoryRetriever, cosine_similarity
+from researchclaw.memory.store import VALID_CATEGORIES, MemoryEntry, MemoryStore
 from researchclaw.memory.writing_memory import WritingMemory
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -262,30 +260,30 @@ class TestMemoryEntry:
 
 class TestTimeDecay:
     def test_fresh_entry(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         w = time_decay_weight(now, half_life_days=90.0, now=now)
         assert abs(w - 1.0) < 1e-6
 
     def test_half_life(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         half = now - timedelta(days=90)
         w = time_decay_weight(half, half_life_days=90.0, now=now)
         assert abs(w - 0.5) < 0.01
 
     def test_expired(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old = now - timedelta(days=400)
         w = time_decay_weight(old, half_life_days=90.0, max_age_days=365.0, now=now)
         assert w == 0.0
 
     def test_future_timestamp(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future = now + timedelta(days=10)
         w = time_decay_weight(future, now=now)
         assert w == 1.0
 
     def test_naive_datetime(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         naive = now.replace(tzinfo=None)
         w = time_decay_weight(naive, now=now)
         assert w > 0.0

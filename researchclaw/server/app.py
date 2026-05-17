@@ -16,7 +16,6 @@ from researchclaw.config import RCConfig
 from researchclaw.server.middleware.auth import TokenAuthMiddleware, require_websocket_token
 from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 from researchclaw.server.websocket.manager import ConnectionManager
-from researchclaw.server.websocket.events import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,8 @@ def create_app(
     app.include_router(projects_router)
 
     if not dashboard_only:
-        from researchclaw.server.routes.chat import router as chat_router, set_chat_manager
+        from researchclaw.server.routes.chat import router as chat_router
+        from researchclaw.server.routes.chat import set_chat_manager
 
         set_chat_manager(event_manager)
         app.include_router(chat_router)

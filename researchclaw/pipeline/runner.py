@@ -7,8 +7,9 @@ import os
 import shutil
 import threading
 import time as _time
+from collections.abc import Callable
+from datetime import UTC
 from pathlib import Path
-from typing import Callable
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
@@ -16,10 +17,15 @@ from researchclaw.evolution import EvolutionStore, extract_lessons
 from researchclaw.knowledge.base import write_stage_to_kb
 from researchclaw.pipeline.checkpoint import (
     read_checkpoint as _read_checkpoint,
+)
+from researchclaw.pipeline.checkpoint import (
     resume_from_checkpoint as _resume_from_checkpoint,
+)
+from researchclaw.pipeline.checkpoint import (
     write_checkpoint,
     write_heartbeat,
 )
+from researchclaw.pipeline.deliverables import package_deliverables
 from researchclaw.pipeline.executor import StageResult, execute_stage
 from researchclaw.pipeline.experiment_workflow import (
     run_experiment_diagnosis,
@@ -34,15 +40,11 @@ from researchclaw.pipeline.parallel_branches import (
     promote_branch_outputs,
     read_branch_selection_score,
 )
-from researchclaw.pipeline.deliverables import package_deliverables
 from researchclaw.pipeline.progress import (
     utcnow_iso as _utcnow_iso,
-    write_progress_snapshot,
 )
-from researchclaw.pipeline.summary import (
-    build_pipeline_summary,
-    collect_content_metrics,
-    write_pipeline_summary,
+from researchclaw.pipeline.progress import (
+    write_progress_snapshot,
 )
 from researchclaw.pipeline.stages import (
     DECISION_ROLLBACK,
@@ -52,7 +54,11 @@ from researchclaw.pipeline.stages import (
     Stage,
     StageStatus,
 )
-
+from researchclaw.pipeline.summary import (
+    build_pipeline_summary,
+    collect_content_metrics,
+    write_pipeline_summary,
+)
 
 ProgressReporter = Callable[[str], None]
 
@@ -65,9 +71,9 @@ def _report_progress(reporter: ProgressReporter | None, message: str) -> None:
 
 
 def _utcnow_iso() -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _should_start(stage: Stage, from_stage: Stage, started: bool) -> bool:
@@ -127,7 +133,7 @@ def _execute_parallel_hypothesis_branches(
     config: RCConfig,
     adapters: AdapterBundle,
     auto_approve_gates: bool,
-    cancel_event: "threading.Event | None",
+    cancel_event: threading.Event | None,
 ) -> Path | None:
     return execute_parallel_hypothesis_branches(
         run_dir=run_dir,
@@ -142,7 +148,7 @@ def _execute_parallel_hypothesis_branches(
 
 def _write_checkpoint(
     run_dir: Path, stage: Stage, run_id: str,
-    adapters: "AdapterBundle | None" = None,
+    adapters: AdapterBundle | None = None,
 ) -> None:
     write_checkpoint(run_dir, stage, run_id, adapters=adapters)
 
@@ -208,7 +214,7 @@ def execute_pipeline(
     stop_on_gate: bool = False,
     skip_noncritical: bool = False,
     kb_root: Path | None = None,
-    cancel_event: "threading.Event | None" = None,
+    cancel_event: threading.Event | None = None,
     progress_reporter: ProgressReporter | None = None,
     _pivot_depth: int = 0,
 ) -> list[StageResult]:
@@ -343,7 +349,11 @@ def execute_pipeline(
 
         if stage == Stage.EXPERIMENT_DESIGN and result.status == StageStatus.DONE:
             try:
-                from researchclaw.pipeline.experiment_spec import ExperimentSpec, MetricDef, generate_spec
+                from researchclaw.pipeline.experiment_spec import (
+                    ExperimentSpec,
+                    MetricDef,
+                    generate_spec,
+                )
                 spec_text = generate_spec(config.research.topic, "")
                 spec_path = run_dir / f"stage-{int(stage):02d}" / "experiment_spec.md"
                 spec_path.write_text(spec_text, encoding="utf-8")
@@ -353,7 +363,10 @@ def execute_pipeline(
 
         if stage == Stage.RESULT_ANALYSIS and result.status == StageStatus.DONE:
             try:
-                from researchclaw.pipeline.experiment_spec import parse_spec, validate_results_against_spec
+                from researchclaw.pipeline.experiment_spec import (
+                    parse_spec,
+                    validate_results_against_spec,
+                )
                 spec_path = run_dir / "stage-09" / "experiment_spec.md"
                 if spec_path.exists():
                     spec = parse_spec(spec_path.read_text(encoding="utf-8"))
@@ -393,8 +406,9 @@ def execute_pipeline(
         # ── Experiment memory: record outcome after experiment stages ──
         if stage in (Stage.EXPERIMENT_RUN, Stage.ITERATIVE_REFINE) and result.status == StageStatus.DONE and exp_memory:
             try:
-                from researchclaw.memory.experiment_memory import ExperimentOutcome
                 import time as _time_mod
+
+                from researchclaw.memory.experiment_memory import ExperimentOutcome
                 results_path = run_dir / "results.json"
                 metric_val = 0.0
                 if results_path.exists():
@@ -728,9 +742,7 @@ def execute_pipeline(
             has_failure = any(
                 r.status == StageStatus.FAILED for r in results
             )
-            if has_abort:
-                hitl_session.abort()
-            elif has_failure:
+            if has_abort or has_failure:
                 hitl_session.abort()
             else:
                 hitl_session.complete()
@@ -759,7 +771,6 @@ def _version_rollback_stages(
       stage-09/ → stage-09_v1/
       ... up to stage-15/
     """
-    import shutil
 
     rollback_num = int(rollback_target)
     # Stages from rollback target up to RESEARCH_DECISION (15) will be rerun
@@ -818,7 +829,6 @@ def _promote_best_stage14(run_dir: Path, config: RCConfig) -> None:
     and copies the best experiment_summary.json into ``stage-14/`` if the
     current ``stage-14/`` is not already the best.
     """
-    import shutil
 
     metric_key = config.experiment.metric_key or "primary_metric"
     metric_dir = config.experiment.metric_direction or "maximize"
@@ -1329,10 +1339,11 @@ def _metaclaw_post_pipeline(
 
     # 3. Signal session end (fire-and-forget)
     try:
-        from researchclaw.metaclaw_bridge.session import MetaClawSession
-        from researchclaw.utils.http import urlopen_http
         import json as _json
         import urllib.request as _urllib_req
+
+        from researchclaw.metaclaw_bridge.session import MetaClawSession
+        from researchclaw.utils.http import urlopen_http
 
         session = MetaClawSession(run_id)
         end_headers = session.end()

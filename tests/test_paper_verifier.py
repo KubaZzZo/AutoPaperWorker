@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from researchclaw.pipeline.paper_verifier import (
-    VerificationResult,
     verify_paper,
 )
 from researchclaw.pipeline.verified_registry import VerifiedRegistry

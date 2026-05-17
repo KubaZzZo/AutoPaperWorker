@@ -8,9 +8,9 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
 from collections.abc import Mapping
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 
 from researchclaw.adapters import AdapterBundle
@@ -28,7 +28,6 @@ from researchclaw.llm import (
     provider_base_urls,
     provider_model_defaults,
 )
-
 
 # ---------------------------------------------------------------------------
 # OpenCode installation helpers
@@ -155,7 +154,7 @@ def _resolve_config_or_exit(args: argparse.Namespace) -> Path | None:
 
 
 def _generate_run_id(topic: str) -> str:
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     topic_hash = hashlib.sha256(topic.encode()).hexdigest()[:6]
     return f"rc-{ts}-{topic_hash}"
 
@@ -265,8 +264,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     hitl_session = None
     try:
         from researchclaw.hitl.config import HITLConfig
-        from researchclaw.hitl.session import HITLSession
         from researchclaw.hitl.presets import get_preset
+        from researchclaw.hitl.session import HITLSession
 
         hitl_config = None
         if hitl_mode:
@@ -419,8 +418,9 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    from researchclaw.config import validate_config
     import yaml
+
+    from researchclaw.config import validate_config
 
     resolved = _resolve_config_or_exit(args)
     if resolved is None:
@@ -587,8 +587,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     port = int(cast(int, args.port) or config.server.port)
 
     try:
-        from researchclaw.server.app import create_app
         import uvicorn
+
+        from researchclaw.server.app import create_app
     except ImportError as exc:
         print(
             f"Error: web dependencies not installed — pip install researchclaw[web]\n{exc}",
@@ -615,8 +616,9 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     port = int(cast(int, args.port) or config.server.port)
 
     try:
-        from researchclaw.server.app import create_app
         import uvicorn
+
+        from researchclaw.server.app import create_app
     except ImportError as exc:
         print(
             f"Error: web dependencies not installed — pip install researchclaw[web]\n{exc}",
@@ -737,7 +739,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         print("  3. Run: researchclaw doctor")
     else:
         env_var = api_key_env or "OPENAI_API_KEY"
-        print(f"\nNext steps:")
+        print("\nNext steps:")
         print(f"  1. Export your API key: export {env_var}=sk-...")
         print("  2. Edit config.arc.yaml to customize your settings")
         print("  3. Run: researchclaw doctor")
@@ -891,7 +893,7 @@ def cmd_calendar(args: argparse.Namespace) -> int:
 
 def cmd_skills(args: argparse.Namespace) -> int:
     """List, validate, or install skills."""
-    from researchclaw.skills.loader import load_skill_from_skillmd, load_skills_from_directory
+    from researchclaw.skills.loader import load_skill_from_skillmd
     from researchclaw.skills.registry import SkillRegistry
 
     action = args.skills_action or "list"
@@ -932,10 +934,10 @@ def cmd_skills(args: argparse.Namespace) -> int:
                 print(f"  {s.name:<35} stages={stages:<12} ({src})")
 
         print(f"\nTotal: {len(skills)} skills")
-        print(f"\nSkill directories:")
-        print(f"  builtin:  researchclaw/skills/builtin/")
+        print("\nSkill directories:")
+        print("  builtin:  researchclaw/skills/builtin/")
         print(f"  user:     {user_dir}/")
-        print(f"  project:  .claude/skills/")
+        print("  project:  .claude/skills/")
         return 0
 
     elif action == "install":
@@ -1306,7 +1308,7 @@ def cmd_attach(args: argparse.Namespace) -> int:
         return 1
 
     from researchclaw.hitl.store import HITLStore
-    from researchclaw.hitl.tui.panel import show_pipeline_status, show_intervention_log
+    from researchclaw.hitl.tui.panel import show_pipeline_status
 
     store = HITLStore(run_dir)
     waiting = store.load_waiting()
@@ -1327,8 +1329,8 @@ def cmd_attach(args: argparse.Namespace) -> int:
     print(f"  Reason: {waiting.get('reason', '?')}")
     print()
 
-    from researchclaw.hitl.intervention import WaitingState, PauseReason
     from researchclaw.hitl.adapters.cli_adapter import CLIAdapter
+    from researchclaw.hitl.intervention import WaitingState
 
     ws = WaitingState.from_dict(waiting)
     adapter = CLIAdapter(run_dir=run_dir)
@@ -1342,7 +1344,7 @@ def cmd_attach(args: argparse.Namespace) -> int:
     response_path.write_text(
         json.dumps(human_input.to_dict(), indent=2), encoding="utf-8"
     )
-    print(f"\n  Response saved. Pipeline will pick it up automatically.")
+    print("\n  Response saved. Pipeline will pick it up automatically.")
     return 0
 
 
@@ -1354,7 +1356,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         return 1
 
     from researchclaw.hitl.store import HITLStore
-    from researchclaw.hitl.tui.panel import show_pipeline_status, show_intervention_log
+    from researchclaw.hitl.tui.panel import show_intervention_log, show_pipeline_status
 
     store = HITLStore(run_dir)
     session_data = store.load_session()

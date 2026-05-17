@@ -6,6 +6,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -50,14 +51,14 @@ class FeedbackHandler:
         options: list[str] | None = None,
     ) -> Path:
         """Write a feedback request file for external consumers."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         request = {
             "stage": stage,
             "stage_name": stage_name,
             "summary": summary,
             "options": options or list(FEEDBACK_ACTIONS),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "status": "waiting",
         }
         request_path = self.run_dir / "copilot_feedback_request.json"

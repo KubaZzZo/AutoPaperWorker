@@ -8,37 +8,36 @@ import pytest
 
 from researchclaw.templates.conference import (
     CONFERENCE_REGISTRY,
-    ConferenceTemplate,
-    get_template,
-    list_conferences,
-    NEURIPS_2024,
-    NEURIPS_2025,
     ICLR_2025,
     ICLR_2026,
     ICML_2025,
     ICML_2026,
+    NEURIPS_2024,
+    NEURIPS_2025,
+    ConferenceTemplate,
+    get_template,
+    list_conferences,
 )
 from researchclaw.templates.converter import (
-    markdown_to_latex,
-    _parse_sections,
-    _extract_title,
-    _extract_abstract,
-    _convert_inline,
-    _escape_latex,
-    _escape_algo_line,
-    _render_code_block,
     _build_body,
-    _render_table,
-    _parse_table_row,
-    _parse_alignments,
-    _render_itemize,
-    _render_enumerate,
-    _reset_render_counters,
-    _next_table_num,
+    _convert_inline,
+    _escape_algo_line,
+    _escape_latex,
+    _extract_abstract,
+    _extract_title,
     _next_figure_num,
+    _next_table_num,
+    _parse_alignments,
+    _parse_sections,
+    _parse_table_row,
+    _render_code_block,
+    _render_enumerate,
+    _render_itemize,
+    _render_table,
+    _reset_render_counters,
     check_paper_completeness,  # noqa: F401
+    markdown_to_latex,
 )
-
 
 # =====================================================================
 # conference.py tests
@@ -598,9 +597,11 @@ class TestExportConfig:
         assert cfg.export.target_conference == "neurips_2025"
 
     def test_rcconfig_export_from_dict(self) -> None:
-        from researchclaw.config import RCConfig
-        import yaml
         from pathlib import Path
+
+        import yaml
+
+        from researchclaw.config import RCConfig
 
         data = yaml.safe_load(Path("config.researchclaw.example.yaml").read_text(encoding="utf-8"))
         data["export"] = {
@@ -625,9 +626,11 @@ class TestHitlStageValidation:
     """Test that hitl_required_stages now accepts up to stage 23."""
 
     def test_stage_23_valid(self) -> None:
-        from researchclaw.config import validate_config
-        import yaml
         from pathlib import Path
+
+        import yaml
+
+        from researchclaw.config import validate_config
 
         data = yaml.safe_load(Path("config.researchclaw.example.yaml").read_text(encoding="utf-8"))
         data.setdefault("security", {})["hitl_required_stages"] = [1, 22, 23]
@@ -652,9 +655,11 @@ class TestHitlStageValidation:
             assert len(bst_names) >= 1, f"No .bst file for {name}"
 
     def test_stage_24_invalid(self) -> None:
-        from researchclaw.config import validate_config
-        import yaml
         from pathlib import Path
+
+        import yaml
+
+        from researchclaw.config import validate_config
 
         data = yaml.safe_load(Path("config.researchclaw.example.yaml").read_text(encoding="utf-8"))
         data.setdefault("security", {})["hitl_required_stages"] = [24]

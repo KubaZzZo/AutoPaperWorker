@@ -9,13 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from researchclaw.hitl.smart_pause import ConfidenceSignal, SmartPause
 from researchclaw.hitl.learning import InterventionLearner, InterventionStats
-from researchclaw.hitl.summarizer import generate_pause_summary
-from researchclaw.hitl.quality_predictor import QualityPredictor, QualityPrediction
+from researchclaw.hitl.notify import NotificationManager
 from researchclaw.hitl.presets import get_preset, list_presets
-from researchclaw.hitl.notify import NotificationManager, Notification
-
+from researchclaw.hitl.quality_predictor import QualityPrediction, QualityPredictor
+from researchclaw.hitl.smart_pause import ConfidenceSignal, SmartPause
+from researchclaw.hitl.summarizer import generate_pause_summary
 
 # ══════════════════════════════════════════════════════════════════
 # SmartPause tests

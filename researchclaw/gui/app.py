@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 import queue
 import webbrowser
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-
 try:  # pragma: no cover - optional desktop dependency
-    import customtkinter as ctk
     import tkinter as tk
     from tkinter import filedialog, messagebox
+
+    import customtkinter as ctk
 except ImportError:  # pragma: no cover - exercised by smoke import test
     ctk = None  # type: ignore[assignment]
     tk = None  # type: ignore[assignment]
@@ -39,7 +39,7 @@ class WorkbenchApp:
         self.root = ctk.CTk()
         self.root.title("AutoPaperWorker Workbench")
         self.root.geometry("1240x820")
-        self._events: "queue.Queue[TaskEvent]" = queue.Queue()
+        self._events: queue.Queue[TaskEvent] = queue.Queue()
         self._task_running = False
         self._build_layout()
         self.root.after(100, self._drain_events)

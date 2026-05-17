@@ -29,12 +29,12 @@ from researchclaw.pipeline.parsing import (
     safe_json_loads,
 )
 from researchclaw.pipeline.runtime_issues import detect_runtime_issues
+from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.pipeline.topic_utils import (
     build_fallback_queries,
     extract_topic_keywords,
     topic_constraint_block,
 )
-from researchclaw.pipeline.stages import Stage, StageStatus
 
 
 def test_extract_code_block_prefers_fenced_python() -> None:

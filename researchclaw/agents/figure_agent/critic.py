@@ -10,12 +10,11 @@ Outputs pass/fail per figure with specific fix suggestions.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -388,8 +387,8 @@ class CriticAgent(BaseAgent):
         """
         issues: list[dict[str, str]] = []
         try:
-            from PIL import Image
             import numpy as np
+            from PIL import Image
 
             img = Image.open(output_path).convert("RGB")
             arr = np.array(img)

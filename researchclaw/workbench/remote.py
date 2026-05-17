@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import re
 import shlex
-import subprocess
 import stat
+import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Protocol
-
 
 _AUTO_PARAMIKO = object()
 

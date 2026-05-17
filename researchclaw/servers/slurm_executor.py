@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import textwrap
 from typing import Any
 
 from researchclaw.servers.registry import ServerEntry

@@ -7,14 +7,10 @@ bibtex from running and leaving all citations as [?].
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from researchclaw.templates.compiler import (
-    CompileResult,
     _is_fatal_error,
     _parse_log,
     _sanitize_bib_file,
@@ -23,7 +19,6 @@ from researchclaw.templates.compiler import (
     fix_common_latex_errors,
     remove_missing_figures,
 )
-
 
 # ---------------------------------------------------------------------------
 # _is_fatal_error

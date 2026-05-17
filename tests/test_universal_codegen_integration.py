@@ -9,10 +9,13 @@ they verify the infrastructure wiring.
 from __future__ import annotations
 
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import pytest
+
+from researchclaw.agents.code_searcher.agent import CodeSearchResult
+from researchclaw.agents.code_searcher.pattern_extractor import CodePatterns
 from researchclaw.domains.detector import (
     DomainProfile,
     detect_domain,
@@ -20,20 +23,15 @@ from researchclaw.domains.detector import (
     is_ml_domain,
     load_all_profiles,
 )
-from researchclaw.domains.prompt_adapter import get_adapter, PromptBlocks
 from researchclaw.domains.experiment_schema import (
     Condition,
-    ConditionRole,
     EvaluationSpec,
     MetricSpec,
     UniversalExperimentPlan,
-    from_legacy_exp_plan,
 )
-from researchclaw.experiment.metrics import UniversalMetricParser
+from researchclaw.domains.prompt_adapter import get_adapter
 from researchclaw.experiment.evaluators.convergence import analyze_convergence
-from researchclaw.agents.code_searcher.agent import CodeSearchAgent, CodeSearchResult
-from researchclaw.agents.code_searcher.pattern_extractor import CodePatterns
-
+from researchclaw.experiment.metrics import UniversalMetricParser
 
 # ---------------------------------------------------------------------------
 # Cross-domain domain detection integration

@@ -22,7 +22,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from researchclaw.pipeline.opencode_bridge import (
     OpenCodeBridge,
-    count_historical_failures,
     score_complexity,
 )
 

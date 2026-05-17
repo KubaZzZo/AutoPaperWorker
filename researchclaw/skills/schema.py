@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 # Maps pipeline stage names to stage numbers.
 STAGE_NAME_TO_NUMBER: dict[str, int] = {
     "topic_init": 1,

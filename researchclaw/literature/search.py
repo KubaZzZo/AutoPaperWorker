@@ -15,13 +15,13 @@ Public API
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from dataclasses import asdict
 import importlib
 import logging
 import re
 import time
 import urllib.error
+from collections.abc import Callable, Sequence
+from dataclasses import asdict
 from typing import cast
 
 from researchclaw.literature.arxiv_client import search_arxiv

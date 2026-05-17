@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
-from researchclaw.dashboard.collector import DashboardCollector, RunSnapshot
+from researchclaw.dashboard.collector import DashboardCollector
 from researchclaw.server.websocket.events import Event, EventType
 from researchclaw.server.websocket.manager import ConnectionManager
 

@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 
 logger = logging.getLogger(__name__)
 

@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 from researchclaw.utils.sanitize import sanitize_figure_id
 
 logger = logging.getLogger(__name__)
@@ -329,7 +328,7 @@ class RendererAgent(BaseAgent):
             "--read-only",
             # Docker tmpfs mount, not a host temp path.
             "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",  # nosec B108
-            f"--memory=512m",
+            "--memory=512m",
             "-e", "MPLCONFIGDIR=/tmp/matplotlib",
             "-e", "XDG_CONFIG_HOME=/tmp",
             "-v", f"{script_path.resolve()}:/workspace/script.py:ro",

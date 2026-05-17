@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from researchclaw.config import DockerSandboxConfig, ExperimentConfig
+from researchclaw.config import DockerSandboxConfig
 from researchclaw.experiment.docker_sandbox import DockerSandbox
 from researchclaw.llm.client import LLMClient, LLMConfig
 from researchclaw.pipeline.code_agent import CodeAgent, CodeAgentConfig
@@ -230,7 +230,7 @@ def main():
     elapsed = time.time() - t0
 
     # Report
-    print(f"\n--- Generation Report ---")
+    print("\n--- Generation Report ---")
     print(f"Time: {elapsed:.1f}s")
     print(f"LLM calls: {result.total_llm_calls}")
     print(f"Sandbox runs: {result.total_sandbox_runs}")
@@ -265,7 +265,7 @@ def main():
     )
 
     # Final sandbox run for end-to-end verification
-    print(f"\n--- Final sandbox verification ---")
+    print("\n--- Final sandbox verification ---")
     workdir = stage_dir / "_final_run"
     workdir.mkdir(parents=True, exist_ok=True)
     sandbox = DockerSandbox(docker_cfg, workdir)
@@ -282,7 +282,7 @@ def main():
     else:
         print("SUCCESS: Code runs to completion in Docker sandbox!")
         stdout_lines = final_result.stdout.strip().split("\n")
-        print(f"STDOUT (last 10 lines):")
+        print("STDOUT (last 10 lines):")
         for line in stdout_lines[-10:]:
             print(f"  {line}")
 

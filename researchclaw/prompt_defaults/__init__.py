@@ -5,9 +5,9 @@ legacy imports re-exported from ``researchclaw.prompts``.
 """
 
 from researchclaw.prompt_defaults.blocks import (
-    SECTION_WORD_TARGETS,
     _DEFAULT_BLOCKS,
     _SECTION_TARGET_ALIASES,
+    SECTION_WORD_TARGETS,
 )
 from researchclaw.prompt_defaults.debate_roles import (
     DEBATE_ROLES_ANALYSIS,

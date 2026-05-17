@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from researchclaw.wizard.templates import TEMPLATES
-
 
 _WIZARD_PROVIDER_DEFAULTS = {
     "openai": {

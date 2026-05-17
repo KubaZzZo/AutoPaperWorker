@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 JSON_MODE_INSTRUCTION = (
     "You MUST respond with valid JSON only. "
     "Do not include any text outside the JSON object."

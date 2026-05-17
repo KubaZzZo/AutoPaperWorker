@@ -9,8 +9,6 @@ import pytest
 
 from researchclaw.pipeline.experiment_diagnosis import (
     DeficiencyType,
-    ExperimentDiagnosis,
-    ExperimentQualityAssessment,
     PaperMode,
     assess_experiment_quality,
     diagnose_experiment,

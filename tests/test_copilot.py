@@ -6,25 +6,20 @@
 from __future__ import annotations
 
 import json
-import shutil
 import time
-from datetime import date, timedelta
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 
-from researchclaw.copilot.modes import ResearchMode
+from researchclaw.config import CoPilotConfig
+from researchclaw.copilot.branching import BranchManager
+from researchclaw.copilot.controller import CoPilotController
 from researchclaw.copilot.feedback import (
     FEEDBACK_ACTIONS,
     Feedback,
     FeedbackHandler,
 )
-from researchclaw.copilot.branching import BranchManager
-from researchclaw.copilot.controller import CoPilotController
-from researchclaw.config import CoPilotConfig
-
+from researchclaw.copilot.modes import ResearchMode
 
 # ===================================================================
 # ResearchMode tests
@@ -58,7 +53,7 @@ class TestResearchMode:
 class TestFeedback:
     def test_feedback_actions_defined(self):
         expected = {"approve", "modify", "retry", "skip", "discuss", "branch", "rollback"}
-        assert FEEDBACK_ACTIONS == expected
+        assert expected == FEEDBACK_ACTIONS
 
     def test_feedback_frozen(self):
         fb = Feedback(action="approve", stage=5)

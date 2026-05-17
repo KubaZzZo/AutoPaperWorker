@@ -21,7 +21,6 @@ from typing import Any, Protocol
 from researchclaw.hitl.intervention import (
     HumanAction,
     HumanInput,
-    PauseReason,
     WaitingState,
 )
 

@@ -9,9 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from researchclaw.hitl.branching import Branch, BranchManager, BranchComparison
+from researchclaw.hitl.branching import Branch, BranchComparison, BranchManager
 from researchclaw.hitl.context_manager import ContextManager
-
 
 # ══════════════════════════════════════════════════════════════════
 # Branching tests

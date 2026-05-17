@@ -9,7 +9,6 @@ import pytest
 
 from researchclaw.experiment import visualize
 
-
 pytestmark = pytest.mark.skipif(
     not visualize.HAS_MATPLOTLIB,
     reason="matplotlib is required for visualization tests",

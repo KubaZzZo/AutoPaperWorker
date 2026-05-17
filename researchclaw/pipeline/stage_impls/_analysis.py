@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
 from typing import Any
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain, _is_ml_domain
 from researchclaw.pipeline._helpers import (
     StageResult,
     _build_context_preamble,
@@ -21,7 +19,6 @@ from researchclaw.pipeline._helpers import (
     _get_evolution_overlay,
     _multi_perspective_generate,
     _read_prior_artifact,
-    _safe_json_loads,
     _synthesize_perspectives,
     _utcnow_iso,
 )
@@ -862,7 +859,9 @@ def _execute_research_decision(
             break
     if _exp_sum_path and _exp_sum_path.is_file():
         try:
-            from researchclaw.pipeline.stage_impls._paper_writing import _check_ablation_effectiveness
+            from researchclaw.pipeline.stage_impls._paper_writing import (
+                _check_ablation_effectiveness,
+            )
             _abl_exp = json.loads(_exp_sum_path.read_text(encoding="utf-8"))
             _abl_warnings = _check_ablation_effectiveness(_abl_exp, threshold=0.02)
             if _abl_warnings:

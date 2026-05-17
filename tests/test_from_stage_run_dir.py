@@ -4,14 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
-
-from researchclaw import cli
 
 
 def _make_run_dir(artifacts_root: Path, topic: str, stage: int = 9) -> Path:

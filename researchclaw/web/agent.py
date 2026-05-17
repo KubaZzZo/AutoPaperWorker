@@ -26,7 +26,7 @@ from typing import Any
 from researchclaw.web.crawler import CrawlResult, WebCrawler
 from researchclaw.web.pdf_extractor import PDFContent, PDFExtractor
 from researchclaw.web.scholar import GoogleScholarClient, ScholarPaper
-from researchclaw.web.search import SearchResult, WebSearchClient, WebSearchResponse
+from researchclaw.web.search import SearchResult, WebSearchClient
 
 logger = logging.getLogger(__name__)
 

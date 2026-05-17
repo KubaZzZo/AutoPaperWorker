@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 from researchclaw.agents.figure_agent.schema import normalize_figure_spec, normalize_figure_specs
 from researchclaw.agents.figure_agent.style_config import get_style_preamble
 from researchclaw.utils.sanitize import sanitize_figure_id
@@ -523,7 +523,10 @@ class CodeGenAgent(BaseAgent):
         else:
             data_source = {}
 
-        from researchclaw.agents.figure_agent.style_config import FIGURE_WIDTH, DEFAULT_FIGURE_HEIGHT
+        from researchclaw.agents.figure_agent.style_config import (
+            DEFAULT_FIGURE_HEIGHT,
+            FIGURE_WIDTH,
+        )
         width = FIGURE_WIDTH.get(width_key, FIGURE_WIDTH["single_column"])
         height = DEFAULT_FIGURE_HEIGHT
 

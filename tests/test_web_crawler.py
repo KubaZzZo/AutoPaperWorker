@@ -8,9 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from researchclaw.web.crawler import CrawlResult, WebCrawler
 from researchclaw.web import check_url_ssrf
-
+from researchclaw.web.crawler import CrawlResult, WebCrawler
 
 # ---------------------------------------------------------------------------
 # CrawlResult dataclass
@@ -120,7 +119,7 @@ class TestCrawlUrllibFallback:
         mock_resp.read.return_value = (
             "<html><title>Encoding</title><body><p>Café résumé content "
             "with enough words to crawl.</p></body></html>"
-        ).encode("utf-8")
+        ).encode()
         mock_resp.headers = {"Content-Type": "text/html; charset=ascii"}
         mock_urlopen.return_value = mock_resp
 

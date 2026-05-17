@@ -7,14 +7,13 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from researchclaw.experiment.sandbox import (
     ExperimentSandbox,
     validate_entry_point,
     validate_entry_point_resolved,
 )
-
-import pytest
-
 
 # Unit tests: validate_entry_point (syntax)
 

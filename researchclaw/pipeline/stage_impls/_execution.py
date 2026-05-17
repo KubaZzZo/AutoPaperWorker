@@ -5,19 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import math
-import time as _time
 from pathlib import Path
 from typing import Any
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.experiment.validator import (
-    CodeValidation,
     format_issues_for_llm,
     validate_code,
 )
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain
 from researchclaw.pipeline._helpers import (
     StageResult,
     _chat_with_prompt,
@@ -26,16 +23,14 @@ from researchclaw.pipeline._helpers import (
     _extract_code_block,
     _extract_multi_file_blocks,
     _get_evolution_overlay,
-    _load_hardware_profile,
     _parse_metrics_from_stdout,
     _read_prior_artifact,
     _safe_filename,
     _safe_json_loads,
     _utcnow_iso,
-    _write_stage_meta,
 )
-from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.pipeline.stage_impls.execution_run import persist_sandbox_run_result
+from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -264,7 +259,6 @@ def _execute_iterative_refine(
     prompts: PromptManager | None = None,
 ) -> StageResult:
     from researchclaw.experiment.factory import create_sandbox
-    from researchclaw.experiment.validator import format_issues_for_llm, validate_code
 
     def _to_float(value: Any) -> float | None:
         try:
@@ -392,9 +386,7 @@ def _execute_iterative_refine(
                 continue
             if mk == key or mk.endswith(f"/{key}"):
                 return fv  # Exact match via condition prefix
-            if key in mk and ("mean" in mk or "avg" in mk):
-                candidates.append((mk, fv))
-            elif mk.endswith(f"_{key}") or mk.endswith(f"/{key}_mean"):
+            if key in mk and ("mean" in mk or "avg" in mk) or mk.endswith(f"_{key}") or mk.endswith(f"/{key}_mean"):
                 candidates.append((mk, fv))
         if candidates:
             # Take the aggregate mean if available, otherwise first match

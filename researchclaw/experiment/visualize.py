@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from pathlib import Path
 from typing import Any
 
@@ -25,10 +24,10 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")  # Non-interactive backend
-    import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
-    from matplotlib.patches import FancyBboxPatch
+    import matplotlib.pyplot as plt
     import numpy as np
+    from matplotlib.patches import FancyBboxPatch
 
     HAS_MATPLOTLIB = True
 except ImportError:

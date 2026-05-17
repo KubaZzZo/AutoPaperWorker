@@ -1,6 +1,5 @@
 """Anthropic Messages API adapter for ResearchClaw."""
 
-import json
 import logging
 import urllib.error
 from typing import Any

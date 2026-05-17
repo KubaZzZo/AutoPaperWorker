@@ -1,16 +1,15 @@
 """Tests for lesson-to-skill conversion module."""
 
 import json
-import tempfile
 from pathlib import Path
 
+from researchclaw.evolution import LessonEntry
 from researchclaw.metaclaw_bridge.lesson_to_skill import (
     _format_lessons,
     _list_existing_skill_names,
     _parse_skills_response,
     _write_skill,
 )
-from researchclaw.evolution import LessonEntry
 
 
 def _make_lesson(stage: str = "experiment_run", severity: str = "error") -> LessonEntry:

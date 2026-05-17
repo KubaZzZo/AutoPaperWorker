@@ -78,7 +78,7 @@ def check_paper_completeness(sections: list[SectionLike]) -> list[str]:
                 f"({len(sec.body.split())} words)."
             )
 
-    from researchclaw.prompts import SECTION_WORD_TARGETS, _SECTION_TARGET_ALIASES
+    from researchclaw.prompts import _SECTION_TARGET_ALIASES, SECTION_WORD_TARGETS
 
     for sec in sections:
         if sec.level not in (1, 2) or not sec.heading:

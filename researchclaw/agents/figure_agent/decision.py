@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 from researchclaw.utils.thinking_tags import strip_thinking_tags
 
 logger = logging.getLogger(__name__)

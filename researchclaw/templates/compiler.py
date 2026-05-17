@@ -15,7 +15,6 @@ import logging
 import re
 import shutil
 import subprocess
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -380,17 +379,7 @@ def _parse_log(log_text: str) -> tuple[list[str], list[str]]:
         elif "LaTeX Warning:" in line_stripped:
             warnings.append(line_stripped)
         # BUG-R6-26: Use elif to avoid duplicating "!" lines
-        elif "Undefined control sequence" in line_stripped:
-            errors.append(line_stripped)
-        elif "Missing" in line_stripped and "inserted" in line_stripped:
-            errors.append(line_stripped)
-        elif "File" in line_stripped and "not found" in line_stripped:
-            errors.append(line_stripped)
-        # BUG-R6-21: Detect "Float(s) lost" and "Too many unprocessed floats"
-        # even when they don't start with "!"
-        elif "float(s) lost" in line_lower:
-            errors.append(line_stripped)
-        elif "too many unprocessed floats" in line_lower:
+        elif "Undefined control sequence" in line_stripped or "Missing" in line_stripped and "inserted" in line_stripped or "File" in line_stripped and "not found" in line_stripped or "float(s) lost" in line_lower or "too many unprocessed floats" in line_lower:
             errors.append(line_stripped)
 
     return errors, warnings

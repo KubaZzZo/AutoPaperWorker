@@ -13,7 +13,7 @@ from collections.abc import Callable as AbcCallable
 from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -617,7 +617,7 @@ def run_doctor(config_path: str | Path) -> DoctorReport:
 
     overall = "fail" if any(c.status == "fail" for c in checks) else "pass"
     return DoctorReport(
-        timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        timestamp=datetime.now(UTC).isoformat(timespec="seconds"),
         checks=checks,
         overall=overall,
     )

@@ -7,10 +7,10 @@ or:
 """
 from __future__ import annotations
 
-import re
-import sys
-import statistics
 import random
+import re
+import statistics
+import sys
 import textwrap
 from pathlib import Path
 
@@ -264,7 +264,7 @@ class TestIMP15_BibDedup:
         assert count_jones == 1, f"Expected 1 jones2023 entry, got {count_jones}"
         # First version should be kept
         assert "Paper 1" in result
-        print(f"[IMP-15] PASS: 2 smith2024 → 1, jones2023 kept. Total entries correct.")
+        print("[IMP-15] PASS: 2 smith2024 → 1, jones2023 kept. Total entries correct.")
 
     def test_no_duplicates_unchanged(self):
         bib = textwrap.dedent("""\
@@ -286,7 +286,7 @@ class TestIMP15_BibDedup:
         assert "beta2023" in result
         count = len(re.findall(r"@\w+\{", result))
         assert count == 2, f"Expected 2 entries, got {count}"
-        print(f"[IMP-15] PASS: no duplicates → unchanged")
+        print("[IMP-15] PASS: no duplicates → unchanged")
 
     def test_triple_duplicate(self):
         bib = textwrap.dedent("""\
@@ -315,14 +315,14 @@ class TestIMP15_BibDedup:
         assert "First" in result
         assert "Second" not in result
         assert "Third" not in result
-        print(f"[IMP-15] PASS: triple duplicate → 1 entry")
+        print("[IMP-15] PASS: triple duplicate → 1 entry")
 
     def test_empty_bib(self):
         """Edge case: empty bib text should not crash."""
         bib = ""
         result = self._run_dedup(bib)
         assert result == "", f"Expected empty, got: {result!r}"
-        print(f"[IMP-15] PASS: empty bib → no crash")
+        print("[IMP-15] PASS: empty bib → no crash")
 
 
 # ============================================================
@@ -420,14 +420,14 @@ class TestIMP16_BootstrapCIFallback:
         The condition should detect when the mean is OUTSIDE the CI."""
         mean = 5.0
         # Case 1: Mean below CI
-        assert (6.0 > mean or 8.0 < mean) == True, "Mean below CI not detected"
+        assert (mean < 6.0 or mean > 8.0) == True, "Mean below CI not detected"
         # Case 2: Mean above CI
-        assert (1.0 > mean or 4.0 < mean) == True, "Mean above CI not detected"
+        assert (mean < 1.0 or mean > 4.0) == True, "Mean above CI not detected"
         # Case 3: Mean inside CI
-        assert (3.0 > mean or 7.0 < mean) == False, "Mean inside CI incorrectly flagged"
+        assert (mean < 3.0 or mean > 7.0) == False, "Mean inside CI incorrectly flagged"
         # Case 4: Mean equals boundary
-        assert (5.0 > mean or 7.0 < mean) == False, "Mean at lower boundary incorrectly flagged"
-        assert (3.0 > mean or 5.0 < mean) == False, "Mean at upper boundary incorrectly flagged"
+        assert (mean < 5.0 or mean > 7.0) == False, "Mean at lower boundary incorrectly flagged"
+        assert (mean < 3.0 or mean > 5.0) == False, "Mean at upper boundary incorrectly flagged"
         print("[IMP-16] PASS: condition check logic correct for all cases")
 
     def test_min_sample_size(self):

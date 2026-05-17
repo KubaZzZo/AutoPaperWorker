@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from researchclaw.prompts import SECTION_WORD_TARGETS, _SECTION_TARGET_ALIASES
+from researchclaw.prompts import _SECTION_TARGET_ALIASES, SECTION_WORD_TARGETS
 
 logger = logging.getLogger(__name__)
 

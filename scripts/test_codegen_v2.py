@@ -763,7 +763,7 @@ def main():
                     print(f"    {cond}: {metrics}")
 
         # Print scores
-        print(f"\n  --- Scores ---")
+        print("\n  --- Scores ---")
         for k, v in report["scores"].items():
             print(f"    {k}: {v}/10")
         if exec_result.get("exec_score") is not None:
@@ -771,7 +771,7 @@ def main():
         print(f"    OVERALL: {report['overall_score']}/10")
 
         if report["issues"]:
-            print(f"\n  Issues:")
+            print("\n  Issues:")
             for issue in report["issues"]:
                 print(f"    - {issue}")
 

@@ -8,7 +8,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-
 T = TypeVar("T")
 
 
@@ -18,7 +17,7 @@ class TaskEvent:
     payload: object
 
 
-def run_background(func: Callable[[], T], events: "queue.Queue[TaskEvent]") -> threading.Thread:
+def run_background(func: Callable[[], T], events: queue.Queue[TaskEvent]) -> threading.Thread:
     """Run ``func`` on a daemon thread and push result/error events."""
     def _target() -> None:
         try:

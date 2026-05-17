@@ -9,9 +9,9 @@ Each category supports semantic retrieval via embeddings, time-decay
 weighting, and confidence scoring.
 """
 
-from researchclaw.memory.store import MemoryEntry, MemoryStore
+from researchclaw.memory.decay import confidence_update, time_decay_weight
 from researchclaw.memory.retriever import MemoryRetriever
-from researchclaw.memory.decay import time_decay_weight, confidence_update
+from researchclaw.memory.store import MemoryEntry, MemoryStore
 
 __all__ = [
     "MemoryEntry",

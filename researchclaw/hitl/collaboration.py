@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from researchclaw.hitl.chat import ChatMessage, ChatSession, build_stage_context
+from researchclaw.hitl.chat import ChatSession, build_stage_context
 
 logger = logging.getLogger(__name__)
 

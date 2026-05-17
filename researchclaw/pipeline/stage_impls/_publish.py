@@ -21,9 +21,7 @@ from researchclaw.pipeline._helpers import (
     _build_context_preamble,
     _chat_with_prompt,
     _collect_experiment_results,  # noqa: F401
-    _default_quality_report,
     _extract_paper_title,
-    _find_prior_file,
     _generate_framework_diagram_prompt,
     _generate_neurips_checklist,
     _get_evolution_overlay,
@@ -35,14 +33,12 @@ from researchclaw.pipeline._helpers import (
     reconcile_figure_refs,
 )
 from researchclaw.pipeline.stage_impls.review_publish_citations import (
-    CITATION_RESOLVE_MIN_SIMILARITY as _CITATION_RESOLVE_MIN_SIMILARITY,
     load_seminal_papers_by_key,
     resolve_missing_citations,
     seminal_to_bibtex,
 )
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
-
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._review_publish")
 
@@ -256,12 +252,7 @@ def _sanitize_fabricated_data(
             if v == 0.0:
                 if abs(num) < 1e-9:
                     return True
-            elif abs(num - v) / abs(v) <= 0.01:
-                return True
-            # Cross-match: num might be percentage form of v (or vice versa)
-            elif v != 0.0 and abs(num / 100.0 - v) / abs(v) <= 0.01:
-                return True
-            elif v != 0.0 and abs(num - v * 100.0) / abs(v * 100.0) <= 0.01:
+            elif abs(num - v) / abs(v) <= 0.01 or v != 0.0 and abs(num / 100.0 - v) / abs(v) <= 0.01 or v != 0.0 and abs(num - v * 100.0) / abs(v * 100.0) <= 0.01:
                 return True
         return False
 
@@ -275,7 +266,7 @@ def _sanitize_fabricated_data(
         8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0, 2048.0,
         224.0, 299.0, 384.0,  # Common image sizes
         # BUG-192: Common hyperparameter values
-        0.0003, 3e-4, 0.0005, 5e-4, 0.002, 2e-3,  # learning rates
+        0.0003, 0.0005, 0.002, 2e-3,  # learning rates
         0.2, 0.3, 0.25, 0.7, 0.6, 0.8,  # clip epsilon, dropout, gradient clip, GCE q, common HP
         0.9, 0.999, 0.9999,  # Adam betas, momentum
         0.02, 0.03,  # weight init std
@@ -1271,6 +1262,7 @@ def _execute_export_publish(
         _vresult = None  # BUG-DA8-04: Initialize before try to avoid fragile dir() check
         try:
             from researchclaw.pipeline.paper_verifier import verify_paper as _verify_paper
+
             # BUG-222: Use best_only=True to validate against promoted best data only
             from researchclaw.pipeline.verified_registry import (
                 VerifiedRegistry as _VR22,

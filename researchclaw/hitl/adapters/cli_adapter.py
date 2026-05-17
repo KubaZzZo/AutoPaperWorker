@@ -6,7 +6,6 @@ approving/rejecting gates, editing files, and collaborating with AI.
 
 from __future__ import annotations
 
-import json
 import locale
 import logging
 import os
@@ -15,7 +14,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
 
 from researchclaw.hitl.intervention import (
     HumanAction,

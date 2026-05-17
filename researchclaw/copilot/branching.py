@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +49,7 @@ class BranchManager:
         meta = {
             "name": name,
             "from_stage": from_stage,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "status": "active",
         }
         (branch_dir / "branch_meta.json").write_text(

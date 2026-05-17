@@ -94,9 +94,9 @@ class GitHubClient:
 
     def _get(self, url: str, params: dict[str, str] | None = None) -> dict[str, Any] | None:
         """Make a GET request to the GitHub API."""
-        import urllib.request
-        import urllib.error
         import json
+        import urllib.error
+        import urllib.request
 
         if params:
             query_str = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())

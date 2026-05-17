@@ -1,40 +1,89 @@
 from __future__ import annotations
 
-from researchclaw.templates.converter import (
-    _build_body as legacy_build_body,
-    _collect_list as legacy_collect_list,
-    _convert_block as legacy_convert_block,
-    _deduplicate_tables as legacy_deduplicate_tables,
-    _extract_abstract as legacy_extract_abstract,
-    _extract_title as legacy_extract_title,
-    _escape_algo_line as legacy_escape_algo_line,
-    _convert_inline as legacy_convert_inline,
-    _escape_latex as legacy_escape_latex,
-    _parse_sections as legacy_parse_sections,
-    _render_figure as legacy_render_figure,
-    _preprocess_markdown as legacy_preprocess_markdown,
-    _round_raw_metrics as legacy_round_raw_metrics,
-    _sanitize_latex_output as legacy_sanitize_latex_output,
-    _normalize_latex_unicode as legacy_normalize_latex_unicode,
-    _separate_heading_body as legacy_separate_heading_body,
-    markdown_to_latex as legacy_markdown_to_latex,
-    _parse_alignments as legacy_parse_alignments,
-    _parse_table_row as legacy_parse_table_row,
-    _reset_render_counters,
-    _render_code_block as legacy_render_code_block,
-    _render_enumerate as legacy_render_enumerate,
-    _render_itemize as legacy_render_itemize,
-    _render_table as legacy_render_table,
-    check_paper_completeness as legacy_check_paper_completeness,
-)
 from researchclaw.templates.body import (
     _build_body,
     _convert_block,
     _deduplicate_tables,
 )
 from researchclaw.templates.codeblocks import _escape_algo_line, _render_code_block
-from researchclaw.templates.document import markdown_to_latex
 from researchclaw.templates.completeness import check_paper_completeness
+from researchclaw.templates.conference import NEURIPS_2024
+from researchclaw.templates.converter import (
+    _build_body as legacy_build_body,
+)
+from researchclaw.templates.converter import (
+    _collect_list as legacy_collect_list,
+)
+from researchclaw.templates.converter import (
+    _convert_block as legacy_convert_block,
+)
+from researchclaw.templates.converter import (
+    _convert_inline as legacy_convert_inline,
+)
+from researchclaw.templates.converter import (
+    _deduplicate_tables as legacy_deduplicate_tables,
+)
+from researchclaw.templates.converter import (
+    _escape_algo_line as legacy_escape_algo_line,
+)
+from researchclaw.templates.converter import (
+    _escape_latex as legacy_escape_latex,
+)
+from researchclaw.templates.converter import (
+    _extract_abstract as legacy_extract_abstract,
+)
+from researchclaw.templates.converter import (
+    _extract_title as legacy_extract_title,
+)
+from researchclaw.templates.converter import (
+    _normalize_latex_unicode as legacy_normalize_latex_unicode,
+)
+from researchclaw.templates.converter import (
+    _parse_alignments as legacy_parse_alignments,
+)
+from researchclaw.templates.converter import (
+    _parse_sections as legacy_parse_sections,
+)
+from researchclaw.templates.converter import (
+    _parse_table_row as legacy_parse_table_row,
+)
+from researchclaw.templates.converter import (
+    _preprocess_markdown as legacy_preprocess_markdown,
+)
+from researchclaw.templates.converter import (
+    _render_code_block as legacy_render_code_block,
+)
+from researchclaw.templates.converter import (
+    _render_enumerate as legacy_render_enumerate,
+)
+from researchclaw.templates.converter import (
+    _render_figure as legacy_render_figure,
+)
+from researchclaw.templates.converter import (
+    _render_itemize as legacy_render_itemize,
+)
+from researchclaw.templates.converter import (
+    _render_table as legacy_render_table,
+)
+from researchclaw.templates.converter import (
+    _reset_render_counters,
+)
+from researchclaw.templates.converter import (
+    _round_raw_metrics as legacy_round_raw_metrics,
+)
+from researchclaw.templates.converter import (
+    _sanitize_latex_output as legacy_sanitize_latex_output,
+)
+from researchclaw.templates.converter import (
+    _separate_heading_body as legacy_separate_heading_body,
+)
+from researchclaw.templates.converter import (
+    check_paper_completeness as legacy_check_paper_completeness,
+)
+from researchclaw.templates.converter import (
+    markdown_to_latex as legacy_markdown_to_latex,
+)
+from researchclaw.templates.document import markdown_to_latex
 from researchclaw.templates.figures import _render_figure
 from researchclaw.templates.inline import _convert_inline, _escape_latex
 from researchclaw.templates.lists import (
@@ -42,26 +91,25 @@ from researchclaw.templates.lists import (
     _render_enumerate,
     _render_itemize,
 )
+from researchclaw.templates.preprocessing import (
+    _preprocess_markdown,
+    _round_raw_metrics,
+)
+from researchclaw.templates.sanitization import (
+    _normalize_latex_unicode,
+    _sanitize_latex_output,
+)
 from researchclaw.templates.sections import (
     _extract_abstract,
     _extract_title,
     _parse_sections,
     _separate_heading_body,
 )
-from researchclaw.templates.sanitization import (
-    _normalize_latex_unicode,
-    _sanitize_latex_output,
-)
-from researchclaw.templates.preprocessing import (
-    _preprocess_markdown,
-    _round_raw_metrics,
-)
 from researchclaw.templates.tables import (
     _parse_alignments,
     _parse_table_row,
     _render_table,
 )
-from researchclaw.templates.conference import NEURIPS_2024
 
 
 def test_inline_converter_module_matches_legacy_exports() -> None:

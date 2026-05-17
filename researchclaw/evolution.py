@@ -30,7 +30,7 @@ import json
 import logging
 import math
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -184,7 +184,7 @@ def extract_lessons(
     - Runtime warnings from experiment stderr → code_bug lesson
     - Metric anomalies (NaN, identical convergence) → metric_anomaly lesson
     """
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     lessons: list[LessonEntry] = []
 
     for result in results:
@@ -380,8 +380,8 @@ def _time_weight(timestamp_iso: str) -> float:
     try:
         ts = datetime.fromisoformat(timestamp_iso)
         if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        age = datetime.now(timezone.utc) - ts
+            ts = ts.replace(tzinfo=UTC)
+        age = datetime.now(UTC) - ts
         age_days = age.total_seconds() / 86400.0
         if age_days > MAX_AGE_DAYS:
             return 0.0

@@ -68,9 +68,8 @@ class TestRateLimitRetry:
             ).encode("utf-8")
             return _DummyResponse(payload)
 
-        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
-            with patch("time.sleep"):
-                papers = search_semantic_scholar("test query", limit=5)
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen), patch("time.sleep"):
+            papers = search_semantic_scholar("test query", limit=5)
 
         assert call_count >= 2
         assert len(papers) == 1
@@ -97,9 +96,8 @@ class TestRateLimitRetry:
                 None,
             )
 
-        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
-            with patch("time.sleep"):
-                papers = search_semantic_scholar("test query", limit=5)
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen), patch("time.sleep"):
+            papers = search_semantic_scholar("test query", limit=5)
 
         assert papers == []
         assert call_count == _MAX_RETRIES
@@ -132,15 +130,13 @@ class TestDegradationChain:
         with patch(
             "researchclaw.literature.search.search_semantic_scholar",
             side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.search.search_arxiv",
+            side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
         ):
-            with patch(
-                "researchclaw.literature.search.search_arxiv",
-                side_effect=RuntimeError("API down"),
-            ):
-                with patch(
-                    "researchclaw.literature.cache._DEFAULT_CACHE_DIR", tmp_path
-                ):
-                    papers = search_papers("test degradation", limit=20)
+            papers = search_papers("test degradation", limit=20)
 
         assert len(papers) >= 1
         assert any(p.title == "Cached Paper" for p in papers)
@@ -151,20 +147,17 @@ class TestDegradationChain:
         with patch(
             "researchclaw.literature.search.search_openalex",
             side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.search.search_semantic_scholar",
+            side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.search.search_arxiv",
+            side_effect=RuntimeError("API down"),
+        ), patch(
+            "researchclaw.literature.cache._DEFAULT_CACHE_DIR",
+            tmp_path / "empty-cache",
         ):
-            with patch(
-                "researchclaw.literature.search.search_semantic_scholar",
-                side_effect=RuntimeError("API down"),
-            ):
-                with patch(
-                    "researchclaw.literature.search.search_arxiv",
-                    side_effect=RuntimeError("API down"),
-                ):
-                    with patch(
-                        "researchclaw.literature.cache._DEFAULT_CACHE_DIR",
-                        tmp_path / "empty-cache",
-                    ):
-                        papers = search_papers("no results query", limit=20)
+            papers = search_papers("no results query", limit=20)
 
         assert papers == []
 

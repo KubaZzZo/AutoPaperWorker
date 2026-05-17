@@ -10,22 +10,21 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from researchclaw.literature.models import Author, Paper
 from researchclaw.literature.verify import (
     CitationResult,
     VerificationReport,
     VerifyStatus,
+    _urlopen,
     annotate_paper_hallucinations,
     filter_verified_bibtex,
     parse_bibtex_entries,
     title_similarity,
-    _urlopen,
     verify_by_arxiv_id,
     verify_by_doi,
     verify_by_title_search,
     verify_citations,
 )
-from researchclaw.literature.models import Author, Paper
-
 
 SAMPLE_BIB = textwrap.dedent("""\
     @article{vaswani2017attention,
@@ -603,7 +602,7 @@ class TestStage23Integration:
         assert Stage.CITATION_VERIFY == 23
 
     def test_stage_in_sequence(self) -> None:
-        from researchclaw.pipeline.stages import Stage, STAGE_SEQUENCE, NEXT_STAGE
+        from researchclaw.pipeline.stages import NEXT_STAGE, STAGE_SEQUENCE, Stage
 
         assert Stage.CITATION_VERIFY in STAGE_SEQUENCE
         assert NEXT_STAGE[Stage.EXPORT_PUBLISH] == Stage.CITATION_VERIFY

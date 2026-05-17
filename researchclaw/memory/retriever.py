@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from researchclaw.memory.decay import time_decay_weight
@@ -94,7 +94,7 @@ class MemoryRetriever:
             max_access = 1
 
         scored: list[tuple[MemoryEntry, float]] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for entry in entries:
             # Cosine similarity

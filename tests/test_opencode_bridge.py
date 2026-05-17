@@ -11,13 +11,10 @@ import pytest
 
 from researchclaw.config import OpenCodeConfig, _parse_opencode_config
 from researchclaw.pipeline.opencode_bridge import (
-    ComplexityScore,
     OpenCodeBridge,
-    OpenCodeResult,
     count_historical_failures,
     score_complexity,
 )
-
 
 # ============================================================
 # TestComplexityScorer

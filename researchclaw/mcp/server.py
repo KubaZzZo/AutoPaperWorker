@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -87,7 +87,7 @@ class ResearchClawMCPServer:
         topic = str(args["topic"]).strip()
         if not topic:
             return {"success": False, "error": "Topic must not be empty"}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         topic_hash = sha256(topic.encode("utf-8")).hexdigest()[:6]
         run_id = f"rc-{now.strftime('%Y%m%d-%H%M%S')}-{topic_hash}"
         run_dir = _validated_run_dir(run_id)

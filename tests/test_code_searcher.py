@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import time
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from researchclaw.agents.code_searcher.agent import CodeSearchAgent, CodeSearchResult
@@ -18,16 +16,15 @@ from researchclaw.agents.code_searcher.github_client import (
 )
 from researchclaw.agents.code_searcher.pattern_extractor import (
     CodePatterns,
-    extract_patterns,
     _heuristic_extract,
+    extract_patterns,
 )
 from researchclaw.agents.code_searcher.query_gen import (
-    generate_search_queries,
-    _heuristic_generate,
     _extract_key_phrases,
+    _heuristic_generate,
+    generate_search_queries,
 )
-from researchclaw.domains.detector import DomainProfile, get_profile
-
+from researchclaw.domains.detector import DomainProfile
 
 # ---------------------------------------------------------------------------
 # Query Generation tests

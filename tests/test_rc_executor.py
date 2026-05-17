@@ -3313,6 +3313,7 @@ class TestExperimentHarness:
 
     def test_harness_finalize(self, tmp_path: Path) -> None:
         import os
+
         from researchclaw.experiment.harness_template import ExperimentHarness
 
         old_cwd = os.getcwd()
@@ -3358,6 +3359,7 @@ class TestExperimentHarness:
 
     def test_harness_injected_into_sandbox(self, tmp_path: Path) -> None:
         import sys
+
         from researchclaw.config import SandboxConfig
         from researchclaw.experiment.sandbox import ExperimentSandbox
 
@@ -3381,6 +3383,7 @@ class TestExperimentHarness:
 
     def test_harness_not_overwritten_by_project(self, tmp_path: Path) -> None:
         import sys
+
         from researchclaw.config import SandboxConfig
         from researchclaw.experiment.sandbox import ExperimentSandbox
 
@@ -3407,6 +3410,7 @@ class TestExperimentHarness:
         import sys
         import threading
         import time
+
         from researchclaw.config import SandboxConfig
         from researchclaw.experiment.sandbox import ExperimentSandbox
 
@@ -3441,6 +3445,7 @@ class TestExperimentHarness:
         import sys
         import threading
         import time
+
         from researchclaw.config import SandboxConfig
         from researchclaw.experiment.sandbox import ExperimentSandbox
 
@@ -3477,7 +3482,7 @@ class TestExperimentHarness:
             thread.join(timeout=5)
 
         result = result_holder["result"]
-        assert getattr(result, "timed_out") is True
+        assert result.timed_out is True
 
     def test_prompt_mentions_harness(self) -> None:
         from researchclaw.prompts import PromptManager
@@ -3749,6 +3754,7 @@ class TestExperimentRunFallbackLogging:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         import threading
+
         from researchclaw.experiment.sandbox import SandboxResult
         from researchclaw.pipeline.stage_impls import _execution
 

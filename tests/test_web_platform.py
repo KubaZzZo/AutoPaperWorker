@@ -6,15 +6,11 @@ All tests run without external services (mocked LLM, mocked Whisper).
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import subprocess
-import sys
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -115,7 +111,7 @@ class TestServerConfig:
         assert cfg.max_log_lines == 500
 
     def test_rcconfig_has_server_and_dashboard(self) -> None:
-        from researchclaw.config import RCConfig, ServerConfig, DashboardConfig
+        from researchclaw.config import DashboardConfig, RCConfig, ServerConfig
 
         # Build minimal valid config dict
         data = {
@@ -667,6 +663,7 @@ class TestChatWebSocketRoute:
     @pytest.mark.asyncio
     async def test_chat_errors_hide_internal_exception_details(self, monkeypatch) -> None:
         from fastapi import WebSocketDisconnect
+
         from researchclaw.server.routes import chat as chat_route
         from researchclaw.server.websocket.events import EventType
 
@@ -747,7 +744,8 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_health_endpoint(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
+
         from researchclaw import __version__
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
@@ -780,7 +778,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_config_endpoint(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -789,7 +787,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_config_endpoint_with_token(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         token = app.state.auth_token  # type: ignore[attr-defined]
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
@@ -816,7 +814,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_config_endpoint_accepts_query_token(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         token = app.state.auth_token  # type: ignore[attr-defined]
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
@@ -858,7 +856,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_pipeline_status_idle(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -867,7 +865,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_pipeline_stages(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -882,7 +880,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_runs_list(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -933,7 +931,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_projects_list(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -947,7 +945,7 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_stop_pipeline_404_when_idle(self, app: object) -> None:
-        from httpx import AsyncClient, ASGITransport
+        from httpx import ASGITransport, AsyncClient
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -960,8 +958,9 @@ class TestFastAPIApp:
 
     @pytest.mark.asyncio
     async def test_pipeline_start_is_rate_limited(self, _skip_if_no_fastapi: None) -> None:
-        from httpx import AsyncClient, ASGITransport
         from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+
         from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 
         app = FastAPI()
@@ -997,8 +996,9 @@ class TestFastAPIApp:
         self,
         _skip_if_no_fastapi: None,
     ) -> None:
-        from httpx import AsyncClient, ASGITransport
         from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+
         from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 
         app = FastAPI()
@@ -1034,8 +1034,9 @@ class TestFastAPIApp:
         self,
         _skip_if_no_fastapi: None,
     ) -> None:
-        from httpx import AsyncClient, ASGITransport
         from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+
         from researchclaw.server.middleware.rate_limit import RateLimitMiddleware
 
         app = FastAPI()

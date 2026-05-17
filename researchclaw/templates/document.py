@@ -17,7 +17,6 @@ from researchclaw.templates.sections import (
     _parse_sections,
 )
 
-
 CounterReset = Callable[[], None]
 Counter = Callable[[], int]
 

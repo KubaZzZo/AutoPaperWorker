@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Protocol, cast
 
-from researchclaw.config import ExperimentConfig, SandboxConfig, SshRemoteConfig
+from researchclaw.config import ExperimentConfig, SshRemoteConfig
 from researchclaw.experiment.factory import create_sandbox
 from researchclaw.experiment.sandbox import SandboxProtocol
 

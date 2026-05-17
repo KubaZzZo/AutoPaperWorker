@@ -8,7 +8,6 @@ import pytest
 
 from researchclaw.web.search import SearchResult, WebSearchClient, WebSearchResponse
 
-
 # ---------------------------------------------------------------------------
 # SearchResult dataclass
 # ---------------------------------------------------------------------------

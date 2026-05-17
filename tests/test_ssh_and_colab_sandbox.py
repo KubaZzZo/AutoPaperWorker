@@ -5,7 +5,6 @@ from __future__ import annotations
 import gc
 import json
 import subprocess
-import textwrap
 import time
 from pathlib import Path
 from unittest import mock
@@ -13,27 +12,26 @@ from unittest import mock
 import pytest
 
 from researchclaw.config import (
-    DistributedTrainingConfig,
+    BenchmarkAgentConfig,
+    CodeAgentConfig,
     ColabDriveConfig,
+    DistributedTrainingConfig,
+    DockerSandboxConfig,
     ExperimentConfig,
+    FigureAgentConfig,
     SandboxConfig,
     SshRemoteConfig,
-    DockerSandboxConfig,
-    CodeAgentConfig,
-    BenchmarkAgentConfig,
-    FigureAgentConfig,
 )
+from researchclaw.experiment.colab_sandbox import (
+    COLAB_WORKER_TEMPLATE,
+    ColabDriveSandbox,
+)
+from researchclaw.experiment.factory import create_sandbox
 from researchclaw.experiment.ssh_sandbox import (
     SshRemoteSandbox,
     _build_ssh_base,
     _ssh_target,
 )
-from researchclaw.experiment.colab_sandbox import (
-    ColabDriveSandbox,
-    COLAB_WORKER_TEMPLATE,
-)
-from researchclaw.experiment.factory import create_sandbox
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -533,8 +531,8 @@ class TestFactoryIntegration:
 
 class TestAcpTimeoutFix:
     def test_timeout_passed_from_config(self):
-        from researchclaw.config import RCConfig, AcpConfig, LlmConfig
-        from researchclaw.llm.acp_client import ACPClient, ACPConfig
+        from researchclaw.config import AcpConfig, LlmConfig
+        from researchclaw.llm.acp_client import ACPClient
 
         acp_cfg = AcpConfig(agent="codex", timeout_sec=1500)
         llm_cfg = LlmConfig(provider="acp", acp=acp_cfg)

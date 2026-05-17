@@ -3,15 +3,10 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from unittest import mock
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -94,8 +89,11 @@ _SAMPLE_METRICS_SUMMARY = {
 class TestStyleConfig:
     def test_constants_exist(self):
         from researchclaw.agents.figure_agent.style_config import (
-            COLORS_BRIGHT, DPI_PUBLICATION, FIGURE_WIDTH,
-            MATPLOTLIB_STYLES, OUTPUT_FORMAT_PRIMARY,
+            COLORS_BRIGHT,
+            DPI_PUBLICATION,
+            FIGURE_WIDTH,
+            MATPLOTLIB_STYLES,
+            OUTPUT_FORMAT_PRIMARY,
         )
         assert len(COLORS_BRIGHT) >= 7
         assert DPI_PUBLICATION >= 300
@@ -856,7 +854,8 @@ class TestIntegratorAgent:
 class TestOrchestrator:
     def test_orchestrate_basic(self, tmp_path):
         from researchclaw.agents.figure_agent.orchestrator import (
-            FigureAgentConfig, FigureOrchestrator,
+            FigureAgentConfig,
+            FigureOrchestrator,
         )
 
         # LLM returns plan, then quality review

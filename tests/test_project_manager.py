@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from researchclaw.project.models import Idea, Project
-from researchclaw.project.manager import ProjectManager
-from researchclaw.project.scheduler import ProjectScheduler
 from researchclaw.project.idea_pool import IdeaPool
-
+from researchclaw.project.manager import ProjectManager
+from researchclaw.project.models import Idea, Project
+from researchclaw.project.scheduler import ProjectScheduler
 
 # ── fixtures ──────────────────────────────────────────────────────
 

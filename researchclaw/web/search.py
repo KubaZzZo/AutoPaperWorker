@@ -19,10 +19,11 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.request import Request
 from urllib.parse import quote_plus
+from urllib.request import Request
 
-from researchclaw.web._ssrf import check_url_ssrf, ssrf_urlopen as urlopen
+from researchclaw.web._ssrf import check_url_ssrf
+from researchclaw.web._ssrf import ssrf_urlopen as urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +266,9 @@ class WebSearchClient:
             snippet = re.sub(r"<[^>]+>", "", snippets[i]).strip() if i < len(snippets) else ""
             if "duckduckgo.com" in url:
                 # Extract actual URL from DDG redirect: //duckduckgo.com/l/?uddg=https%3A...
-                from urllib.parse import urlparse as _urlparse, parse_qs as _parse_qs, unquote as _unquote
+                from urllib.parse import parse_qs as _parse_qs
+                from urllib.parse import unquote as _unquote
+                from urllib.parse import urlparse as _urlparse
                 _parsed_ddg = _urlparse(url)
                 _uddg = _parse_qs(_parsed_ddg.query).get("uddg")
                 if _uddg:

@@ -7,48 +7,69 @@ import logging
 import re
 import urllib.error
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from researchclaw.config import RCConfig
-from researchclaw.hardware import HardwareProfile
 from researchclaw.llm.client import LLMClient
 from researchclaw.pipeline.artifact_io import (
     find_prior_file as _find_prior_file_impl,
+)
+from researchclaw.pipeline.artifact_io import (
     load_hardware_profile as _load_hardware_profile_impl,
+)
+from researchclaw.pipeline.artifact_io import (
     read_best_analysis as _read_best_analysis_impl,
+)
+from researchclaw.pipeline.artifact_io import (
     read_prior_artifact as _read_prior_artifact_impl,
+)
+from researchclaw.pipeline.artifact_io import (
     write_stage_meta as _write_stage_meta_impl,
 )
 from researchclaw.pipeline.code_blocks import (
     extract_code_block as _extract_code_block_impl,
+)
+from researchclaw.pipeline.code_blocks import (
     extract_multi_file_blocks as _extract_multi_file_blocks_impl,
 )
 from researchclaw.pipeline.experiment_results import (
     _CONDITION_RE,
+)
+from researchclaw.pipeline.experiment_results import (
     collect_experiment_results as _collect_experiment_results_impl,
+)
+from researchclaw.pipeline.experiment_results import (
     parse_metrics_from_stdout as _parse_metrics_from_stdout_impl,
 )
 from researchclaw.pipeline.parsing import (
     extract_yaml_block as _extract_yaml_block_impl,
+)
+from researchclaw.pipeline.parsing import (
     parse_jsonl_rows as _parse_jsonl_rows_impl,
+)
+from researchclaw.pipeline.parsing import (
     safe_json_loads as _safe_json_loads_impl,
+)
+from researchclaw.pipeline.parsing import (
     write_jsonl as _write_jsonl_impl,
 )
 from researchclaw.pipeline.runtime_issues import (
     detect_runtime_issues as _detect_runtime_issues_impl,
 )
-from researchclaw.pipeline.topic_utils import (
-    build_fallback_queries as _build_fallback_queries_impl,
-    extract_topic_keywords as _extract_topic_keywords_impl,
-    topic_constraint_block as _topic_constraint_block_impl,
-)
 from researchclaw.pipeline.stages import (
     Stage,
     StageStatus,
+)
+from researchclaw.pipeline.topic_utils import (
+    build_fallback_queries as _build_fallback_queries_impl,
+)
+from researchclaw.pipeline.topic_utils import (
+    extract_topic_keywords as _extract_topic_keywords_impl,
+)
+from researchclaw.pipeline.topic_utils import (
+    topic_constraint_block as _topic_constraint_block_impl,
 )
 from researchclaw.prompts import PromptManager
 from researchclaw.utils.text import BASE_STOP_WORDS
@@ -162,7 +183,7 @@ _STOP_WORDS = BASE_STOP_WORDS
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +207,7 @@ def _build_fallback_queries(topic: str) -> list[str]:
 
 
 def _write_stage_meta(
-    stage_dir: Path, stage: Stage, run_id: str, result: "StageResult"
+    stage_dir: Path, stage: Stage, run_id: str, result: StageResult
 ) -> None:
     _write_stage_meta_impl(
         stage_dir,
@@ -817,9 +838,9 @@ def _extract_paper_title(md_text: str) -> str:
 
 def _generate_framework_diagram_prompt(
     paper_text: str,
-    config: "RCConfig",
+    config: RCConfig,
     *,
-    llm: "LLMClient | None" = None,
+    llm: LLMClient | None = None,
 ) -> str:
     """Generate a text-to-image prompt for a methodology framework diagram.
 

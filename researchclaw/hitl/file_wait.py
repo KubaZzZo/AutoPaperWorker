@@ -16,7 +16,6 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any
 
 from researchclaw.hitl.intervention import (
     HumanAction,

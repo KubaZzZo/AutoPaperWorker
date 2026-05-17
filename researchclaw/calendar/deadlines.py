@@ -151,7 +151,7 @@ class ConferenceCalendar:
         """Format upcoming deadlines as a readable string."""
         upcoming = self.get_upcoming(domains=domains, days=days)
         if not upcoming:
-            return "No upcoming deadlines in the next {} days.".format(days)
+            return f"No upcoming deadlines in the next {days} days."
         lines = [f"Upcoming Conference Deadlines (next {days} days):", ""]
         for conf in upcoming:
             nd = conf.next_deadline

@@ -10,19 +10,15 @@ import json
 import logging
 import textwrap
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from researchclaw.literature.models import Author, Paper
-from researchclaw.literature.semantic_scholar import (
-    _parse_s2_paper,
-    search_semantic_scholar,
-)
 from researchclaw.literature.arxiv_client import (
     _convert_result,
     search_arxiv,
 )
+from researchclaw.literature.models import Author, Paper
 from researchclaw.literature.search import (
     _deduplicate,
     _normalise_title,
@@ -30,7 +26,10 @@ from researchclaw.literature.search import (
     search_papers,
     search_papers_multi_query,
 )
-
+from researchclaw.literature.semantic_scholar import (
+    _parse_s2_paper,
+    search_semantic_scholar,
+)
 
 # ──────────────────────────────────────────────────────────────────────
 # Fixtures & helpers
@@ -294,8 +293,8 @@ class TestSemanticScholar:
 class TestArxiv:
     def test_convert_result(self) -> None:
         """Test converting arxiv.Result to Paper via the new library."""
-        from unittest.mock import MagicMock
         from datetime import datetime
+        from unittest.mock import MagicMock
 
         mock_result = MagicMock()
         mock_result.entry_id = "http://arxiv.org/abs/2401.00001v1"
@@ -323,9 +322,8 @@ class TestArxiv:
 
     def test_search_arxiv_mock(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test search_arxiv with mocked arxiv library."""
-        from unittest.mock import MagicMock
         from datetime import datetime
-        import types
+        from unittest.mock import MagicMock
 
         mock_result = MagicMock()
         mock_result.entry_id = "http://arxiv.org/abs/2401.00001v1"
@@ -362,8 +360,8 @@ class TestArxiv:
 
     def test_search_arxiv_error_graceful(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """search_arxiv returns empty list on error, not raise."""
-        from unittest.mock import MagicMock
         import types
+        from unittest.mock import MagicMock
 
         # Build a fake arxiv module with real exception classes so
         # `except arxiv.HTTPError` doesn't TypeError.
@@ -622,6 +620,7 @@ class TestArxivCircuitBreaker:
     def test_breaker_open_skips_requests(self) -> None:
         """When breaker is OPEN, requests should be skipped."""
         import time as time_mod
+
         from researchclaw.literature import arxiv_client
 
         arxiv_client._cb_state = arxiv_client._CB_OPEN
@@ -828,7 +827,7 @@ class TestMultiSourceFallback:
 class TestCacheTTL:
     def test_source_specific_ttl(self, tmp_path: Any) -> None:
         """arXiv cache should expire after 24h, not 7 days."""
-        from researchclaw.literature.cache import get_cached, put_cache, _SOURCE_TTL
+        from researchclaw.literature.cache import _SOURCE_TTL, get_cached, put_cache
 
         assert _SOURCE_TTL["arxiv"] == 86400  # 24h
         assert _SOURCE_TTL["semantic_scholar"] == 86400 * 3

@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request
 
-from researchclaw.web._ssrf import check_url_ssrf, ssrf_urlopen as urlopen
+from researchclaw.web._ssrf import check_url_ssrf
+from researchclaw.web._ssrf import ssrf_urlopen as urlopen
 
 try:
     import fitz  # PyMuPDF

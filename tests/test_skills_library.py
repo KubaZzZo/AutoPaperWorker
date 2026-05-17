@@ -17,21 +17,20 @@ from pathlib import Path
 
 import pytest
 
-from researchclaw.skills.schema import Skill, STAGE_NAME_TO_NUMBER
 from researchclaw.skills.loader import (
     load_skill_file,
     load_skill_from_skillmd,
     load_skillmd_from_directory,
     load_skills_from_directory,
 )
-from researchclaw.skills.registry import SkillRegistry
 from researchclaw.skills.matcher import (
-    match_skills,
-    format_skills_for_prompt,
-    _tokenize,
     _resolve_stage,
+    _tokenize,
+    format_skills_for_prompt,
+    match_skills,
 )
-
+from researchclaw.skills.registry import SkillRegistry
+from researchclaw.skills.schema import STAGE_NAME_TO_NUMBER, Skill
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 

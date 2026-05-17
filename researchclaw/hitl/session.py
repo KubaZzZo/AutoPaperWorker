@@ -6,10 +6,11 @@ import json
 import logging
 import time as _time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from researchclaw.hitl.config import HITLConfig, InterventionMode, StagePolicy
 from researchclaw.hitl.intervention import (
@@ -64,7 +65,7 @@ class HITLSession:
 
     # Timestamps
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(
+        default_factory=lambda: datetime.now(UTC).isoformat(
             timespec="seconds"
         )
     )
@@ -412,7 +413,7 @@ class HITLSession:
             logger.debug("Failed to persist intervention")
 
     def _update_activity(self) -> None:
-        self.last_activity = datetime.now(timezone.utc).isoformat(
+        self.last_activity = datetime.now(UTC).isoformat(
             timespec="seconds"
         )
 

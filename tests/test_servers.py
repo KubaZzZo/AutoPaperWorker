@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from researchclaw.servers.registry import ServerEntry, ServerRegistry
-from researchclaw.servers.monitor import ServerMonitor, _parse_status_output
-from researchclaw.servers.dispatcher import TaskDispatcher
-from researchclaw.servers.ssh_executor import SSHExecutor
-from researchclaw.servers.slurm_executor import SlurmExecutor
 from researchclaw.servers.cloud_executor import CloudExecutor
-
+from researchclaw.servers.dispatcher import TaskDispatcher
+from researchclaw.servers.monitor import ServerMonitor, _parse_status_output
+from researchclaw.servers.registry import ServerEntry, ServerRegistry
+from researchclaw.servers.slurm_executor import SlurmExecutor
+from researchclaw.servers.ssh_executor import SSHExecutor
 
 # ── fixtures ──────────────────────────────────────────────────────
 

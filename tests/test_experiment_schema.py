@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 import yaml
 
 from researchclaw.domains.experiment_schema import (
@@ -14,7 +13,6 @@ from researchclaw.domains.experiment_schema import (
     UniversalExperimentPlan,
     from_legacy_exp_plan,
 )
-
 
 # ---------------------------------------------------------------------------
 # Condition tests

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 _OUTER_FENCE_RE = re.compile(
     r"^\s*```(?:markdown|md|latex|tex)?\s*\n(.*?)^\s*```\s*$",
     re.MULTILINE | re.DOTALL,

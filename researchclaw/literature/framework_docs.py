@@ -15,7 +15,6 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 

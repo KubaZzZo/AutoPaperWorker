@@ -435,7 +435,7 @@ def main():
         report["architecture_spec_chars"] = len(result.architecture_spec)
 
         # Print report
-        print(f"\n--- Quality Report ---")
+        print("\n--- Quality Report ---")
         print(f"Files: {report['num_files']}")
         print(f"Total lines: {report['total_lines']}")
         print(f"Effective lines: {report['effective_lines']}")
@@ -443,12 +443,12 @@ def main():
         for cls in report["classes_found"]:
             print(f"  - {cls['name']} ({cls['method_count']} methods, {cls['total_method_lines']} lines)")
         print(f"Imports: {', '.join(report['imports_found'])}")
-        print(f"\nScores:")
+        print("\nScores:")
         for k, v in report["scores"].items():
             print(f"  {k}: {v}/10")
         print(f"  OVERALL: {report['overall_score']}/10")
         if report["issues"]:
-            print(f"\nIssues:")
+            print("\nIssues:")
             for issue in report["issues"]:
                 print(f"  - {issue}")
 

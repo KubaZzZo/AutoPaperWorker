@@ -8,7 +8,6 @@ Run after building the image:
 
 from __future__ import annotations
 
-import json
 import sys
 import tempfile
 from pathlib import Path

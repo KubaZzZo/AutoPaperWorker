@@ -10,19 +10,16 @@ from __future__ import annotations
 import pytest
 
 from researchclaw.domains.detector import (
-    DomainProfile,
+    _keyword_detect,
+    _profile_cache,
     detect_domain,
     detect_domain_id,
     get_profile,
-    _keyword_detect,
-    _profile_cache,
 )
 from researchclaw.domains.prompt_adapter import (
     MLPromptAdapter,
-    PromptBlocks,
     get_adapter,
 )
-
 
 # ---------------------------------------------------------------------------
 # Profile loading

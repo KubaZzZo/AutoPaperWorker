@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,6 @@ from researchclaw.pipeline._helpers import (
     _get_evolution_overlay,
     _load_hardware_profile,
     _read_prior_artifact,
-    _safe_json_loads,
     _utcnow_iso,
 )
 from researchclaw.pipeline.stages import Stage, StageStatus
@@ -510,7 +508,7 @@ def _execute_experiment_design(
 
     # --- HITL: Baseline Navigator data persistence ---
     try:
-        from researchclaw.hitl.workshops.baseline import BaselineNavigator, BaselineCandidate
+        from researchclaw.hitl.workshops.baseline import BaselineCandidate, BaselineNavigator
 
         nav = BaselineNavigator(run_dir, llm_client=llm)
         if isinstance(plan, dict):

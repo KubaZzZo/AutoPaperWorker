@@ -155,10 +155,10 @@ class AcquirerAgent(BaseAgent):
                 lines.extend([
                     f'    # Download {name}',
                     '    try:',
-                    f'        import torchvision',
+                    '        import torchvision',
                     f'        {dl_api}',
                     f'        print(f"Downloaded {name}")',
-                    f'    except Exception as e:',
+                    '    except Exception as e:',
                     f'        print(f"Warning: Failed to download {name}: {{e}}")',
                     '',
                 ])
@@ -169,10 +169,10 @@ class AcquirerAgent(BaseAgent):
                 lines.extend([
                     f'    # Download {name}',
                     '    try:',
-                    f'        from datasets import load_dataset',
+                    '        from datasets import load_dataset',
                     f'        {_dl_api}',
                     f'        print(f"Downloaded {name}")',
-                    f'    except Exception as e:',
+                    '    except Exception as e:',
                     f'        print(f"Warning: Failed to download {name}: {{e}}")',
                     '',
                 ])
@@ -180,11 +180,11 @@ class AcquirerAgent(BaseAgent):
                 lines.extend([
                     f'    # Download {name}',
                     '    try:',
-                    f'        from ogb.nodeproppred import PygNodePropPredDataset' if 'Node' in api
-                    else f'        from ogb.graphproppred import PygGraphPropPredDataset',
+                    '        from ogb.nodeproppred import PygNodePropPredDataset' if 'Node' in api
+                    else '        from ogb.graphproppred import PygGraphPropPredDataset',
                     f'        {api}',
                     f'        print(f"Downloaded {name}")',
-                    f'    except Exception as e:',
+                    '    except Exception as e:',
                     f'        print(f"Warning: Failed to download {name}: {{e}}")',
                     '',
                 ])

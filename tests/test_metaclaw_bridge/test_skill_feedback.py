@@ -1,6 +1,5 @@
 """Tests for skill feedback tracking module."""
 
-from pathlib import Path
 
 from researchclaw.metaclaw_bridge.skill_feedback import (
     SkillEffectivenessRecord,

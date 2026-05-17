@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from researchclaw.domains.detector import DomainProfile, get_profile, get_generic_profile
+from researchclaw.domains.detector import DomainProfile, get_generic_profile, get_profile
 from researchclaw.domains.prompt_adapter import (
     GenericPromptAdapter,
     MLPromptAdapter,

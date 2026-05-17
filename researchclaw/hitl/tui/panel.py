@@ -9,18 +9,17 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 try:
+    from rich.columns import Columns
     from rich.console import Console
+    from rich.markdown import Markdown
     from rich.panel import Panel
+    from rich.progress import BarColumn, Progress, TextColumn
     from rich.table import Table
     from rich.text import Text
-    from rich.progress import Progress, BarColumn, TextColumn
-    from rich.columns import Columns
-    from rich.markdown import Markdown
 
     _HAS_RICH = True
 except ImportError:

@@ -5,15 +5,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.hitl.config import HITLConfig
 from researchclaw.hitl.intervention import HumanAction, HumanInput, PauseReason
 from researchclaw.hitl.session import HITLSession, SessionState
-
 
 # ══════════════════════════════════════════════════════════════════
 # CLI integration tests
@@ -193,8 +190,8 @@ class TestExecutorHITLHooks:
 
     def test_post_stage_hook_approve(self, tmp_path: Path) -> None:
         """Post-stage hook approves and returns original result."""
-        from researchclaw.pipeline.executor import _run_hitl_post_stage
         from researchclaw.pipeline._helpers import StageResult
+        from researchclaw.pipeline.executor import _run_hitl_post_stage
         from researchclaw.pipeline.stages import Stage, StageStatus
 
         config = HITLConfig.from_dict({
@@ -222,8 +219,8 @@ class TestExecutorHITLHooks:
 
     def test_post_stage_hook_reject(self, tmp_path: Path) -> None:
         """Post-stage hook rejects with REJECTED status."""
-        from researchclaw.pipeline.executor import _run_hitl_post_stage
         from researchclaw.pipeline._helpers import StageResult
+        from researchclaw.pipeline.executor import _run_hitl_post_stage
         from researchclaw.pipeline.stages import Stage, StageStatus
 
         config = HITLConfig.from_dict({
@@ -401,7 +398,7 @@ class TestEndToEndFlow:
 
     def test_presets_produce_valid_configs(self) -> None:
         """All presets should produce valid HITLConfig objects."""
-        from researchclaw.hitl.presets import list_presets, get_preset
+        from researchclaw.hitl.presets import get_preset, list_presets
 
         for name in list_presets():
             config = get_preset(name)

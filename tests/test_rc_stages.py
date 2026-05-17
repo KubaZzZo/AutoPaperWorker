@@ -49,9 +49,9 @@ def test_previous_stage_boundary_values():
 
 
 def test_gate_stages_matches_expected_set():
-    assert GATE_STAGES == frozenset(
+    assert frozenset(
         {Stage.LITERATURE_SCREEN, Stage.EXPERIMENT_DESIGN, Stage.QUALITY_GATE}
-    )
+    ) == GATE_STAGES
 
 
 def test_gate_rollback_map_matches_expected_targets():

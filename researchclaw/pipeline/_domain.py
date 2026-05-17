@@ -12,7 +12,8 @@ sites while routing every decision through the newer detector.
 
 from __future__ import annotations
 
-from researchclaw.domains.detector import DomainProfile, detect_domain as _detect_profile
+from researchclaw.domains.detector import DomainProfile
+from researchclaw.domains.detector import detect_domain as _detect_profile
 
 _TOP_VENUES_BY_PARENT: dict[str, str] = {
     "ml": "NeurIPS, ICML, ICLR",

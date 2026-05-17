@@ -6,8 +6,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from researchclaw.hitl.config import (
     HITLConfig,
     InterventionMode,
@@ -23,7 +21,6 @@ from researchclaw.hitl.intervention import (
     WaitingState,
 )
 from researchclaw.hitl.session import HITLSession, SessionState
-
 
 # ══════════════════════════════════════════════════════════════════
 # HITLConfig tests

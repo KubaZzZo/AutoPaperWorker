@@ -6,8 +6,6 @@ import json
 from pathlib import Path
 from unittest import mock
 
-import pytest
-
 from researchclaw.evolution import LessonEntry
 from researchclaw.evolution_aevolve import (
     Mutation,
@@ -373,7 +371,6 @@ class TestLoadProjectSkills:
         original_func = evolution._load_project_skills
 
         def patched():
-            from pathlib import Path as _P
             skills: list[str] = []
             for rel_dir in evolution._PROJECT_SKILLS_DIRS:
                 sd = tmp_path / rel_dir

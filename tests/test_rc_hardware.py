@@ -5,8 +5,6 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from researchclaw.hardware import (
     HardwareProfile,
     _detect_mps,
@@ -15,7 +13,6 @@ from researchclaw.hardware import (
     ensure_torch_available,
     is_metric_name,
 )
-
 
 # ---------------------------------------------------------------------------
 # HardwareProfile

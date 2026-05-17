@@ -12,8 +12,8 @@ def test_custom_exception_hierarchy_is_public() -> None:
         LLMRateLimitError,
         PipelineError,
         ResearchClawError,
-        SSRFBlockedError,
         SandboxError,
+        SSRFBlockedError,
         StageFailedError,
         WebError,
     )

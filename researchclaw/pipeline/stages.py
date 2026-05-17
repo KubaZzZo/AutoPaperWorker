@@ -14,9 +14,9 @@ Migrated from arc/state_machine.py (19 stages) with the following changes:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, IntEnum
-from typing import Iterable
 
 from researchclaw.exceptions import PipelineTransitionError
 

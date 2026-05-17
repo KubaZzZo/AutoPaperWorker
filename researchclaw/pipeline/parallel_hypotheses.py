@@ -9,7 +9,6 @@ from typing import Any
 
 from researchclaw.config import ParallelHypothesesConfig
 
-
 _NUMBERED_RE = re.compile(r"^\s*\d+[\.)]\s+(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*[-*]\s+(.+?)\s*$")
 _HEADING_RE = re.compile(r"^\s*#{2,6}\s+(?:H\d+[:.)-]?\s*)?(.+?)\s*$", re.I)

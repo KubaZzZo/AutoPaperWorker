@@ -27,8 +27,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
-from defusedxml import ElementTree
 from enum import Enum
+
+from defusedxml import ElementTree
 
 from researchclaw.literature.models import Paper
 from researchclaw.utils.http import urlopen_http
@@ -888,9 +889,7 @@ def filter_verified_bibtex(
     # Build set of keys to keep
     keep_keys: set[str] = set()
     for r in report.results:
-        if r.status == VerifyStatus.VERIFIED:
-            keep_keys.add(r.cite_key)
-        elif r.status == VerifyStatus.SUSPICIOUS and include_suspicious:
+        if r.status == VerifyStatus.VERIFIED or r.status == VerifyStatus.SUSPICIOUS and include_suspicious:
             keep_keys.add(r.cite_key)
         elif r.status == VerifyStatus.SKIPPED:
             keep_keys.add(r.cite_key)  # keep unverifiable entries

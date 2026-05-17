@@ -20,7 +20,7 @@ import json
 import logging
 import re
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -406,7 +406,7 @@ def reload(
                 "name": m.name,
                 "content": m.content,
                 "source_observation": m.target_observation,
-                "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
             }
             with kb_file.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -416,7 +416,7 @@ def reload(
     log_file = run_dir / "evolution" / "aevolve_log.json"
     log_file.parent.mkdir(parents=True, exist_ok=True)
     log_data = {
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
         "observations": [o.to_dict() for o in observations],
         "mutations": [m.to_dict() for m in mutations],
         "skills_created": created,

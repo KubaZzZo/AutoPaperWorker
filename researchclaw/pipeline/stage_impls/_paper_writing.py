@@ -4,31 +4,23 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import re
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain, _is_ml_domain
+from researchclaw.pipeline._domain import _detect_domain
 from researchclaw.pipeline._helpers import (
     StageResult,
     _build_context_preamble,
     _chat_with_prompt,
-    _collect_experiment_results,
     _default_paper_outline,
-    _extract_paper_title,
-    _generate_framework_diagram_prompt,
-    _generate_neurips_checklist,
     _get_evolution_overlay,
     _read_best_analysis,
     _read_prior_artifact,
     _safe_json_loads,
-    _topic_constraint_block,
     _utcnow_iso,
 )
 from researchclaw.pipeline.stage_impls.paper_draft_quality import (
@@ -1414,8 +1406,8 @@ class PaperDraftBuilder:
         if _verified_registry is not None:
             try:
                 from researchclaw.templates.results_table_builder import (
-                    build_results_tables,
                     build_condition_whitelist,
+                    build_results_tables,
                 )
                 _prebuilt_tables = build_results_tables(
                     _verified_registry,
@@ -1602,6 +1594,8 @@ class PaperDraftBuilder:
         if bib_text and bib_text.strip():
             from researchclaw.literature.verify import (
                 filter_verified_bibtex,
+            )
+            from researchclaw.literature.verify import (
                 verify_citations as _verify_cit,
             )
             try:

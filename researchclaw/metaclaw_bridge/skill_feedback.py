@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def record_stage_skills(
     active_skills: list[str],
 ) -> None:
     """Record effectiveness of all active skills for a completed stage."""
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(UTC).isoformat(timespec="seconds")
     records = [
         SkillEffectivenessRecord(
             skill_name=skill,

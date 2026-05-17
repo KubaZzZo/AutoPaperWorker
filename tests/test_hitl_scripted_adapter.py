@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,6 @@ import pytest
 from researchclaw.hitl.adapters.scripted_adapter import ScriptedHITLAdapter
 from researchclaw.hitl.intervention import (
     HumanAction,
-    HumanInput,
     PauseReason,
     WaitingState,
 )

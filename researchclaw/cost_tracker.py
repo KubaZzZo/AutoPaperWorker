@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
-
 
 DEFAULT_PRICE_TABLE_PATH = Path(__file__).with_name("data") / "provider_prices.json"
 
@@ -105,7 +104,7 @@ class CostTracker:
         """Record an API usage cost event."""
 
         entry = CostEntry(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             provider=provider,
             model=model,
             prompt_tokens=int(prompt_tokens or 0),

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -15,7 +15,7 @@ class Project:
     config_path: str
     run_dir: str
     status: str = "idle"  # idle | running | completed | failed
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_run_id: str | None = None
     topic: str = ""
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -40,7 +40,7 @@ class Project:
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         elif created_at is None:
-            created_at = datetime.now(timezone.utc)
+            created_at = datetime.now(UTC)
         return cls(
             name=data["name"],
             config_path=data["config_path"],
@@ -64,7 +64,7 @@ class Idea:
     feasibility: float = 0.0  # 0-1
     novelty: float = 0.0  # 0-1
     domains: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def score(self) -> float:
@@ -91,7 +91,7 @@ class Idea:
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         elif created_at is None:
-            created_at = datetime.now(timezone.utc)
+            created_at = datetime.now(UTC)
         return cls(
             id=data["id"],
             title=data["title"],

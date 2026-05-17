@@ -3,44 +3,43 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 import logging
-import time
 import threading
-import builtins
+import time
 from pathlib import Path
 
 import pytest
 
-from researchclaw.hitl.file_wait import (
-    write_waiting,
-    write_response,
-    poll_for_response,
-    clear_waiting,
+from researchclaw.hitl.adapters.cli_adapter import CLIAdapter
+from researchclaw.hitl.checksums import (
+    compute_sha256,
+    generate_manifest,
+    verify_manifest,
+    write_manifest,
 )
+from researchclaw.hitl.cost_guard import CostGuard
+from researchclaw.hitl.diff_view import (
+    diff_from_snapshot,
+    diff_summary,
+    format_diff_stats,
+    side_by_side_diff,
+    unified_diff,
+)
+from researchclaw.hitl.file_wait import (
+    clear_waiting,
+    poll_for_response,
+    write_response,
+    write_waiting,
+)
+from researchclaw.hitl.hooks import HookRegistry
 from researchclaw.hitl.intervention import (
     HumanAction,
     HumanInput,
     PauseReason,
     WaitingState,
 )
-from researchclaw.hitl.cost_guard import CostGuard, CostStatus
-from researchclaw.hitl.diff_view import (
-    unified_diff,
-    side_by_side_diff,
-    diff_summary,
-    format_diff_stats,
-    diff_from_snapshot,
-)
-from researchclaw.hitl.checksums import (
-    compute_sha256,
-    generate_manifest,
-    write_manifest,
-    verify_manifest,
-)
-from researchclaw.hitl.hooks import HookRegistry, HookResult
-from researchclaw.hitl.adapters.cli_adapter import CLIAdapter
-
 
 # ══════════════════════════════════════════════════════════════════
 # File-based wait tests

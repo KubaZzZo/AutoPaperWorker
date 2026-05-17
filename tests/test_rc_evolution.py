@@ -4,20 +4,16 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-
-import pytest
 
 from researchclaw.evolution import (
     EvolutionStore,
-    LessonCategory,
     LessonEntry,
-    extract_lessons,
     _classify_error,
     _time_weight,
+    extract_lessons,
 )
-
 
 # ── LessonEntry tests ──
 
@@ -72,16 +68,16 @@ class TestClassifyError:
 
 class TestTimeWeight:
     def test_recent_lesson_has_high_weight(self) -> None:
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         assert _time_weight(now) > 0.9
 
     def test_30_day_old_has_half_weight(self) -> None:
-        ts = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat(timespec="seconds")
+        ts = (datetime.now(UTC) - timedelta(days=30)).isoformat(timespec="seconds")
         weight = _time_weight(ts)
         assert 0.4 < weight < 0.6  # Should be ~0.5
 
     def test_90_day_old_returns_zero(self) -> None:
-        ts = (datetime.now(timezone.utc) - timedelta(days=91)).isoformat(timespec="seconds")
+        ts = (datetime.now(UTC) - timedelta(days=91)).isoformat(timespec="seconds")
         assert _time_weight(ts) == 0.0
 
     def test_invalid_timestamp_returns_zero(self) -> None:
@@ -97,6 +93,7 @@ class TestTimeWeight:
 class TestExtractLessons:
     def _make_result(self, stage_num, status, error=None, decision="proceed"):
         from types import SimpleNamespace
+
         from researchclaw.pipeline.stages import Stage, StageStatus
 
         stage = Stage(stage_num)
@@ -255,7 +252,7 @@ class TestEvolutionStore:
             category="pipeline",
             severity="warning",
             description="PIVOT triggered",
-            timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            timestamp=datetime.now(UTC).isoformat(timespec="seconds"),
         )
         store.append(lesson)
         loaded = store.load_all()
@@ -266,9 +263,9 @@ class TestEvolutionStore:
         store = EvolutionStore(tmp_path / "evo")
         lessons = [
             LessonEntry("s1", 1, "system", "error", "err1",
-                        datetime.now(timezone.utc).isoformat()),
+                        datetime.now(UTC).isoformat()),
             LessonEntry("s2", 2, "pipeline", "info", "info1",
-                        datetime.now(timezone.utc).isoformat()),
+                        datetime.now(UTC).isoformat()),
         ]
         store.append_many(lessons)
         assert store.count() == 2
@@ -284,7 +281,7 @@ class TestEvolutionStore:
 
     def test_query_for_stage_returns_relevant_lessons(self, tmp_path: Path) -> None:
         store = EvolutionStore(tmp_path / "evo")
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         store.append(LessonEntry("hypothesis_gen", 8, "pipeline", "error",
                                  "Failed hypothesis", now))
         store.append(LessonEntry("paper_draft", 17, "writing", "warning",
@@ -296,7 +293,7 @@ class TestEvolutionStore:
 
     def test_query_respects_max_lessons(self, tmp_path: Path) -> None:
         store = EvolutionStore(tmp_path / "evo")
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         for i in range(10):
             store.append(LessonEntry("stage_1", 1, "system", "error",
                                      f"Error {i}", now))
@@ -309,7 +306,7 @@ class TestEvolutionStore:
 
     def test_build_overlay_returns_formatted_text(self, tmp_path: Path) -> None:
         store = EvolutionStore(tmp_path / "evo")
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         store.append(LessonEntry("hypothesis_gen", 8, "experiment", "error",
                                  "Code syntax error in experiment", now))
         overlay = store.build_overlay("hypothesis_gen")
@@ -319,7 +316,7 @@ class TestEvolutionStore:
 
     def test_old_lessons_filtered_by_time_weight(self, tmp_path: Path) -> None:
         store = EvolutionStore(tmp_path / "evo")
-        old_ts = (datetime.now(timezone.utc) - timedelta(days=100)).isoformat()
+        old_ts = (datetime.now(UTC) - timedelta(days=100)).isoformat()
         store.append(LessonEntry("stage_1", 1, "system", "error", "Old error", old_ts))
         result = store.query_for_stage("stage_1")
         assert len(result) == 0  # Filtered out due to age > 90 days

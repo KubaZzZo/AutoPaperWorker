@@ -1,10 +1,10 @@
 """Tests for PRM quality gate module."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from researchclaw.metaclaw_bridge.prm_gate import (
-    ResearchPRMGate,
     _GATE_INSTRUCTIONS,
+    ResearchPRMGate,
 )
 
 

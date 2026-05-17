@@ -6,9 +6,8 @@ configurable thresholds (e.g., 50%, 80%, 100% of budget).
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 

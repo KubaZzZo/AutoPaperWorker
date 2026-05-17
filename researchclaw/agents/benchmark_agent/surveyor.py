@@ -8,8 +8,8 @@ Data sources (in priority order):
 
 from __future__ import annotations
 
-import logging
 import importlib
+import logging
 from pathlib import Path
 from typing import Any
 

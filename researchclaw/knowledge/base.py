@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ import yaml
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ def generate_weekly_report(
     statistics into a Markdown report written to ``kb_root/reviews/``.
     """
     if not week_label:
-        week_label = datetime.now(timezone.utc).strftime("%Y-W%W")
+        week_label = datetime.now(UTC).strftime("%Y-W%W")
 
     runs_data: list[dict] = []
     for run_dir in run_dirs:
@@ -239,7 +239,7 @@ def generate_weekly_report(
     total_blocked = sum(r.get("stages_blocked", 0) for r in runs_data)
 
     report_lines = [
-        f"## Summary",
+        "## Summary",
         f"- Week: {week_label}",
         f"- Pipeline runs: {total_runs}",
         f"- Stages executed: {total_stages}",

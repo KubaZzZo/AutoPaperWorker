@@ -16,6 +16,8 @@ from researchclaw.config import DEFAULT_ARTIFACTS_DIR
 logger = logging.getLogger(__name__)
 
 import re as _re
+from datetime import UTC
+
 _RUN_ID_RE = _re.compile(r"^rc-\d{8}-\d{6}-[a-f0-9]+$")
 
 
@@ -93,9 +95,9 @@ async def start_pipeline(req: PipelineStartRequest) -> PipelineStartResponse:
             config = config.with_research_overrides(topic=req.topic)
 
         import hashlib
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         topic_hash = hashlib.sha256(config.research.topic.encode()).hexdigest()[:6]
         run_id = f"rc-{ts}-{topic_hash}"
         run_dir = _validated_run_dir(run_id)

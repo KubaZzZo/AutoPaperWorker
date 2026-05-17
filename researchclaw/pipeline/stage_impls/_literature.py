@@ -373,8 +373,8 @@ def _execute_literature_collect(
 
     try:
         from researchclaw.literature.search import (
-            search_papers_multi_query,
             papers_to_bibtex,
+            search_papers_multi_query,
         )
 
         # Expand queries for broader coverage
@@ -459,8 +459,9 @@ def _execute_literature_collect(
     web_context_parts: list[str] = []
     if config.web_search.enabled:
         try:
-            from researchclaw.web.agent import WebSearchAgent
             import os
+
+            from researchclaw.web.agent import WebSearchAgent
 
             tavily_key = config.web_search.tavily_api_key or os.environ.get(
                 config.web_search.tavily_api_key_env, ""

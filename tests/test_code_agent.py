@@ -13,12 +13,10 @@ from researchclaw.llm.client import LLMResponse
 from researchclaw.pipeline.code_agent import (
     CodeAgent,
     CodeAgentConfig,
-    CodeAgentResult,
     SolutionNode,
     _SimpleResult,
 )
 from researchclaw.prompts import PromptManager
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures

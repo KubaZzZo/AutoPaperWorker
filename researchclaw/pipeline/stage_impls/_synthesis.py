@@ -6,7 +6,6 @@ import json
 import logging
 import urllib.error
 from pathlib import Path
-from typing import Any
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig

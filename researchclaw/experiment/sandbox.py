@@ -608,7 +608,7 @@ class ExperimentSandbox:
             pipe: Any,
             chunks: list[str],
             out_path: Path | None,
-            errors: "queue.Queue[Exception]",
+            errors: queue.Queue[Exception],
         ) -> None:
             try:
                 if out_path is not None:
@@ -637,7 +637,7 @@ class ExperimentSandbox:
         )
         stdout_chunks: list[str] = []
         stderr_chunks: list[str] = []
-        reader_errors: "queue.Queue[Exception]" = queue.Queue()
+        reader_errors: queue.Queue[Exception] = queue.Queue()
         stdout_thread = threading.Thread(
             target=_reader,
             args=(proc.stdout, stdout_chunks, stdout_path, reader_errors),

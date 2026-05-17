@@ -55,7 +55,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         data={"message": response, "client_id": client_id},
                     ),
                 )
-            except Exception as exc:
+            except Exception:
                 logger.exception("Chat error for %s", client_id)
                 await manager.send_to(
                     client_id,

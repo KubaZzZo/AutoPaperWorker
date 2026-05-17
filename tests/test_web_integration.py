@@ -10,9 +10,8 @@ import pytest
 
 from researchclaw.web.agent import WebSearchAgent, WebSearchAgentResult
 from researchclaw.web.crawler import CrawlResult
-from researchclaw.web.search import SearchResult, WebSearchResponse
 from researchclaw.web.scholar import ScholarPaper
-
+from researchclaw.web.search import SearchResult
 
 # ---------------------------------------------------------------------------
 # WebSearchAgentResult
@@ -244,7 +243,8 @@ class TestWebSearchConfig:
         assert cfg.enable_scholar is True
 
     def test_config_in_rcconfig(self):
-        from researchclaw.config import RCConfig
         import dataclasses
+
+        from researchclaw.config import RCConfig
         field_names = [f.name for f in dataclasses.fields(RCConfig)]
         assert "web_search" in field_names

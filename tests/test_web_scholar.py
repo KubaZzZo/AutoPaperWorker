@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import logging
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from researchclaw.web.scholar import GoogleScholarClient, ScholarPaper
-
 
 # ---------------------------------------------------------------------------
 # ScholarPaper dataclass

@@ -7,12 +7,11 @@ import json
 
 import pytest
 
-from researchclaw.mcp.tools import TOOL_DEFINITIONS, get_tool_schema, list_tool_names
-from researchclaw.mcp.server import ResearchClawMCPServer
 from researchclaw.mcp.client import MCPClient
 from researchclaw.mcp.registry import MCPServerRegistry
+from researchclaw.mcp.server import ResearchClawMCPServer
+from researchclaw.mcp.tools import TOOL_DEFINITIONS, get_tool_schema, list_tool_names
 from researchclaw.mcp.transport import SSETransport
-
 
 # ══════════════════════════════════════════════════════════════════
 # MCP Tools tests

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from researchclaw.config import ExperimentConfig
@@ -101,7 +101,7 @@ def create_agentic_sandbox(
     config: ExperimentConfig,
     workdir: Path,
     skills_dir: Path | None = None,
-) -> "AgenticSandbox":  # noqa: F821
+) -> AgenticSandbox:  # noqa: F821
     """Return an :class:`AgenticSandbox` for agentic experiment mode.
 
     Validates that Docker is available before returning.

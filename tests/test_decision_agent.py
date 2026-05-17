@@ -18,12 +18,10 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 from unittest import mock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -662,7 +660,7 @@ class TestChatStripThinking:
 
     def test_strip_thinking_false_by_default(self):
         """Default chat() should NOT strip <think> tags."""
-        from researchclaw.llm.client import LLMClient, LLMConfig, LLMResponse
+        from researchclaw.llm.client import LLMClient, LLMConfig
 
         config = LLMConfig(
             base_url="http://fake",
@@ -819,8 +817,9 @@ class TestChatWithPromptStripThinking:
     def test_default_strips_thinking(self):
         """_chat_with_prompt should pass strip_thinking=True by default."""
         from unittest.mock import MagicMock
-        from researchclaw.pipeline.executor import _chat_with_prompt
+
         from researchclaw.llm.client import LLMResponse
+        from researchclaw.pipeline.executor import _chat_with_prompt
 
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
@@ -835,8 +834,9 @@ class TestChatWithPromptStripThinking:
     def test_can_disable_stripping(self):
         """_chat_with_prompt(strip_thinking=False) should forward the flag."""
         from unittest.mock import MagicMock
-        from researchclaw.pipeline.executor import _chat_with_prompt
+
         from researchclaw.llm.client import LLMResponse
+        from researchclaw.pipeline.executor import _chat_with_prompt
 
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(

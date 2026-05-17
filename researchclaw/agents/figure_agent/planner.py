@@ -15,7 +15,7 @@ import json
 import logging
 from typing import Any
 
-from researchclaw.agents.base import BaseAgent, AgentStepResult
+from researchclaw.agents.base import AgentStepResult, BaseAgent
 from researchclaw.agents.figure_agent.schema import normalize_figure_specs
 
 logger = logging.getLogger(__name__)

@@ -17,7 +17,6 @@ from researchclaw.templates.lists import (
 from researchclaw.templates.sections import _Section
 from researchclaw.templates.tables import _collect_table, _render_table
 
-
 _SKIP_HEADINGS = {"title", "abstract"}
 
 Counter = Callable[[], int]

@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    from scholarly import scholarly, ProxyGenerator
+    from scholarly import ProxyGenerator, scholarly
     HAS_SCHOLARLY = True
 except ImportError:
     scholarly = None  # type: ignore[assignment]

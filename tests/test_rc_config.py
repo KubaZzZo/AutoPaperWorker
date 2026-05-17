@@ -110,7 +110,7 @@ def test_config_public_api_is_reexported_from_package_modules():
     from researchclaw.config.validation import validate_config as package_validate
 
     assert config_pkg.RCConfig is SchemaRCConfig
-    assert config_pkg.DEFAULT_PYTHON_PATH == defaults_python
+    assert defaults_python == config_pkg.DEFAULT_PYTHON_PATH
     assert config_pkg.validate_config is package_validate
     assert config_pkg._parse_benchmark_agent_config is _parse_benchmark_agent_config
 

@@ -20,12 +20,16 @@ import threading
 
 from researchclaw.templates.body import (
     _build_body as _build_body_impl,
+)
+from researchclaw.templates.body import (
     _convert_block as _convert_block_impl,
     _deduplicate_tables,
 )
 from researchclaw.templates.codeblocks import (
     _UNICODE_TO_ASCII,
     _escape_algo_line as _escape_algo_line_impl,
+)
+from researchclaw.templates.codeblocks import (
     _render_code_block as _render_code_block_impl,
 )
 from researchclaw.templates.completeness import check_paper_completeness
@@ -38,7 +42,11 @@ from researchclaw.templates.inline import (
 )
 from researchclaw.templates.lists import (
     _collect_list as _collect_list_impl,
+)
+from researchclaw.templates.lists import (
     _render_enumerate as _render_enumerate_impl,
+)
+from researchclaw.templates.lists import (
     _render_itemize as _render_itemize_impl,
 )
 from researchclaw.templates.preprocessing import (

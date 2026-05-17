@@ -19,10 +19,9 @@ Usage
 
 from __future__ import annotations
 
-import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -239,7 +238,7 @@ def check_novelty(
         "similarity_threshold": similarity_threshold,
         "search_coverage": search_coverage,
         "total_papers_retrieved": total_papers_retrieved,
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 

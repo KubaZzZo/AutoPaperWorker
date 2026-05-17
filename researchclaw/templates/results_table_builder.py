@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any
 
 from researchclaw.pipeline.verified_registry import ConditionResult, VerifiedRegistry
 
@@ -269,9 +268,7 @@ def _find_best(conditions: list[ConditionResult], direction: str) -> int | None:
         if conditions[best_idx].mean is None:
             best_idx = i
             continue
-        if direction == "maximize" and c.mean > conditions[best_idx].mean:
-            best_idx = i
-        elif direction == "minimize" and c.mean < conditions[best_idx].mean:
+        if direction == "maximize" and c.mean > conditions[best_idx].mean or direction == "minimize" and c.mean < conditions[best_idx].mean:
             best_idx = i
     return best_idx
 
@@ -284,9 +281,7 @@ def _fmt(value: float | None) -> str:
     av = abs(value)
     if av >= 100:
         return f"{value:.2f}"
-    elif av >= 1:
-        return f"{value:.4f}"
-    elif av >= 0.001:
+    elif av >= 1 or av >= 0.001:
         return f"{value:.4f}"
     elif av > 0:
         # Very small values: use 2 significant figures

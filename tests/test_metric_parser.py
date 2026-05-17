@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import math
+
 import pytest
-from pathlib import Path
 
 from researchclaw.experiment.metrics import (
     ExperimentResults,

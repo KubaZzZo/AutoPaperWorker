@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-
 from researchclaw.domains.detector import (
     DomainProfile,
     ExperimentParadigm,
     MetricType,
+    _keyword_detect,
+    _profile_cache,
     detect_domain,
     detect_domain_id,
     get_generic_profile,
     get_profile,
     is_ml_domain,
     load_all_profiles,
-    _keyword_detect,
-    _profile_cache,
 )
-
 
 # ---------------------------------------------------------------------------
 # Profile loading tests

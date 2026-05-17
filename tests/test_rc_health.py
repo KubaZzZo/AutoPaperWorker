@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import socket
 import urllib.error
 from pathlib import Path
 from typing import NamedTuple, cast
@@ -73,7 +72,7 @@ def test_check_python_version_fail() -> None:
     with patch("sys.version_info", _VersionInfo(3, 10, 9, "final", 0)):
         result = health.check_python_version()
     assert result.status == "fail"
-    assert "Install Python 3.11 or newer" == result.fix
+    assert result.fix == "Install Python 3.11 or newer"
 
 
 def test_check_yaml_import_pass() -> None:
@@ -134,7 +133,7 @@ def test_check_llm_connectivity_uses_get_probe() -> None:
 def test_check_llm_connectivity_timeout() -> None:
     with patch(
         "urllib.request.urlopen",
-        side_effect=urllib.error.URLError(socket.timeout("timed out")),
+        side_effect=urllib.error.URLError(TimeoutError("timed out")),
     ):
         result = health.check_llm_connectivity("https://api.example.com/v1")
     assert result.status == "fail"

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 import threading
-import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -23,7 +23,6 @@ from researchclaw.experiment.docker_sandbox import (
 )
 from researchclaw.experiment.factory import create_sandbox
 from researchclaw.experiment.sandbox import SandboxResult
-
 
 # ── SandboxResult contract ─────────────────────────────────────────────
 

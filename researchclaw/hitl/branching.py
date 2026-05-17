@@ -19,7 +19,7 @@ import json
 import logging
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,7 @@ class Branch:
     description: str = ""
     status: str = "active"  # active | completed | abandoned | merged
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(
+        default_factory=lambda: datetime.now(UTC).isoformat(
             timespec="seconds"
         )
     )

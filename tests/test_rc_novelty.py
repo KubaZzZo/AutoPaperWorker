@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from researchclaw.literature.novelty import (
     _assess_novelty,
@@ -17,7 +14,6 @@ from researchclaw.literature.novelty import (
     _jaccard_keywords,
     check_novelty,
 )
-
 
 # ---------------------------------------------------------------------------
 # _extract_keywords
@@ -371,9 +367,9 @@ class TestHypothesisGenNoveltyIntegration:
 
     def test_novelty_report_written_when_available(self, tmp_path: Path) -> None:
         """Hypothesis gen should write novelty_report.json when check succeeds."""
-        from researchclaw.pipeline.executor import _execute_hypothesis_gen
         from researchclaw.adapters import AdapterBundle
         from researchclaw.config import RCConfig
+        from researchclaw.pipeline.executor import _execute_hypothesis_gen
 
         # Set up minimal run directory
         run_dir = tmp_path / "run"
@@ -420,9 +416,9 @@ class TestHypothesisGenNoveltyIntegration:
 
     def test_novelty_failure_does_not_block(self, tmp_path: Path) -> None:
         """If novelty check crashes, hypothesis gen still succeeds."""
-        from researchclaw.pipeline.executor import _execute_hypothesis_gen
         from researchclaw.adapters import AdapterBundle
         from researchclaw.config import RCConfig
+        from researchclaw.pipeline.executor import _execute_hypothesis_gen
 
         run_dir = tmp_path / "run"
         run_dir.mkdir()

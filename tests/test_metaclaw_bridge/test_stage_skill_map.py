@@ -1,8 +1,8 @@
 """Tests for stage-skill mapping module."""
 
 from researchclaw.metaclaw_bridge.stage_skill_map import (
-    STAGE_SKILL_MAP,
     LESSON_CATEGORY_TO_SKILL_CATEGORY,
+    STAGE_SKILL_MAP,
     get_stage_config,
 )
 

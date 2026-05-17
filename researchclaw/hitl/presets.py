@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from researchclaw.hitl.config import HITLConfig, StagePolicy
-
+from researchclaw.hitl.config import HITLConfig
 
 # ---------------------------------------------------------------------------
 # Named presets

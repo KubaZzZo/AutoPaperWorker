@@ -20,9 +20,9 @@ from researchclaw.config.schema import (
     BenchmarkAgentConfig,
     CalendarConfig,
     CliAgentConfig,
-    CoPilotConfig,
     CodeAgentConfig,
     ColabDriveConfig,
+    CoPilotConfig,
     DashboardConfig,
     DistributedTrainingConfig,
     DockerSandboxConfig,
@@ -415,7 +415,7 @@ def _parse_benchmark_agent_config(data: dict[str, Any]) -> BenchmarkAgentConfig:
 def _parse_figure_agent_config(data: dict[str, Any]) -> FigureAgentConfig:
     if not data:
         return FigureAgentConfig()
-    use_docker_raw = data.get("use_docker", None)
+    use_docker_raw = data.get("use_docker")
     return FigureAgentConfig(
         enabled=bool(data.get("enabled", True)),
         min_figures=_safe_int(data.get("min_figures"), 3),

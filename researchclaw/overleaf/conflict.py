@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import re
-import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -98,10 +97,6 @@ def _resolve_content(content: str, strategy: str) -> str:
         elif line.startswith(">>>>>>>") and state == "theirs":
             state = "normal"
         else:
-            if state == "normal":
-                result.append(line)
-            elif state == "ours" and strategy == "ours":
-                result.append(line)
-            elif state == "theirs" and strategy == "theirs":
+            if state == "normal" or state == "ours" and strategy == "ours" or state == "theirs" and strategy == "theirs":
                 result.append(line)
     return "".join(result)

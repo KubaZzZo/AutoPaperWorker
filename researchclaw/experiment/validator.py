@@ -801,10 +801,7 @@ def _extract_assign_targets(node: ast.AST) -> list[str]:
         for target in node.targets:
             if isinstance(target, ast.Name):
                 names.append(target.id)
-    elif isinstance(node, ast.AugAssign):
-        if isinstance(node.target, ast.Name):
-            names.append(node.target.id)
-    elif isinstance(node, ast.AnnAssign):
+    elif isinstance(node, ast.AugAssign) or isinstance(node, ast.AnnAssign):
         if isinstance(node.target, ast.Name):
             names.append(node.target.id)
     return names
@@ -1018,10 +1015,7 @@ def check_undefined_calls(code: str, fname: str = "main.py") -> list[str]:
 
     for node in ast.walk(tree):
         # Function definitions
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            defined_names.add(node.name)
-        # Class definitions
-        elif isinstance(node, ast.ClassDef):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or isinstance(node, ast.ClassDef):
             defined_names.add(node.name)
         # Imports
         elif isinstance(node, ast.Import):
@@ -1042,10 +1036,7 @@ def check_undefined_calls(code: str, fname: str = "main.py") -> list[str]:
                     for elt in target.elts:
                         if isinstance(elt, ast.Name):
                             defined_names.add(elt.id)
-        elif isinstance(node, ast.AnnAssign):
-            if isinstance(node.target, ast.Name):
-                defined_names.add(node.target.id)
-        elif isinstance(node, ast.AugAssign):
+        elif isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign):
             if isinstance(node.target, ast.Name):
                 defined_names.add(node.target.id)
         # For loop targets

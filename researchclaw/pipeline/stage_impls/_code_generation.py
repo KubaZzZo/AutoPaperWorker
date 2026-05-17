@@ -11,19 +11,15 @@ from typing import Any
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.experiment.validator import (
-    CodeValidation,
     format_issues_for_llm,
     validate_code,
 )
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain
 from researchclaw.pipeline._helpers import (
     StageResult,
     _chat_with_prompt,
-    _ensure_sandbox_deps,
     _extract_code_block,
     _extract_multi_file_blocks,
-    _extract_yaml_block,
     _get_evolution_overlay,
     _load_hardware_profile,
     _read_prior_artifact,
@@ -289,7 +285,8 @@ def _execute_code_generation(
 
     # --- Domain-specific guidance injection for non-ML domains ---
     try:
-        from researchclaw.domains.detector import detect_domain as _dd_s10, is_ml_domain as _is_ml_s10
+        from researchclaw.domains.detector import detect_domain as _dd_s10
+        from researchclaw.domains.detector import is_ml_domain as _is_ml_s10
         _dp = _dd_s10(topic=config.research.topic)
         if not _is_ml_s10(_dp):
             from researchclaw.domains.prompt_adapter import get_adapter as _ga

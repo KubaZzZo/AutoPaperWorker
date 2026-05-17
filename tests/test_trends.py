@@ -7,20 +7,16 @@ daily_digest, auto_topic, and literature/trends.
 from __future__ import annotations
 
 import asyncio
-from datetime import date
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from researchclaw.trends.feeds import FeedManager
-from researchclaw.trends.trend_analyzer import TrendAnalyzer, _STOPWORDS
-from researchclaw.trends.opportunity_finder import OpportunityFinder
-from researchclaw.trends.daily_digest import DailyDigest
-from researchclaw.trends.auto_topic import AutoTopicGenerator
 from researchclaw.literature.trends import LiteratureTrendAnalyzer
-
+from researchclaw.trends.auto_topic import AutoTopicGenerator
+from researchclaw.trends.daily_digest import DailyDigest
+from researchclaw.trends.feeds import FeedManager
+from researchclaw.trends.opportunity_finder import OpportunityFinder
+from researchclaw.trends.trend_analyzer import _STOPWORDS, TrendAnalyzer
 
 # ---------------------------------------------------------------------------
 # Fixtures

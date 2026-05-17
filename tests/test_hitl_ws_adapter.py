@@ -6,7 +6,6 @@ import asyncio
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -17,7 +16,6 @@ from researchclaw.hitl.intervention import (
     PauseReason,
     WaitingState,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -37,7 +35,7 @@ class MockWebSocket:
     async def receive_text(self) -> str:
         try:
             return await asyncio.wait_for(self._receive_queue.get(), timeout=0.5)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise ConnectionError("WebSocket closed")
 
     async def close(self, code: int = 1000, reason: str = "") -> None:

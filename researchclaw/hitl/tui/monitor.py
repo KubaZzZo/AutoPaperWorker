@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 try:
     from rich.console import Console
-    from rich.table import Table
-    from rich.panel import Panel
     from rich.live import Live
+    from rich.panel import Panel
+    from rich.table import Table
     from rich.text import Text
 
     _HAS_RICH = True
@@ -190,7 +190,7 @@ class ExperimentMonitor:
     def _show_live_plain(self, interval_sec: float, max_updates: int) -> None:
         for i in range(max_updates):
             status = self.get_experiment_status()
-            print(f"\033[2J\033[H")  # Clear screen
+            print("\033[2J\033[H")  # Clear screen
             print(self.format_metrics_table(status))
 
             if status["progress"] >= 1.0:

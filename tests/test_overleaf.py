@@ -8,11 +8,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from researchclaw.overleaf.sync import OverleafSync
 from researchclaw.overleaf.conflict import ConflictResolver, _extract_conflicts, _resolve_content
-from researchclaw.overleaf.watcher import FileWatcher
 from researchclaw.overleaf.formatter import LatexFormatter
-
+from researchclaw.overleaf.sync import OverleafSync
+from researchclaw.overleaf.watcher import FileWatcher
 
 # ══════════════════════════════════════════════════════════════════
 # ConflictResolver tests

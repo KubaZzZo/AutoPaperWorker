@@ -21,7 +21,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.request import Request
 
-from researchclaw.web._ssrf import check_url_ssrf, ssrf_urlopen as urlopen
+from researchclaw.web._ssrf import check_url_ssrf
+from researchclaw.web._ssrf import ssrf_urlopen as urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class WebCrawler:
         """Crawl multiple URLs using Crawl4AI's async engine."""
         results = []
         try:
-            from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
+            from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 
             browser_config = BrowserConfig(headless=True)
             run_config = CrawlerRunConfig(
@@ -164,7 +165,7 @@ class WebCrawler:
 
     async def _crawl_with_crawl4ai(self, url: str, t0: float) -> CrawlResult:
         """Use Crawl4AI for high-quality extraction."""
-        from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
+        from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 
         browser_config = BrowserConfig(headless=True)
         run_config = CrawlerRunConfig(

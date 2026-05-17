@@ -17,7 +17,6 @@ import sys
 import time
 from collections.abc import Callable
 
-
 TextOutput = Callable[[str], None]
 
 

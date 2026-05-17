@@ -4,19 +4,20 @@ import json
 import logging
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from http.client import HTTPMessage
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
 from researchclaw.llm.client import (
+    _NEW_PARAM_MODELS,
+    _NO_TEMPERATURE_MODELS,
     LLMClient,
     LLMConfig,
     LLMResponse,
-    _NEW_PARAM_MODELS,
-    _NO_TEMPERATURE_MODELS,
 )
 
 
@@ -509,7 +510,7 @@ def test_new_param_models_contains_expected_models():
 
 
 def test_no_temperature_models_only_contains_o_series_models():
-    assert _NO_TEMPERATURE_MODELS == frozenset({"o3", "o3-mini", "o4-mini"})
+    assert frozenset({"o3", "o3-mini", "o4-mini"}) == _NO_TEMPERATURE_MODELS
 
 
 def test_temperature_support_uses_exact_no_temperature_model_names():

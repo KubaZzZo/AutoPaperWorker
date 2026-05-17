@@ -5,11 +5,12 @@ pipeline progressively improves experimental methods through self-iteration.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
 from pathlib import Path
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 
 # ── Styling ──────────────────────────────────────────────────────────────────
 plt.rcParams.update({

@@ -7,17 +7,23 @@ import re
 import time as _time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import yaml
 
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
+from researchclaw.experiment.validator import (
+    CodeValidation,
+    format_issues_for_llm,
+    validate_code,
+)
 from researchclaw.hardware import HardwareProfile, detect_hardware, ensure_torch_available, is_metric_name
 from researchclaw.llm import create_llm_client
 from researchclaw.llm.client import LLMClient
-from researchclaw.prompts import PromptManager
+from researchclaw.pipeline.contracts import CONTRACTS, StageContract
 from researchclaw.pipeline.stages import (
     NEXT_STAGE,
     Stage,
@@ -27,12 +33,7 @@ from researchclaw.pipeline.stages import (
     advance,
     gate_required,
 )
-from researchclaw.pipeline.contracts import CONTRACTS, StageContract
-from researchclaw.experiment.validator import (
-    CodeValidation,
-    format_issues_for_llm,
-    validate_code,
-)
+from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,6 @@ from researchclaw.pipeline._domain import (  # noqa: E402
     _detect_domain,
     _is_ml_domain,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers (extracted to _helpers.py)
@@ -91,37 +91,12 @@ from researchclaw.pipeline._helpers import (  # noqa: E402
 )
 
 # ---------------------------------------------------------------------------
-# Stages 1-2 (extracted to stage_impls/_topic.py)
+# Stages 14-15 (extracted to stage_impls/_analysis.py)
 # ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._topic import (  # noqa: E402
-    _execute_topic_init,
-    _execute_problem_decompose,
-)
-
-# ---------------------------------------------------------------------------
-# Stages 3-6 (extracted to stage_impls/_literature.py)
-# ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._literature import (  # noqa: E402
-    _execute_search_strategy,
-    _execute_literature_collect,
-    _execute_literature_screen,
-    _execute_knowledge_extract,
-    _expand_search_queries,
-)
-
-# ---------------------------------------------------------------------------
-# Stages 7-8 (extracted to stage_impls/_synthesis.py)
-# ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._synthesis import (  # noqa: E402
-    _execute_synthesis,
-    _execute_hypothesis_gen,
-)
-
-# ---------------------------------------------------------------------------
-# Stage 9 (extracted to stage_impls/_experiment_design.py)
-# ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._experiment_design import (  # noqa: E402
-    _execute_experiment_design,
+from researchclaw.pipeline.stage_impls._analysis import (  # noqa: E402
+    _execute_research_decision,
+    _execute_result_analysis,
+    _parse_decision,
 )
 
 # ---------------------------------------------------------------------------
@@ -135,55 +110,80 @@ from researchclaw.pipeline.stage_impls._code_generation import (  # noqa: E402
 # Stages 11-13 (extracted to stage_impls/_execution.py)
 # ---------------------------------------------------------------------------
 from researchclaw.pipeline.stage_impls._execution import (  # noqa: E402
-    _execute_resource_planning,
     _execute_experiment_run,
     _execute_iterative_refine,
+    _execute_resource_planning,
 )
 
 # ---------------------------------------------------------------------------
-# Stages 14-15 (extracted to stage_impls/_analysis.py)
+# Stage 9 (extracted to stage_impls/_experiment_design.py)
 # ---------------------------------------------------------------------------
-from researchclaw.pipeline.stage_impls._analysis import (  # noqa: E402
-    _execute_result_analysis,
-    _parse_decision,
-    _execute_research_decision,
+from researchclaw.pipeline.stage_impls._experiment_design import (  # noqa: E402
+    _execute_experiment_design,
+)
+
+# ---------------------------------------------------------------------------
+# Stages 3-6 (extracted to stage_impls/_literature.py)
+# ---------------------------------------------------------------------------
+from researchclaw.pipeline.stage_impls._literature import (  # noqa: E402
+    _execute_knowledge_extract,
+    _execute_literature_collect,
+    _execute_literature_screen,
+    _execute_search_strategy,
+    _expand_search_queries,
 )
 
 # ---------------------------------------------------------------------------
 # Stages 16-17 (extracted to stage_impls/_paper_writing.py)
 # ---------------------------------------------------------------------------
 from researchclaw.pipeline.stage_impls._paper_writing import (  # noqa: E402
-    _execute_paper_outline,
-    _execute_paper_draft,
-    _collect_raw_experiment_metrics,
-    _write_paper_sections,
-    _validate_draft_quality,
-    _review_compiled_pdf,
-    _check_ablation_effectiveness,
-    _detect_result_contradictions,
-    _BULLET_LENIENT_SECTIONS,
     _BALANCE_SECTIONS,
+    _BULLET_LENIENT_SECTIONS,
+    _check_ablation_effectiveness,
+    _collect_raw_experiment_metrics,
+    _detect_result_contradictions,
+    _execute_paper_draft,
+    _execute_paper_outline,
+    _review_compiled_pdf,
+    _validate_draft_quality,
+    _write_paper_sections,
+)
+from researchclaw.pipeline.stage_impls._publish import (  # noqa: E402
+    _check_citation_relevance,
+    _execute_citation_verify,
+    _execute_export_publish,
+    _execute_knowledge_archive,
+    _remove_bibtex_entries,
+    _remove_citations_from_text,
+    _sanitize_fabricated_data,
 )
 
 # ---------------------------------------------------------------------------
 # Stages 18-23 (split across focused review/revision/publish modules)
 # ---------------------------------------------------------------------------
 from researchclaw.pipeline.stage_impls._review import (  # noqa: E402
-    _execute_peer_review,
     _collect_experiment_evidence,
+    _execute_peer_review,
 )
 from researchclaw.pipeline.stage_impls._revision import (  # noqa: E402
     _execute_paper_revision,
     _execute_quality_gate,
 )
-from researchclaw.pipeline.stage_impls._publish import (  # noqa: E402
-    _execute_knowledge_archive,
-    _execute_export_publish,
-    _execute_citation_verify,
-    _sanitize_fabricated_data,
-    _check_citation_relevance,
-    _remove_bibtex_entries,
-    _remove_citations_from_text,
+
+# ---------------------------------------------------------------------------
+# Stages 7-8 (extracted to stage_impls/_synthesis.py)
+# ---------------------------------------------------------------------------
+from researchclaw.pipeline.stage_impls._synthesis import (  # noqa: E402
+    _execute_hypothesis_gen,
+    _execute_synthesis,
+)
+
+# ---------------------------------------------------------------------------
+# Stages 1-2 (extracted to stage_impls/_topic.py)
+# ---------------------------------------------------------------------------
+from researchclaw.pipeline.stage_impls._topic import (  # noqa: E402
+    _execute_problem_decompose,
+    _execute_topic_init,
 )
 
 
@@ -464,7 +464,6 @@ def _run_collaboration_loop(
     The loop continues until the human approves or aborts.
     """
     from researchclaw.hitl.collaboration import CollaborationSession
-    from researchclaw.hitl.intervention import HumanAction, PauseReason
 
     stage_num = int(stage)
     contract = CONTRACTS.get(stage)

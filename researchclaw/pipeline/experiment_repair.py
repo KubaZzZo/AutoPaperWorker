@@ -17,9 +17,10 @@ import logging
 import re
 import time as _time
 import urllib.error
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from researchclaw.pipeline.experiment_diagnosis import (
     DeficiencyType,

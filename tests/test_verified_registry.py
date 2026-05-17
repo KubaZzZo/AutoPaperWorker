@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,6 @@ import pytest
 from researchclaw.pipeline.verified_registry import (
     ConditionResult,
     VerifiedRegistry,
-    _is_finite,
 )
 
 # ---------------------------------------------------------------------------

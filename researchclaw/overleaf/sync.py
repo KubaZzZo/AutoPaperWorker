@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -81,10 +81,10 @@ class OverleafSync:
             logger.info("No changes to push")
             return False
 
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
         self._git("commit", "-m", f"AutoResearchClaw sync: {ts}")
         self._git("push", "origin", self.branch)
-        self._last_sync = datetime.now(timezone.utc)
+        self._last_sync = datetime.now(UTC)
         logger.info("Pushed paper to Overleaf")
         return True
 
@@ -104,7 +104,7 @@ class OverleafSync:
         # Get list of changed files
         diff_output = self._git("diff", "--name-only", old_head, new_head)
         changed = [f.strip() for f in diff_output.splitlines() if f.strip()]
-        self._last_sync = datetime.now(timezone.utc)
+        self._last_sync = datetime.now(UTC)
         return changed
 
     def get_status(self) -> dict[str, Any]:

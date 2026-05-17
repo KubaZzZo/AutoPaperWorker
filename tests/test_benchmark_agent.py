@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import importlib
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-
 
 # ---------------------------------------------------------------------------
 # Fake LLM client (same pattern as test_code_agent.py)

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from dataclasses import dataclass, field
 from typing import Any
@@ -43,8 +42,8 @@ class EnvironmentReport:
 
 def detect_environment() -> EnvironmentReport:
     """Detect local environment and generate recommendations."""
-    import sys
     import subprocess
+    import sys
 
     report = EnvironmentReport()
     report.python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"

@@ -11,10 +11,8 @@ context window can fill up quickly. This module handles:
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -132,10 +130,7 @@ class ContextManager:
             if not stripped:
                 continue
             # Headers
-            if stripped.startswith("#"):
-                important_lines.append(stripped)
-            # Key patterns
-            elif any(kw in stripped.lower() for kw in (
+            if stripped.startswith("#") or any(kw in stripped.lower() for kw in (
                 "result", "conclusion", "finding", "hypothesis",
                 "baseline", "metric", "accuracy", "improvement",
                 "error", "failed", "warning",

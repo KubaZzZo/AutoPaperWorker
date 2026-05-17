@@ -42,7 +42,6 @@ def test_controller_delegates_backend_operations(monkeypatch) -> None:
 
 def test_run_pipeline_for_workbench_passes_progress_reporter(monkeypatch, tmp_path: Path) -> None:
     from researchclaw.workbench.controller import WorkbenchController
-    from researchclaw.workbench.run import default_workbench_config
 
     controller = WorkbenchController()
     seen: dict[str, object] = {}
