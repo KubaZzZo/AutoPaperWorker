@@ -44,7 +44,7 @@ def _verified_report(keys: list[str]) -> VerificationReport:
 
 
 def test_publish_helpers_do_not_use_sys_modules_dispatch() -> None:
-    source = Path("researchclaw/pipeline/stage_impls/_publish.py").read_text(
+    source = Path("researchclaw/pipeline/stage_impls/_fabrication_sanitizer.py").read_text(
         encoding="utf-8"
     )
     assert "sys.modules" not in source
@@ -286,7 +286,7 @@ The verified zero-rate was 0.0 and reported 12.3.
 
 
 def test_sanitize_verified_zero_branch_skips_relative_ratio_comparison() -> None:
-    source = Path("researchclaw/pipeline/stage_impls/_publish.py").read_text(
+    source = Path("researchclaw/pipeline/stage_impls/_fabrication_sanitizer.py").read_text(
         encoding="utf-8"
     )
     assert "if v == 0.0:" in source

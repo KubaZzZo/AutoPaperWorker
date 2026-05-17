@@ -14,9 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time as _time
-import urllib.error
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,21 +28,15 @@ from researchclaw.pipeline.experiment_diagnosis import (
     assess_experiment_quality,
     diagnose_experiment,
 )
+from researchclaw.pipeline.experiment_repair_helpers import (
+    _build_experiment_summary_from_run,
+    _extract_code_blocks,
+    _run_experiment_in_sandbox,
+)
 
 logger = logging.getLogger(__name__)
 
 MAX_REPAIR_CYCLES = 3
-
-# Regex for extracting ```python filename.py\n...\n``` blocks from LLM output
-_CODE_BLOCK_RE = re.compile(
-    r"```(?:python)?\s*([\w./\\-]+\.(?:py|txt))\s*\n(.*?)```",
-    re.DOTALL,
-)
-# Fallback: unnamed python blocks
-_UNNAMED_BLOCK_RE = re.compile(
-    r"```python\s*\n(.*?)```",
-    re.DOTALL,
-)
 
 ProgressReporter = Callable[[str], None]
 
@@ -785,156 +777,8 @@ def _repair_via_llm(
     return merged
 
 
-def _extract_code_blocks(text: str) -> dict[str, str]:
-    """Extract named code blocks from LLM response.
-
-    Matches patterns like:
-        ```python main.py
-        <code>
-        ```
-    """
-    files: dict[str, str] = {}
-
-    # Try named blocks first
-    for match in _CODE_BLOCK_RE.finditer(text):
-        fname = match.group(1).strip()
-        code = match.group(2).strip()
-        if fname and code:
-            # Normalize filename — strip path prefixes
-            fname = Path(fname).name
-            files[fname] = code
-
-    # If no named blocks, try unnamed and assume main.py
-    if not files:
-        for match in _UNNAMED_BLOCK_RE.finditer(text):
-            code = match.group(1).strip()
-            if code and len(code) > 50:  # Skip tiny snippets
-                files["main.py"] = code
-                break
-
-    return files
 
 
 # ---------------------------------------------------------------------------
 # Helper: run experiment in sandbox
 # ---------------------------------------------------------------------------
-
-
-def _run_experiment_in_sandbox(
-    exp_dir: Path,
-    config: Any,
-    work_dir: Path,
-    timeout_sec: int = 600,
-) -> dict | None:
-    """Run experiment code in Docker/sandbox and return results dict.
-
-    Returns a dict with keys: stdout, stderr, returncode, metrics, elapsed_sec, timed_out.
-    Returns None if sandbox creation fails.
-    """
-    try:
-        from researchclaw.experiment.factory import create_sandbox
-
-        sandbox_dir = work_dir / "sandbox"
-        sandbox_dir.mkdir(parents=True, exist_ok=True)
-        sandbox = create_sandbox(config.experiment, sandbox_dir)
-
-        result = sandbox.run_project(
-            exp_dir,
-            timeout_sec=timeout_sec,
-        )
-
-        return {
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "returncode": result.returncode,
-            "metrics": dict(result.metrics) if result.metrics else {},
-            "elapsed_sec": result.elapsed_sec,
-            "timed_out": result.timed_out,
-        }
-
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError) as exc:
-        logger.warning("Sandbox execution failed: %s", exc, exc_info=True)
-        return None
-
-
-def _build_experiment_summary_from_run(
-    run_result: dict,
-    code: dict[str, str],
-) -> dict:
-    """Build an experiment_summary.json from a single sandbox run.
-
-    Parses condition-level metrics from stdout and builds the standard
-    summary format expected by ``assess_experiment_quality()``.
-    """
-    metrics = run_result.get("metrics", {})
-    stdout = run_result.get("stdout", "")
-
-    # Also parse metrics from stdout if sandbox didn't capture them
-    if not metrics and stdout:
-        try:
-            from researchclaw.experiment.sandbox import parse_metrics
-            metrics = parse_metrics(stdout)
-        except ImportError as exc:
-            logger.debug(
-                "parse_metrics unavailable while building experiment summary: %s",
-                exc,
-                exc_info=True,
-            )
-
-    # Group metrics by condition
-    condition_summaries: dict[str, dict] = {}
-    for key, value in metrics.items():
-        if not isinstance(value, (int, float)):
-            continue
-        parts = key.split("/")
-        if len(parts) >= 3:
-            # Format: condition_name/seed/metric_name
-            cond_name = parts[0]
-            metric_name = parts[-1]
-            if cond_name not in condition_summaries:
-                condition_summaries[cond_name] = {"metrics": {}, "seeds": {}}
-            condition_summaries[cond_name]["metrics"][metric_name] = value
-            seed_key = "/".join(parts[1:-1])
-            condition_summaries[cond_name]["seeds"].setdefault(seed_key, {})[metric_name] = value
-        elif len(parts) == 2:
-            # BUG-199: Stage 13 refinement produces 2-part keys
-            # (condition_name/metric_name) without a seed component.
-            # Treat as a single-seed result.
-            cond_name, metric_name = parts
-            if cond_name not in condition_summaries:
-                condition_summaries[cond_name] = {"metrics": {}, "seeds": {}}
-            condition_summaries[cond_name]["metrics"][metric_name] = value
-            condition_summaries[cond_name]["seeds"].setdefault("0", {})[metric_name] = value
-        elif len(parts) == 1:
-            # Top-level metric like "primary_metric"
-            pass
-
-    # Compute per-condition mean metrics
-    for cond_name, cdata in condition_summaries.items():
-        seeds = cdata.get("seeds", {})
-        if seeds:
-            cdata["n_seeds"] = len(seeds)
-            # Average each metric across seeds
-            all_metrics: dict[str, list[float]] = {}
-            for seed_data in seeds.values():
-                for mk, mv in seed_data.items():
-                    if isinstance(mv, (int, float)):
-                        all_metrics.setdefault(mk, []).append(float(mv))
-            for mk, values in all_metrics.items():
-                if values:
-                    cdata["metrics"][mk] = sum(values) / len(values)
-        # Remove seeds from final output (not standard format)
-        cdata.pop("seeds", None)
-
-    return {
-        "condition_summaries": condition_summaries,
-        "best_run": {
-            "metrics": metrics,
-            "status": "completed" if run_result.get("returncode") == 0 else "failed",
-            "stdout": stdout[:5000],
-            "stderr": run_result.get("stderr", "")[:2000],
-        },
-        "metrics_summary": {},
-        "total_conditions": len(condition_summaries),
-        "total_metric_keys": len(metrics),
-    }
