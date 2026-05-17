@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -101,9 +102,8 @@ def _execute_experiment_design(
             _domain_profile.domain_id,
         )
         # Persist domain profile for Stage 10
-        import json as _json_dd
         (stage_dir / "domain_profile.json").write_text(
-            _json_dd.dumps({
+            json.dumps({
                 "domain_id": _domain_profile.domain_id,
                 "display_name": _domain_profile.display_name,
                 "experiment_paradigm": _domain_profile.experiment_paradigm,
@@ -201,13 +201,11 @@ def _execute_experiment_design(
                 logger.debug("Stage 09: Whole-response YAML parse failed", exc_info=True)
         # Last fallback: try to find any YAML-like dict in the response
         if not isinstance(parsed, dict):
-            import re as _re_yaml
-
             # Look for lines starting with known keys
             _yaml_lines = []
             _capturing = False
             for line in resp.content.splitlines():
-                if _re_yaml.match(
+                if re.match(
                     r"^(baselines|proposed_methods|ablations|datasets|"
                     r"metrics|objectives|risks|compute_budget)\s*:",
                     line,
@@ -263,15 +261,14 @@ def _execute_experiment_design(
     if plan is None:
         _hyp_text = _read_prior_artifact(run_dir, "hypotheses.md") or ""
         if _hyp_text:
-            import re as _re_hyp
             # Extract method-like names from hypothesis text
-            _method_candidates = _re_hyp.findall(
+            _method_candidates = re.findall(
                 r"(?:proposed|our|novel|new)\s+(?:method|approach|algorithm|framework|model)[:\s]+[\"']?([A-Za-z][\w-]+)",
-                _hyp_text, _re_hyp.IGNORECASE,
+                _hyp_text, re.IGNORECASE,
             )
-            _baseline_candidates = _re_hyp.findall(
+            _baseline_candidates = re.findall(
                 r"(?:baseline|compare|existing|standard|traditional)\s+(?:method|approach|model)?[:\s]+[\"']?([A-Za-z][\w-]+)",
-                _hyp_text, _re_hyp.IGNORECASE,
+                _hyp_text, re.IGNORECASE,
             )
             if _method_candidates or _baseline_candidates:
                 logger.info(

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -195,13 +196,12 @@ class RendererAgent(BaseAgent):
         # host paths (e.g. /home/user/.../charts/fig.png) but inside Docker
         # the output dir is mounted at /workspace/output.
         if self._use_docker:
-            import re as _re_path
             _host_out = str(output_dir.resolve())
             # Replace host output dir with Docker-mapped path
             script_code = script_code.replace(_host_out, "/workspace/output")
             # Also catch any other absolute paths pointing to output_dir parent
-            script_code = _re_path.sub(
-                r'savefig\(["\'](?:/[^"\']*/)(' + _re_path.escape(output_filename) + r')["\']',
+            script_code = re.sub(
+                r'savefig\(["\'](?:/[^"\']*/)(' + re.escape(output_filename) + r')["\']',
                 r'savefig("/workspace/output/\1"',
                 script_code,
             )

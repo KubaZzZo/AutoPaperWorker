@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,6 @@ class VoiceSynthesizer:
             import httpx
         except ImportError:
             raise RuntimeError("httpx required for TTS")
-
-        import os
 
         api_key = os.environ.get("OPENAI_API_KEY", "")
         if not api_key:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_domain_compat(topic: str, domains: object = ()) -> tuple[str, str, str]:
-    facade = sys.modules.get("researchclaw.pipeline.stage_impls._paper_writing")
-    detect = getattr(facade, "_detect_domain", _detect_domain) if facade is not None else _detect_domain
-    return detect(topic, domains)
+    return _detect_domain(topic, domains)
 
 
 class PaperDraftBuilder:
@@ -185,11 +182,10 @@ class PaperDraftBuilder:
         _quality_warnings: list[str] = []
 
         # Check 1: Was the analysis quality rating very low?
-        import re as _re_q
-        _rating_match = _re_q.search(
+        _rating_match = re.search(
             r"(?:quality\s+rating|result\s+quality)[:\s]*\**(\d+)\s*/\s*10",
             analysis_text,
-            _re_q.IGNORECASE,
+            re.IGNORECASE,
         )
         if _rating_match:
             _analysis_rating = int(_rating_match.group(1))
@@ -555,9 +551,8 @@ class PaperDraftBuilder:
             )
 
             # R7: Strip LLM-generated References section — it often fabricates arXiv IDs.
-            import re as _re_r7
-            ref_pattern = _re_r7.compile(
-                r'^(#{1,2}\s*References.*)', _re_r7.MULTILINE | _re_r7.DOTALL
+            ref_pattern = re.compile(
+                r'^(#{1,2}\s*References.*)', re.MULTILINE | re.DOTALL
             )
             ref_match = ref_pattern.search(draft)
             if ref_match:
@@ -650,9 +645,8 @@ class PaperDraftBuilder:
                 draft_text = draft_path.read_text(encoding="utf-8")
                 for section in writer.sections:
                     # Extract section content from draft
-                    import re as _re_pw
-                    pattern = rf"(?:^|\n)##?\s*{_re_pw.escape(section.name)}.*?\n(.*?)(?=\n##?\s|\Z)"
-                    match = _re_pw.search(draft_text, _re_pw.DOTALL)
+                    pattern = rf"(?:^|\n)##?\s*{re.escape(section.name)}.*?\n(.*?)(?=\n##?\s|\Z)"
+                    match = re.search(pattern, draft_text, re.DOTALL)
                     if match:
                         section.content = match.group(1).strip()
                         section.status = "ai_draft"

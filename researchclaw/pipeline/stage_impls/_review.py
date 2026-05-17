@@ -22,34 +22,17 @@ from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._review_publish")
 
-# ---------------------------------------------------------------------------
-# Helpers imported from paper-writing stage implementations.
-# Lazy-imported inside functions to avoid circular imports when executor.py
-# imports the review/publish stage modules.
-# ---------------------------------------------------------------------------
-
-
 def _get_collect_raw_experiment_metrics():
-    import sys
-
-    facade = sys.modules.get("researchclaw.pipeline.stage_impls._review_publish")
-    override = getattr(facade, "_get_collect_raw_experiment_metrics", None) if facade else None
-    if override is not None and override is not _get_collect_raw_experiment_metrics:
-        return override()
-
-    from researchclaw.pipeline.stage_impls._paper_writing import _collect_raw_experiment_metrics
+    from researchclaw.pipeline.stage_impls._paper_writing_shared import (
+        _collect_raw_experiment_metrics,
+    )
     return _collect_raw_experiment_metrics
 
 
 def _get_review_compiled_pdf():
-    import sys
-
-    facade = sys.modules.get("researchclaw.pipeline.stage_impls._review_publish")
-    override = getattr(facade, "_get_review_compiled_pdf", None) if facade else None
-    if override is not None and override is not _get_review_compiled_pdf:
-        return override()
-
-    from researchclaw.pipeline.stage_impls._paper_writing import _review_compiled_pdf
+    from researchclaw.pipeline.stage_impls._paper_writing_shared import (
+        _review_compiled_pdf,
+    )
     return _review_compiled_pdf
 
 # ---------------------------------------------------------------------------

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -81,13 +83,11 @@ def _execute_iterative_refine(
     # explicitly enforce config.metric_direction in prompts).
     _runs_dir_detect = _read_prior_artifact(run_dir, "runs/")
     if _runs_dir_detect and Path(_runs_dir_detect).is_dir():
-        import re as _re_detect
-
         for _rf in sorted(Path(_runs_dir_detect).glob("*.json"))[:5]:
             try:
                 _rp = _safe_json_loads(_rf.read_text(encoding="utf-8"), {})
                 _stdout = _rp.get("stdout", "") if isinstance(_rp, dict) else ""
-                _match = _re_detect.search(
+                _match = re.search(
                     r"METRIC_DEF:.*direction\s*=\s*(higher|lower)", _stdout
                 )
                 if _match:
@@ -159,8 +159,7 @@ def _execute_iterative_refine(
 
     # BUG-57: Wall-clock time cap for the entire refinement stage.
     # Default: 3× the per-iteration time budget (e.g., 2400s → 7200s = 2h).
-    import time as _time_bug57
-    _refine_start_time = _time_bug57.monotonic()
+    _refine_start_time = time.monotonic()
     _per_iter_budget = int(getattr(config.experiment, "time_budget_sec", 2400) or 2400)
     _max_refine_wall_sec = int(
         getattr(config.experiment, "max_refine_duration_sec", 0) or 0
@@ -620,8 +619,7 @@ def _execute_iterative_refine(
 
             # BUG-110: Parse ABLATION_CHECK lines from stdout
             if rerun.stdout:
-                import re as _re_ablation
-                _ablation_checks = _re_ablation.findall(
+                _ablation_checks = re.findall(
                     r"ABLATION_CHECK:\s*(\S+)\s+vs\s+(\S+)\s+outputs_differ=(True|False)",
                     rerun.stdout,
                 )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -237,8 +238,7 @@ def _write_paper_sections(
     # R32: Strip data verification preamble that LLMs sometimes emit before
     # the actual paper.  The preamble typically starts with "## Tested Conditions"
     # or similar headings and ends before "## Title".
-    import re as _re_strip
-    _title_match = _re_strip.search(r"^## Title\b", draft, _re_strip.MULTILINE)
+    _title_match = re.search(r"^## Title\b", draft, re.MULTILINE)
     if _title_match and _title_match.start() > 200:
         _stripped = draft[_title_match.start():]
         logger.info(

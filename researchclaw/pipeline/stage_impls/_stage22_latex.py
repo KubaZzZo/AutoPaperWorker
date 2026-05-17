@@ -198,8 +198,7 @@ def generate_latex_artifacts(
 
         # Copy bundled style files alongside paper.tex
         for sf in tpl.get_style_files():
-            import shutil as _shutil_sty
-            _shutil_sty.copy2(sf, stage_dir / sf.name)
+            shutil.copy2(sf, stage_dir / sf.name)
 
         # --- Pre-compilation: copy charts and fix figure paths ---
         # BUG-R41-12: Charts MUST be available before compile_latex(),
@@ -214,7 +213,6 @@ def generate_latex_artifacts(
             for _fa_dir in sorted(run_dir.glob("stage-14*/charts"), reverse=True):
                 _fa_pngs = list(_fa_dir.glob("fig_*.png"))
                 if _fa_pngs:
-                    import shutil
                     for _fa_png in _fa_pngs:
                         dest = chart_dir / _fa_png.name
                         shutil.copy2(_fa_png, dest)

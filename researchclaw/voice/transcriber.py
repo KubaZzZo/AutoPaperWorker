@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -34,8 +35,6 @@ class VoiceTranscriber:
             )
 
         url = self._api_url or "https://api.openai.com/v1/audio/transcriptions"
-
-        import os
 
         api_key = os.environ.get("OPENAI_API_KEY", "")
         if not api_key:
