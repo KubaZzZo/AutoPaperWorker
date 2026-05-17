@@ -156,8 +156,10 @@ class TestMCPServer:
         assert result["success"] is False
         assert "Paper not found" in result["error"]
 
-    def test_handle_review_paper_reads_and_scores_markdown(self, tmp_path) -> None:
-        paper_path = tmp_path / "paper.md"
+    def test_handle_review_paper_reads_and_scores_markdown(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        paper_path = tmp_path / "artifacts" / "rc-test" / "paper.md"
+        paper_path.parent.mkdir(parents=True)
         paper_path.write_text(
             "# Sample Paper\n\n"
             "## Abstract\n"
@@ -182,12 +184,30 @@ class TestMCPServer:
         )
 
         assert result["success"] is True
-        assert result["paper_path"] == str(paper_path)
+        assert result["paper_path"] == str(paper_path.resolve())
         assert result["review"]["word_count"] > 20
         assert result["review"]["section_count"] >= 6
         assert result["review"]["citation_count"] == 2
         assert result["review"]["missing_sections"] == []
         assert "stub" not in json.dumps(result).lower()
+
+    def test_handle_review_paper_rejects_paths_outside_artifacts(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        paper_path = tmp_path / "outside.md"
+        paper_path.write_text("# Secret\n", encoding="utf-8")
+
+        server = ResearchClawMCPServer()
+        result = asyncio.run(
+            server.handle_tool_call(
+                "review_paper",
+                {"paper_path": str(paper_path)},
+            )
+        )
+
+        assert result["success"] is False
+        assert "artifacts" in result["error"]
 
     def test_start_stop(self) -> None:
         server = ResearchClawMCPServer()
@@ -422,6 +442,21 @@ class TestSSETransport:
         assert '"jsonrpc": "2.0"' in frame
         assert frame.endswith("\n\n")
 
+    def test_sent_events_are_bounded(self) -> None:
+        transport = SSETransport(max_sent_events=3)
+
+        async def _run() -> list[str]:
+            await transport.start()
+            for idx in range(5):
+                await transport.send({"jsonrpc": "2.0", "id": idx})
+            await transport.close()
+            return list(transport.sent_events)
+
+        frames = asyncio.run(_run())
+        assert len(frames) == 3
+        assert '"id": 2' in frames[0]
+        assert '"id": 4' in frames[-1]
+
 
 class TestContext7MCPClient:
     def test_context7_client_source_has_no_print_calls(self) -> None:
@@ -453,3 +488,55 @@ class TestContext7MCPClient:
         assert client._proc is None
         assert "Context7 MCP terminate failed" in caplog.text
         assert "Context7 MCP kill failed" in caplog.text
+
+    def test_tool_timeout_stops_subprocess(self, monkeypatch) -> None:
+        from researchclaw.mcp.context7_client import Context7MCPClient
+
+        class HangingProcess:
+            def __init__(self) -> None:
+                self.terminated = False
+                self.waited = False
+
+            def poll(self) -> None:
+                return None
+
+            def terminate(self) -> None:
+                self.terminated = True
+
+            def wait(self, timeout: int) -> None:
+                self.waited = True
+
+        process = HangingProcess()
+        client = Context7MCPClient(timeout_sec=1)
+        client._proc = process  # type: ignore[assignment]
+        monkeypatch.setattr(client, "_ensure_started", lambda: True)
+        monkeypatch.setattr(client, "_send", lambda message: None)
+        monkeypatch.setattr(client, "_recv", lambda timeout=30, expected_id=None: None)
+
+        assert client._call_tool("query-docs", {"libraryId": "/x", "query": "y"}) is None
+        assert process.terminated is True
+        assert process.waited is True
+        assert client._proc is None
+
+    def test_recv_ignores_stale_json_rpc_response_ids(self) -> None:
+        from researchclaw.mcp.context7_client import Context7MCPClient
+
+        class FakeStdout:
+            def __init__(self) -> None:
+                self.lines = [
+                    b'{"jsonrpc": "2.0", "id": 1, "result": "stale"}\n',
+                    b'{"jsonrpc": "2.0", "id": 2, "result": "fresh"}\n',
+                ]
+
+            def readline(self) -> bytes:
+                return self.lines.pop(0)
+
+        class FakeProcess:
+            stdout = FakeStdout()
+
+        client = Context7MCPClient(timeout_sec=1)
+        client._proc = FakeProcess()  # type: ignore[assignment]
+
+        response = client._recv(timeout=1, expected_id=2)
+
+        assert response == {"jsonrpc": "2.0", "id": 2, "result": "fresh"}

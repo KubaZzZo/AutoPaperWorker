@@ -12,6 +12,27 @@ from researchclaw.memory.store import MemoryStore
 logger = logging.getLogger(__name__)
 
 CATEGORY = "experiment"
+_LOWER_IS_BETTER_METRICS = (
+    "loss",
+    "mse",
+    "rmse",
+    "mae",
+    "error",
+    "cross_entropy",
+    "cross-entropy",
+    "perplexity",
+    "wer",
+    "cer",
+)
+
+
+def _metric_confidence(metric: float, metric_name: str = "") -> float:
+    """Map a metric value to confidence, respecting loss/error direction."""
+    normalized_name = metric_name.lower().replace(" ", "_")
+    if any(token in normalized_name for token in _LOWER_IS_BETTER_METRICS):
+        score = 1.0 / (1.0 + max(0.0, metric))
+        return max(0.0, min(1.0, 0.4 + score * 0.5))
+    return max(0.0, min(1.0, 0.4 + metric * 0.5))
 
 
 class ExperimentMemory:
@@ -66,8 +87,7 @@ class ExperimentMemory:
             "run_id": run_id,
         }
 
-        # Higher metric → higher confidence (assuming maximize)
-        confidence = min(1.0, 0.4 + metric * 0.5)
+        confidence = _metric_confidence(metric, metric_name)
         embedding = self._embed_fn(content) if self._embed_fn else []
         return self._store.add(
             CATEGORY, content, metadata, embedding, confidence
@@ -104,7 +124,7 @@ class ExperimentMemory:
             "run_id": run_id,
         }
 
-        confidence = min(1.0, 0.4 + metric * 0.5)
+        confidence = _metric_confidence(metric)
         embedding = self._embed_fn(content) if self._embed_fn else []
         return self._store.add(
             CATEGORY, content, metadata, embedding, confidence

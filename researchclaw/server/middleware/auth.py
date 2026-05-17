@@ -26,19 +26,13 @@ def token_matches(candidate: str, expected: str) -> bool:
 
 
 def request_token(request: Request) -> str:
-    """Extract auth token from HTTP headers or query parameters."""
-    return (
-        extract_auth_token(request.headers.get("authorization", ""))
-        or request.query_params.get("token", "")
-    )
+    """Extract auth token from HTTP headers."""
+    return extract_auth_token(request.headers.get("authorization", ""))
 
 
 def websocket_token(websocket: WebSocket) -> str:
-    """Extract auth token from WebSocket headers or query parameters."""
-    return (
-        websocket.query_params.get("token", "")
-        or extract_auth_token(websocket.headers.get("authorization", ""))
-    )
+    """Extract auth token from WebSocket headers."""
+    return extract_auth_token(websocket.headers.get("authorization", ""))
 
 
 def websocket_expected_token(websocket: WebSocket) -> str:

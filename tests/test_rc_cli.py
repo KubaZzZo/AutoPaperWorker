@@ -197,6 +197,37 @@ def test_main_dispatches_validate_command(monkeypatch: pytest.MonkeyPatch) -> No
     assert parsed.no_check_paths is True
 
 
+def test_cmd_serve_does_not_print_or_url_embed_auth_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "config.yaml"
+    _write_valid_config(config_path)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\nserver:\n  auth_token: secret-serve-token\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("uvicorn.run", lambda *args, **kwargs: None)
+
+    code = rc_cli.cmd_serve(
+        argparse.Namespace(
+            config=str(config_path),
+            host="127.0.0.1",
+            port=8765,
+            monitor_dir=None,
+        )
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "secret-serve-token" not in captured.out
+    assert "?token=" not in captured.out
+    assert "http://127.0.0.1:8765/" in captured.out
+
+
 @pytest.mark.parametrize(
     "argv",
     [

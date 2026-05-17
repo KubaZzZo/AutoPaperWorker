@@ -475,6 +475,21 @@ class TestExperimentMemory:
         em.record_hyperparams("image_cls", {"lr": 0.001, "bs": 32}, 0.95)
         assert store.count("experiment") == 1
 
+    def test_loss_metric_lower_value_gets_higher_confidence(
+        self, store: MemoryStore
+    ) -> None:
+        retriever = MemoryRetriever(store)
+        em = ExperimentMemory(store, retriever)
+
+        low_loss_id = em.record_hyperparams("image_cls", {"lr": 0.001}, 0.1, "mse_loss")
+        high_loss_id = em.record_hyperparams("image_cls", {"lr": 1.0}, 1.0, "mse_loss")
+
+        low_loss = store.get(low_loss_id)
+        high_loss = store.get(high_loss_id)
+        assert low_loss is not None
+        assert high_loss is not None
+        assert low_loss.confidence > high_loss.confidence
+
     def test_record_architecture(self, store: MemoryStore) -> None:
         retriever = MemoryRetriever(store)
         em = ExperimentMemory(store, retriever)

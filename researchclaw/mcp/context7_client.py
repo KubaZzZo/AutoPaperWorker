@@ -16,8 +16,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import queue
 import shutil
 import subprocess
+import threading
 import time
 from typing import Any
 
@@ -117,7 +119,7 @@ class Context7MCPClient:
                 },
             })
             self._send(init_req)
-            resp = self._recv(timeout=self._timeout)
+            resp = self._recv(timeout=self._timeout, expected_id=1)
             if resp and "error" not in resp:
                 logger.info("Context7 MCP server initialized")
                 return True
@@ -139,14 +141,40 @@ class Context7MCPClient:
         self._proc.stdin.write(data + b"\n")
         self._proc.stdin.flush()
 
-    def _recv(self, timeout: int = 30) -> dict[str, Any] | None:
+    def _readline_with_timeout(self, timeout: float) -> bytes | None:
+        if self._proc is None or self._proc.stdout is None:
+            return None
+        result_queue: queue.Queue[bytes | BaseException] = queue.Queue(maxsize=1)
+
+        def read_line() -> None:
+            try:
+                result_queue.put(self._proc.stdout.readline())
+            except BaseException as exc:  # pragma: no cover - defensive pipe edge
+                result_queue.put(exc)
+
+        thread = threading.Thread(target=read_line, daemon=True)
+        thread.start()
+        try:
+            result = result_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    def _recv(
+        self,
+        timeout: int = 30,
+        expected_id: int | None = None,
+    ) -> dict[str, Any] | None:
         if self._proc is None or self._proc.stdout is None:
             return None
         deadline = time.monotonic() + timeout
         lines: list[str] = []
         while time.monotonic() < deadline:
+            remaining = max(0.0, deadline - time.monotonic())
             try:
-                line = self._proc.stdout.readline()
+                line = self._readline_with_timeout(remaining)
                 if not line:
                     break
                 decoded = line.decode("utf-8", errors="replace").strip()
@@ -154,7 +182,16 @@ class Context7MCPClient:
                     continue
                 lines.append(decoded)
                 try:
-                    return json.loads("\n".join(lines))
+                    message = json.loads("\n".join(lines))
+                    if expected_id is not None and message.get("id") != expected_id:
+                        logger.debug(
+                            "Context7 MCP ignored stale response id=%r expected=%r",
+                            message.get("id"),
+                            expected_id,
+                        )
+                        lines = []
+                        continue
+                    return message
                 except json.JSONDecodeError:
                     continue
             except Exception:
@@ -179,7 +216,7 @@ class Context7MCPClient:
 
         try:
             self._send(req)
-            resp = self._recv(timeout=self._timeout)
+            resp = self._recv(timeout=self._timeout, expected_id=req_id)
             if resp and "result" in resp:
                 result = resp["result"]
                 if isinstance(result, dict):
@@ -194,8 +231,12 @@ class Context7MCPClient:
             if resp and "error" in resp:
                 logger.debug("Context7 tool error: %s", resp["error"])
                 return None
+            if resp is None:
+                logger.debug("Context7 MCP call timed out; restarting subprocess")
+                self._stop()
         except Exception as exc:
             logger.debug("Context7 MCP call failed: %s", exc)
+            self._stop()
 
         return None
 

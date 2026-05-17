@@ -246,6 +246,49 @@ async def test_edit_writes_files(
 
 
 @pytest.mark.asyncio
+async def test_edit_writes_to_resolved_stage_path_after_validation(
+    adapter: WebSocketHITLAdapter,
+    tmp_run: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter._resolve_dirs()
+
+    waiting = WaitingState(
+        stage=2, stage_name="Analysis", reason=PauseReason.POST_STAGE
+    )
+    (tmp_run / "hitl" / "waiting.json").write_text(
+        json.dumps(waiting.to_dict()), encoding="utf-8"
+    )
+
+    stage_dir = tmp_run / "stage-02"
+    stage_dir.mkdir()
+    resolved_writes: list[Path] = []
+    original_write_text = Path.write_text
+
+    def record_write_text(
+        self: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        if self.name == "analysis.md":
+            resolved_writes.append(self)
+        return original_write_text(
+            self, data, encoding=encoding, errors=errors, newline=newline
+        )
+
+    monkeypatch.setattr(Path, "write_text", record_write_text)
+
+    await adapter._handle_edit({
+        "type": "edit",
+        "files": {"analysis.md": "edited content"},
+    })
+
+    assert resolved_writes == [(stage_dir / "analysis.md").resolve()]
+
+
+@pytest.mark.asyncio
 async def test_edit_no_files_error(
     adapter: WebSocketHITLAdapter, ws: MockWebSocket, tmp_run: Path
 ) -> None:

@@ -813,17 +813,14 @@ class TestFastAPIApp:
             assert "model" not in json.dumps(data).lower()
 
     @pytest.mark.asyncio
-    async def test_config_endpoint_accepts_query_token(self, app: object) -> None:
+    async def test_config_endpoint_rejects_query_token(self, app: object) -> None:
         from httpx import ASGITransport, AsyncClient
 
         token = app.state.auth_token  # type: ignore[attr-defined]
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/config", params={"token": token})
-            assert resp.status_code == 200
-            data = resp.json()
-            assert set(data) == {"version", "features"}
-            assert data["features"]["dashboard_enabled"] is True
+            assert resp.status_code == 401
 
     def test_events_websocket_rejects_missing_token(self, app: object) -> None:
         from fastapi.testclient import TestClient
@@ -835,12 +832,26 @@ class TestFastAPIApp:
                 pass
         assert exc.value.code == 4001
 
-    def test_events_websocket_accepts_query_token(self, app: object) -> None:
+    def test_events_websocket_rejects_query_token(self, app: object) -> None:
+        from fastapi.testclient import TestClient
+        from starlette.websockets import WebSocketDisconnect
+
+        token = app.state.auth_token  # type: ignore[attr-defined]
+        client = TestClient(app)  # type: ignore[arg-type]
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(f"/ws/events?token={token}"):
+                pass
+        assert exc.value.code == 4001
+
+    def test_events_websocket_accepts_authorization_header(self, app: object) -> None:
         from fastapi.testclient import TestClient
 
         token = app.state.auth_token  # type: ignore[attr-defined]
         client = TestClient(app)  # type: ignore[arg-type]
-        with client.websocket_connect(f"/ws/events?token={token}") as ws:
+        with client.websocket_connect(
+            "/ws/events",
+            headers={"Authorization": f"Bearer {token}"},
+        ) as ws:
             event = json.loads(ws.receive_text())
             assert event["type"] == "connected"
 

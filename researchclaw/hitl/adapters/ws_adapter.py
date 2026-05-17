@@ -311,16 +311,17 @@ class WebSocketHITLAdapter:
             fpath = stage_dir / safe_name
             # Verify resolved path is within stage_dir
             try:
-                fpath.resolve().relative_to(stage_dir.resolve())
+                resolved_fpath = fpath.resolve()
+                resolved_fpath.relative_to(stage_dir.resolve())
             except ValueError:
                 continue  # Skip files that would escape the stage dir
             # Backup original if it exists
             backup = snapshots_dir / f"stage_{stage:02d}_{safe_name}.orig"
-            if fpath.is_file() and not backup.exists():
+            if resolved_fpath.is_file() and not backup.exists():
                 backup.write_text(
-                    fpath.read_text(encoding="utf-8"), encoding="utf-8"
+                    resolved_fpath.read_text(encoding="utf-8"), encoding="utf-8"
                 )
-            fpath.write_text(content, encoding="utf-8")
+            resolved_fpath.write_text(content, encoding="utf-8")
 
         human_input = HumanInput(
             action=HumanAction.EDIT,

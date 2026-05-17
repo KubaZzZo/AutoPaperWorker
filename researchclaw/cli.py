@@ -598,8 +598,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         return 1
 
     app = create_app(config, monitor_dir=args.monitor_dir)
-    print(f"Web auth token: {config.server.auth_token}")
-    print(f"Open: http://{host}:{port}/?token={config.server.auth_token}")
+    print(f"Open: http://{host}:{port}/")
+    print("Auth: use the configured server.auth_token as a Bearer token.")
     uvicorn.run(app, host=host, port=port)
     return 0
 
@@ -627,8 +627,8 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         return 1
 
     app = create_app(config, dashboard_only=True, monitor_dir=args.monitor_dir)
-    print(f"Web auth token: {config.server.auth_token}")
-    print(f"Open: http://{host}:{port}/?token={config.server.auth_token}")
+    print(f"Open: http://{host}:{port}/")
+    print("Auth: use the configured server.auth_token as a Bearer token.")
     uvicorn.run(app, host=host, port=port)
     return 0
 

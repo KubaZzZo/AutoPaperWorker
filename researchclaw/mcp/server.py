@@ -40,6 +40,19 @@ def _validated_run_dir(run_id: str) -> Path:
     return run_dir
 
 
+def _validated_artifact_file(path: str) -> Path:
+    """Resolve a requested artifact file and reject paths outside artifacts/."""
+    file_path = Path(path).expanduser()
+    if not file_path.exists() or not file_path.is_file():
+        raise FileNotFoundError(f"Paper not found: {file_path}")
+
+    resolved = file_path.resolve()
+    artifacts_root = Path("artifacts").resolve()
+    if not resolved.is_relative_to(artifacts_root):
+        raise ValueError("paper_path must resolve under artifacts/")
+    return resolved
+
+
 class ResearchClawMCPServer:
     """MCP Server that exposes AutoResearchClaw capabilities as tools.
 
@@ -175,9 +188,7 @@ class ResearchClawMCPServer:
 
     async def _handle_review_paper(self, args: dict[str, Any]) -> dict[str, Any]:
         """Review a generated paper with lightweight offline checks."""
-        paper_path = Path(str(args["paper_path"]))
-        if not paper_path.exists() or not paper_path.is_file():
-            return {"success": False, "error": f"Paper not found: {paper_path}"}
+        paper_path = _validated_artifact_file(str(args["paper_path"]))
         content = paper_path.read_text(encoding="utf-8", errors="replace")
         headings = re.findall(r"(?m)^#{1,6}\s+(.+?)\s*$", content)
         heading_norms = [_normalize_heading(heading) for heading in headings]

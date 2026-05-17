@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import sys
+from collections import deque
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
@@ -79,12 +80,17 @@ class SSETransport:
     """
 
     # Transport bind host is explicit caller configuration.
-    def __init__(self, host: str = "0.0.0.0", port: int = 3000) -> None:  # nosec B104
+    def __init__(
+        self,
+        host: str = "0.0.0.0",  # nosec B104
+        port: int = 3000,
+        max_sent_events: int = 1000,
+    ) -> None:
         self.host = host
         self.port = port
         self._running = False
         self._incoming: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        self.sent_events: list[str] = []
+        self.sent_events: deque[str] = deque(maxlen=max_sent_events)
 
     async def start(self) -> None:
         """Start the SSE server."""
