@@ -143,15 +143,14 @@ def _execute_hypothesis_gen(
 
     # --- HITL: Idea Workshop data persistence ---
     try:
-        from researchclaw.hitl.workshops.idea import IdeaWorkshop
+        from researchclaw.hitl.workshops.idea import IdeaCandidate, IdeaWorkshop
 
         workshop = IdeaWorkshop(run_dir, llm_client=llm)
         workshop.candidates = [
-            type("IC", (), {"title": "Generated Hypothesis", "description": hypotheses_md[:500],
-                            "to_dict": lambda self: {"title": self.title, "description": self.description},
-                            "human_approved": False, "baselines": [], "keywords": [],
-                            "novelty_notes": "", "feasibility_notes": "", "impact_notes": "",
-                            "score": 0.0})()
+            IdeaCandidate(
+                title="Generated Hypothesis",
+                description=hypotheses_md[:500],
+            )
         ]
         workshop.save()
     except (OSError, RuntimeError, TypeError, ValueError, AttributeError):

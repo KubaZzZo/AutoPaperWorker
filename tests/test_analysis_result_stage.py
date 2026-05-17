@@ -45,6 +45,18 @@ def test_result_analysis_is_decomposed_into_named_helpers() -> None:
     assert len(source.splitlines()) <= 450
 
 
+def test_bootstrap_ci_uses_data_derived_seed() -> None:
+    source = inspect.getsource(_analysis._compute_bootstrap_ci)
+    assert "random.Random(42)" not in source
+    assert "_bootstrap_seed(values)" in source
+
+    values = [0.50, 0.52, 0.51, 0.55]
+    assert _analysis._compute_bootstrap_ci(values, "baseline") == (
+        _analysis._compute_bootstrap_ci(values, "baseline")
+    )
+    assert _analysis._bootstrap_seed(values) != _analysis._bootstrap_seed([0.50, 0.52, 0.51, 0.56])
+
+
 def test_result_analysis_merges_refinement_metrics_and_computes_seed_statistics(
     tmp_path: Path,
     monkeypatch,

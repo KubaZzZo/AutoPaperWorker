@@ -8,6 +8,7 @@ import math
 import os
 import random
 import statistics
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -195,7 +196,7 @@ def _compute_bootstrap_ci(
     """Compute mean, std, and bootstrap 95% CI for seed-level values."""
     mean_value = statistics.mean(values)
     std_value = statistics.stdev(values)
-    rng = random.Random(42)
+    rng = random.Random(_bootstrap_seed(values))
     boot_means = []
     for _ in range(iterations):
         sample = [rng.choice(values) for _ in range(len(values))]
@@ -216,6 +217,13 @@ def _compute_bootstrap_ci(
         ci_low = round(mean_value - 1.96 * standard_error, 6)
         ci_high = round(mean_value + 1.96 * standard_error, 6)
     return mean_value, std_value, ci_low, ci_high
+
+
+def _bootstrap_seed(values: list[float]) -> int:
+    """Derive a stable bootstrap seed from the data being resampled."""
+    payload = json.dumps([float(value) for value in values], separators=(",", ":"))
+    digest = hashlib.blake2b(payload.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big")
 
 
 def _detect_ablation_failures(
