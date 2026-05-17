@@ -418,6 +418,45 @@ def test_rcconfig_from_dict_parses_parallel_hypotheses(tmp_path: Path):
     assert config.experiment.parallel_hypotheses.selection_metric == "accuracy"
 
 
+def test_config_parsing_ignores_plaintext_api_keys_and_preserves_env_names(
+    tmp_path: Path,
+) -> None:
+    data = _valid_config_data()
+    data["llm"]["s2_api_key"] = "plain-s2"
+    data["llm"]["s2_api_key_env"] = "S2_ENV"
+    data["web_search"] = {
+        "tavily_api_key": "plain-tavily",
+        "tavily_api_key_env": "TAVILY_ENV",
+    }
+    data["experiment"]["figure_agent"] = {
+        "gemini_api_key": "plain-gemini",
+        "gemini_api_key_env": "GEMINI_ENV",
+    }
+    data["metaclaw_bridge"] = {
+        "enabled": True,
+        "fallback_api_key": "plain-fallback",
+        "fallback_api_key_env": "FALLBACK_ENV",
+        "prm": {
+            "enabled": True,
+            "api_key": "plain-prm",
+            "api_key_env": "PRM_ENV",
+        },
+    }
+
+    config = RCConfig.from_dict(data, project_root=tmp_path, check_paths=False)
+
+    assert config.llm.s2_api_key == ""
+    assert config.llm.s2_api_key_env == "S2_ENV"
+    assert config.web_search.tavily_api_key == ""
+    assert config.web_search.tavily_api_key_env == "TAVILY_ENV"
+    assert config.experiment.figure_agent.gemini_api_key == ""
+    assert config.experiment.figure_agent.gemini_api_key_env == "GEMINI_ENV"
+    assert config.metaclaw_bridge.fallback_api_key == ""
+    assert config.metaclaw_bridge.fallback_api_key_env == "FALLBACK_ENV"
+    assert config.metaclaw_bridge.prm.api_key == ""
+    assert config.metaclaw_bridge.prm.api_key_env == "PRM_ENV"
+
+
 def test_rcconfig_from_dict_parses_docker_forward_hf_token(tmp_path: Path):
     data = _valid_config_data()
     data["experiment"]["docker"] = {"forward_hf_token": True}

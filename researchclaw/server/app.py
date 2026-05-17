@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
@@ -36,10 +38,42 @@ def create_app(
         dashboard_only: If True, only mount dashboard routes.
         monitor_dir: Specific run directory to monitor.
     """
+    event_manager = ConnectionManager()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        background_tasks: list[asyncio.Task[Any]] = [
+            asyncio.create_task(event_manager.heartbeat_loop(interval=15.0))
+        ]
+
+        if config.dashboard.enabled:
+            from researchclaw.dashboard.broadcaster import start_dashboard_loop
+
+            background_tasks.append(
+                asyncio.create_task(
+                    start_dashboard_loop(
+                        event_manager,
+                        interval=config.dashboard.refresh_interval_sec,
+                        monitor_dir=monitor_dir,
+                    )
+                )
+            )
+        logger.info("ResearchClaw Web server started")
+
+        try:
+            yield
+        finally:
+            for task in background_tasks:
+                task.cancel()
+            for task in background_tasks:
+                with suppress(asyncio.CancelledError):
+                    await task
+
     app = FastAPI(
         title="ResearchClaw",
         description="Autonomous Research Pipeline — Web Interface",
         version=__version__,
+        lifespan=lifespan,
     )
 
     # Store config in shared state
@@ -68,7 +102,6 @@ def create_app(
     )
 
     # --- WebSocket manager ---
-    event_manager = ConnectionManager()
     _app_state["event_manager"] = event_manager
 
     # --- Health endpoint ---
@@ -137,22 +170,5 @@ def create_app(
         @app.get("/")
         async def index() -> FileResponse:
             return FileResponse(str(frontend_dir / "index.html"))
-
-    # --- Background tasks ---
-    @app.on_event("startup")
-    async def startup() -> None:
-        asyncio.create_task(event_manager.heartbeat_loop(interval=15.0))
-
-        if config.dashboard.enabled:
-            from researchclaw.dashboard.broadcaster import start_dashboard_loop
-
-            asyncio.create_task(
-                start_dashboard_loop(
-                    event_manager,
-                    interval=config.dashboard.refresh_interval_sec,
-                    monitor_dir=monitor_dir,
-                )
-            )
-        logger.info("ResearchClaw Web server started")
 
     return app

@@ -995,6 +995,7 @@ class TestFigureAgentConfig:
             "allow_local_execution": True,
             "output_format": "latex",
             "gemini_api_key": "test-key",
+            "gemini_api_key_env": "GEMINI_TEST_KEY",
             "gemini_model": "gemini-test",
             "nano_banana_enabled": False,
         })
@@ -1002,7 +1003,8 @@ class TestFigureAgentConfig:
         assert cfg.docker_image == "custom/figure:latest"
         assert cfg.allow_local_execution is True
         assert cfg.output_format == "latex"
-        assert cfg.gemini_api_key == "test-key"
+        assert cfg.gemini_api_key == ""
+        assert cfg.gemini_api_key_env == "GEMINI_TEST_KEY"
         assert cfg.gemini_model == "gemini-test"
         assert cfg.nano_banana_enabled is False
 

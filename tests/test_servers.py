@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -223,7 +223,7 @@ class TestSSHExecutor:
             with patch("asyncio.create_subprocess_exec") as mock_exec:
                 proc = AsyncMock()
                 proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError)
-                proc.kill = AsyncMock()
+                proc.kill = Mock()
                 proc.wait = AsyncMock()
                 mock_exec.return_value = proc
                 return await exe.run_experiment("/tmp/test", "echo hello", timeout=1)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -76,6 +77,10 @@ def _expand_search_queries(queries: list[str], topic: str) -> list[str]:
             seen.add(variant.lower().strip())
 
     return expanded
+
+
+def _env_value(name: str) -> str:
+    return os.environ.get(name, "") if name else ""
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +394,7 @@ def _execute_literature_collect(
             expanded_queries,
             limit_per_query=40,
             year_min=year_min,
-            s2_api_key=config.llm.s2_api_key,
+            s2_api_key=_env_value(getattr(config.llm, "s2_api_key_env", "")),
         )
         if papers:
             real_search_succeeded = True
@@ -459,13 +464,9 @@ def _execute_literature_collect(
     web_context_parts: list[str] = []
     if config.web_search.enabled:
         try:
-            import os
-
             from researchclaw.web.agent import WebSearchAgent
 
-            tavily_key = config.web_search.tavily_api_key or os.environ.get(
-                config.web_search.tavily_api_key_env, ""
-            )
+            tavily_key = _env_value(config.web_search.tavily_api_key_env)
             web_agent = WebSearchAgent(
                 tavily_api_key=tavily_key,
                 enable_scholar=config.web_search.enable_scholar,

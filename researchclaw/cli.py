@@ -835,7 +835,7 @@ def cmd_trends(args: argparse.Namespace) -> int:
 
     feed_manager = FeedManager(
         sources=config.trends.sources,
-        s2_api_key=config.llm.s2_api_key,
+        s2_api_key=os.environ.get(config.llm.s2_api_key_env, ""),
     )
 
     if cast(bool, args.digest):

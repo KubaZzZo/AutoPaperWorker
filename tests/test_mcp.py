@@ -407,6 +407,7 @@ class TestMCPServerRegistry:
 class TestSSETransport:
     def test_start_stop(self) -> None:
         transport = SSETransport(port=9999)
+        assert transport.host == "127.0.0.1"
 
         async def _run() -> None:
             await transport.start()
@@ -465,6 +466,34 @@ class TestContext7MCPClient:
         source = Path("researchclaw/mcp/context7_client.py").read_text(encoding="utf-8")
 
         assert "print(" not in source
+
+    def test_context7_subprocess_env_filters_secrets(self, monkeypatch) -> None:
+        from researchclaw.mcp.context7_client import Context7MCPClient
+
+        captured: dict[str, object] = {}
+
+        class FakeProcess:
+            stdin = None
+            stdout = None
+
+            def poll(self) -> None:
+                return None
+
+        def fake_popen(*args, **kwargs):
+            captured["env"] = kwargs.get("env")
+            return FakeProcess()
+
+        monkeypatch.setenv("OPENAI_API_KEY", "secret")
+        monkeypatch.setenv("PATH", "keep-path")
+        monkeypatch.setattr("researchclaw.mcp.context7_client._find_context7_binary", lambda: ["ctx"])
+        monkeypatch.setattr("subprocess.Popen", fake_popen)
+
+        client = Context7MCPClient()
+        assert client._ensure_started() is False
+        env = captured["env"]
+        assert isinstance(env, dict)
+        assert env.get("PATH") == "keep-path"
+        assert "OPENAI_API_KEY" not in env
 
     def test_stop_logs_failed_kill(self, caplog) -> None:
         from researchclaw.mcp.context7_client import Context7MCPClient

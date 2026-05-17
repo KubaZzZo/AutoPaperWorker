@@ -88,6 +88,9 @@ class LlmConfig:
     api_key: str = ""
     primary_model: str = ""
     fallback_models: tuple[str, ...] = ()
+    s2_api_key_env: str = "S2_API_KEY"
+    # Deprecated: kept for backward-compatible attribute access only.
+    # YAML parsing ignores llm.s2_api_key; use s2_api_key_env.
     s2_api_key: str = ""
     notes: str = ""
     timeout_sec: int = 600
@@ -290,8 +293,10 @@ class FigureAgentConfig:
     allow_local_execution: bool = False
     # Code generation output format
     output_format: str = "python"  # "python" (matplotlib) or "latex" (TikZ/PGFPlots)
-    # Nano Banana (Gemini image generation)
-    gemini_api_key: str = ""  # or set GEMINI_API_KEY / GOOGLE_API_KEY env var
+    # Nano Banana (Gemini image generation). Store only the env var name in YAML.
+    gemini_api_key_env: str = "GEMINI_API_KEY"
+    # Deprecated: kept for backward-compatible attribute access only.
+    gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash-image"
     nano_banana_enabled: bool = True  # enable/disable Gemini image generation
     # Critic
@@ -397,6 +402,8 @@ class MetaClawBridgeConfig:
     proxy_url: str = "http://localhost:30000"
     skills_dir: str = "~/.metaclaw/skills"
     fallback_url: str = ""
+    fallback_api_key_env: str = ""
+    # Deprecated: kept for backward-compatible attribute access only.
     fallback_api_key: str = ""
     prm: MetaClawPRMConfig = field(default_factory=MetaClawPRMConfig)
     lesson_to_skill: MetaClawLessonToSkillConfig = field(
@@ -409,6 +416,7 @@ class WebSearchConfig:
     """Configuration for web search and crawling capabilities."""
 
     enabled: bool = True
+    # Deprecated: kept for backward-compatible attribute access only.
     tavily_api_key: str = ""
     tavily_api_key_env: str = "TAVILY_API_KEY"
     enable_scholar: bool = True
@@ -483,8 +491,7 @@ class ServerConfig:
     """Web server configuration."""
 
     enabled: bool = False
-    # Web server bind host is explicit configuration.
-    host: str = "0.0.0.0"  # nosec B104
+    host: str = "127.0.0.1"
     port: int = 8080
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     auth_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))

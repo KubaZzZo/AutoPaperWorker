@@ -218,7 +218,7 @@ def build_config_from_dict(
         ),
         web_search=WebSearchConfig(
             enabled=bool(web_search.get("enabled", True)),
-            tavily_api_key=str(web_search.get("tavily_api_key", "")),
+            tavily_api_key="",
             tavily_api_key_env=str(
                 web_search.get("tavily_api_key_env", "TAVILY_API_KEY")
             ),
@@ -260,7 +260,8 @@ def _parse_llm_config(data: dict[str, Any]) -> LlmConfig:
         api_key="",
         primary_model=data.get("primary_model", ""),
         fallback_models=tuple(data.get("fallback_models") or ()),
-        s2_api_key=data.get("s2_api_key", ""),
+        s2_api_key_env=data.get("s2_api_key_env", "S2_API_KEY"),
+        s2_api_key="",
         notes=data.get("notes", ""),
         timeout_sec=_safe_int(data.get("timeout_sec"), 600),
         acp=AcpConfig(
@@ -426,7 +427,8 @@ def _parse_figure_agent_config(data: dict[str, Any]) -> FigureAgentConfig:
         docker_image=data.get("docker_image", "researchclaw/experiment:latest"),
         allow_local_execution=bool(data.get("allow_local_execution", False)),
         output_format=data.get("output_format", "python"),
-        gemini_api_key=data.get("gemini_api_key", ""),
+        gemini_api_key_env=data.get("gemini_api_key_env", "GEMINI_API_KEY"),
+        gemini_api_key="",
         gemini_model=data.get("gemini_model", "gemini-2.5-flash-image"),
         nano_banana_enabled=bool(data.get("nano_banana_enabled", True)),
         strict_mode=bool(data.get("strict_mode", False)),
@@ -506,12 +508,13 @@ def _parse_metaclaw_bridge_config(data: dict[str, Any]) -> MetaClawBridgeConfig:
         proxy_url=data.get("proxy_url", "http://localhost:30000"),
         skills_dir=data.get("skills_dir", "~/.metaclaw/skills"),
         fallback_url=data.get("fallback_url", ""),
-        fallback_api_key=data.get("fallback_api_key", ""),
+        fallback_api_key_env=data.get("fallback_api_key_env", ""),
+        fallback_api_key="",
         prm=MetaClawPRMConfig(
             enabled=bool(prm_data.get("enabled", False)),
             api_base=prm_data.get("api_base", ""),
             api_key_env=prm_data.get("api_key_env", ""),
-            api_key=prm_data.get("api_key", ""),
+            api_key="",
             model=prm_data.get("model", "gpt-5.4"),
             votes=_safe_int(prm_data.get("votes"), 3),
             temperature=_safe_float(prm_data.get("temperature"), 0.6),
@@ -652,8 +655,7 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
     auth_token = str(data.get("auth_token", "")).strip() or secrets.token_urlsafe(32)
     return ServerConfig(
         enabled=bool(data.get("enabled", False)),
-        # Web server bind host is explicit configuration.
-        host=data.get("host", "0.0.0.0"),  # nosec B104
+        host=data.get("host", "127.0.0.1"),
         port=int(data.get("port", 8080)),
         cors_origins=cors,
         auth_token=auth_token,

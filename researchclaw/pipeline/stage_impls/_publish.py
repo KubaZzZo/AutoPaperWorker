@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -1875,7 +1876,7 @@ def _execute_citation_verify(
             ),
         )
 
-    s2_api_key = getattr(config.llm, "s2_api_key", "") or ""
+    s2_api_key = os.environ.get(getattr(config.llm, "s2_api_key_env", ""), "")
 
     from researchclaw.literature.verify import parse_bibtex_entries
     _n_entries = len(parse_bibtex_entries(bib_text))

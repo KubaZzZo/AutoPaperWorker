@@ -178,8 +178,9 @@ class LLMClient:
             base_url = bridge.proxy_url
             if bridge.fallback_url:
                 fallback_url = bridge.fallback_url
-            if bridge.fallback_api_key:
-                fallback_api_key = bridge.fallback_api_key
+            fallback_key_env = getattr(bridge, "fallback_api_key_env", "")
+            if fallback_key_env:
+                fallback_api_key = os.environ.get(fallback_key_env, "")
 
         config = LLMConfig(
             base_url=base_url,

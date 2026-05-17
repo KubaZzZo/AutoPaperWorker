@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -643,7 +644,9 @@ Generated: {_utcnow_iso()}
                 use_docker=config.experiment.figure_agent.use_docker,
                 docker_image=config.experiment.figure_agent.docker_image,
                 output_format=config.experiment.figure_agent.output_format,
-                gemini_api_key=config.experiment.figure_agent.gemini_api_key,
+                gemini_api_key=os.environ.get(
+                    config.experiment.figure_agent.gemini_api_key_env, ""
+                ),
                 gemini_model=config.experiment.figure_agent.gemini_model,
                 nano_banana_enabled=config.experiment.figure_agent.nano_banana_enabled,
                 strict_mode=config.experiment.figure_agent.strict_mode,

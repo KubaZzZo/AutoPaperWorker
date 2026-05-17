@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import queue
 import shutil
 import subprocess
 import threading
 import time
 from typing import Any
+
+from researchclaw.utils.env import minimal_subprocess_env
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class Context7MCPClient:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
-                env={**os.environ},
+                env=minimal_subprocess_env(),
                 start_new_session=True,
             )
             self._available = True

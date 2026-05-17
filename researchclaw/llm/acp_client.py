@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from researchclaw.llm.client import LLMResponse, _parse_json_object_response
+from researchclaw.utils.env import minimal_subprocess_env
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ class ACPClient:
                  self.config.session_name],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=15,
+                env=minimal_subprocess_env(),
             )
         except Exception:  # noqa: BLE001
             logger.warning(
@@ -240,6 +242,7 @@ class ACPClient:
              "--name", self.config.session_name],
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=30,
+            env=minimal_subprocess_env(),
         )
         if result.returncode != 0:
             # Fall back to 'new'
@@ -249,6 +252,7 @@ class ACPClient:
                  "--name", self.config.session_name],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=30,
+                env=minimal_subprocess_env(),
             )
             if result.returncode != 0:
                 raise RuntimeError(
@@ -270,6 +274,7 @@ class ACPClient:
                 self._base_prompt_cmd(acpx) + [_warmup],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=60,
+                env=minimal_subprocess_env(),
             )
         except Exception:  # noqa: BLE001
             logger.debug("ACP warm-up prompt failed (non-fatal)", exc_info=True)
@@ -426,6 +431,7 @@ class ACPClient:
             stderr=subprocess.PIPE,
             encoding="utf-8",
             errors="replace",
+            env=minimal_subprocess_env(),
         )
 
         # Write stdin data and close immediately so the process can read it.

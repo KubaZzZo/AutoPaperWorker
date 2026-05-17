@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from researchclaw.config import RCConfig
+from researchclaw.utils.env import minimal_subprocess_env
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +424,21 @@ class _CliAgentBase:
     def name(self) -> str:
         return self._provider_name
 
+    def _subprocess_env(self) -> dict[str, str]:
+        allowed_secret_names: tuple[str, ...]
+        if self._provider_name == "claude_code":
+            allowed_secret_names = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+        elif self._provider_name == "codex":
+            allowed_secret_names = ("OPENAI_API_KEY",)
+        else:
+            allowed_secret_names = ()
+        extra = {
+            name: os.environ[name]
+            for name in allowed_secret_names
+            if os.environ.get(name)
+        }
+        return minimal_subprocess_env(extra=extra)
+
     def _run_subprocess(
         self,
         cmd: list[str],
@@ -441,7 +457,7 @@ class _CliAgentBase:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=workdir,
-            env={**os.environ},
+            env=self._subprocess_env(),
             start_new_session=True,
         )
         try:

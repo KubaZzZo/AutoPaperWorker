@@ -1882,6 +1882,17 @@ class TestSynthesizePerspectives:
 
 
 class TestHypothesisGenDebate:
+    @pytest.fixture(autouse=True)
+    def _disable_real_novelty_search(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "researchclaw.literature.novelty.check_novelty",
+            lambda **_kwargs: {
+                "novelty_score": 1.0,
+                "assessment": "high",
+                "recommendation": "proceed",
+            },
+        )
+
     def test_hypothesis_gen_writes_parallel_branch_plan_when_enabled(
         self, tmp_path: Path, rc_config: RCConfig, adapters: AdapterBundle
     ) -> None:
@@ -1908,7 +1919,7 @@ class TestHypothesisGenDebate:
         )
 
         with patch(
-            "researchclaw.pipeline.stage_impls._synthesis.check_novelty",
+            "researchclaw.literature.novelty.check_novelty",
             side_effect=RuntimeError("skip novelty"),
             create=True,
         ):
@@ -1986,7 +1997,7 @@ class TestHypothesisGenDebate:
             BrokenIdeaWorkshop,
         )
         monkeypatch.setattr(
-            "researchclaw.pipeline.stage_impls._synthesis.check_novelty",
+            "researchclaw.literature.novelty.check_novelty",
             lambda **_kwargs: {
                 "novelty_score": 1.0,
                 "assessment": "high",

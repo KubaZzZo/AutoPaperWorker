@@ -13,13 +13,14 @@ Usage::
 from __future__ import annotations
 
 import logging
-import os
 import platform
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+from researchclaw.utils.env import minimal_subprocess_env
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def _run_cmd(cmd: list[str], timeout: int = 15) -> str:
             capture_output=True,
             text=True,
             timeout=timeout,
-            env={**os.environ},
+            env=minimal_subprocess_env(),
         )
         return result.stdout.strip()
     except Exception:

@@ -63,3 +63,34 @@ def test_cli_code_agent_logs_failed_process_group_cleanup(tmp_path: Path, caplog
     assert stderr == ""
     assert timed_out is True
     assert "Failed to terminate timed-out code agent process group" in caplog.text
+
+
+def test_cli_code_agent_subprocess_env_filters_unrelated_secrets(
+    tmp_path: Path,
+    monkeypatch,
+):
+    agent = ClaudeCodeAgent(binary_path="claude")
+    captured: dict[str, object] = {}
+
+    class FakeProcess:
+        returncode = 0
+
+        def communicate(self, timeout: int):
+            return b"", b""
+
+    def fake_popen(*args, **kwargs):
+        captured["env"] = kwargs.get("env")
+        return FakeProcess()
+
+    monkeypatch.setenv("PATH", "keep-path")
+    monkeypatch.setenv("OPENAI_API_KEY", "unrelated-secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "needed-for-claude")
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    agent._run_subprocess(["claude", "-p"], tmp_path, timeout_sec=1)
+
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env["PATH"] == "keep-path"
+    assert env["ANTHROPIC_API_KEY"] == "needed-for-claude"
+    assert "OPENAI_API_KEY" not in env

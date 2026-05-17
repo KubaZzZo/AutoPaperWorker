@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException
 
 # ---------------------------------------------------------------------------
 # Config tests
@@ -51,7 +52,7 @@ class TestServerConfig:
 
         cfg = ServerConfig()
         assert cfg.enabled is False
-        assert cfg.host == "0.0.0.0"
+        assert cfg.host == "127.0.0.1"
         assert cfg.port == 8080
         assert cfg.cors_origins == ("http://127.0.0.1:8080", "http://localhost:8080")
         assert cfg.auth_token
@@ -94,6 +95,7 @@ class TestServerConfig:
 
         cfg = _parse_server_config({})
         assert cfg.enabled is False
+        assert cfg.host == "127.0.0.1"
         assert cfg.port == 8080
         assert cfg.cors_origins == ("http://127.0.0.1:8080", "http://localhost:8080")
         assert cfg.auth_token
@@ -821,6 +823,93 @@ class TestFastAPIApp:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/config", params={"token": token})
             assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_voice_upload_rejects_oversized_audio_before_reading(
+        self,
+        app: object,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from researchclaw.config import RCConfig
+        from researchclaw.server import app as app_module
+        from researchclaw.server.routes.voice import MAX_AUDIO_UPLOAD_BYTES, transcribe_audio
+
+        class OversizedFile:
+            filename = "huge.wav"
+            headers = {"content-length": str(MAX_AUDIO_UPLOAD_BYTES + 1)}
+
+            async def read(self) -> bytes:
+                raise AssertionError("oversized upload must not be read into memory")
+
+        data = {
+            "project": {"name": "test"},
+            "research": {"topic": "test"},
+            "runtime": {"timezone": "UTC"},
+            "notifications": {"channel": "console"},
+            "knowledge_base": {"root": "knowledge"},
+            "llm": {
+                "provider": "openai-compatible",
+                "base_url": "http://localhost/v1",
+                "api_key_env": "TEST",
+            },
+            "server": {"voice_enabled": True},
+        }
+        app_module._app_state["config"] = RCConfig.from_dict(data, check_paths=False)
+
+        with pytest.raises(HTTPException) as exc:
+            await transcribe_audio(OversizedFile(), language="zh")  # type: ignore[arg-type]
+
+        assert exc.value.status_code == 413
+
+    @pytest.mark.asyncio
+    async def test_voice_upload_without_content_length_reads_with_limit(
+        self,
+        app: object,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from researchclaw.config import RCConfig
+        from researchclaw.server import app as app_module
+        from researchclaw.server.routes import voice as voice_module
+
+        class ChunkedOversizedFile:
+            filename = "huge.wav"
+            headers: dict[str, str] = {}
+
+            def __init__(self) -> None:
+                self.remaining = 9
+                self.read_sizes: list[int] = []
+
+            async def read(self, size: int = -1) -> bytes:
+                assert 0 < size <= 9, "upload reads must be bounded"
+                self.read_sizes.append(size)
+                if self.remaining <= 0:
+                    return b""
+                chunk_size = min(size, self.remaining, 3)
+                self.remaining -= chunk_size
+                return b"x" * chunk_size
+
+        data = {
+            "project": {"name": "test"},
+            "research": {"topic": "test"},
+            "runtime": {"timezone": "UTC"},
+            "notifications": {"channel": "console"},
+            "knowledge_base": {"root": "knowledge"},
+            "llm": {
+                "provider": "openai-compatible",
+                "base_url": "http://localhost/v1",
+                "api_key_env": "TEST",
+            },
+            "server": {"voice_enabled": True},
+        }
+        app_module._app_state["config"] = RCConfig.from_dict(data, check_paths=False)
+        monkeypatch.setattr(voice_module, "MAX_AUDIO_UPLOAD_BYTES", 8)
+
+        upload = ChunkedOversizedFile()
+        with pytest.raises(HTTPException) as exc:
+            await voice_module.transcribe_audio(upload, language="zh")  # type: ignore[arg-type]
+
+        assert exc.value.status_code == 413
+        assert upload.read_sizes
 
     def test_events_websocket_rejects_missing_token(self, app: object) -> None:
         from fastapi.testclient import TestClient
