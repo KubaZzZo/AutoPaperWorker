@@ -78,7 +78,8 @@ class SSETransport:
     these queues with HTTP/SSE endpoints without changing MCP semantics.
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 3000) -> None:
+    # Transport bind host is explicit caller configuration.
+    def __init__(self, host: str = "0.0.0.0", port: int = 3000) -> None:  # nosec B104
         self.host = host
         self.port = port
         self._running = False

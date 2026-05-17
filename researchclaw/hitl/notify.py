@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from researchclaw.utils.http import urlopen_http
+
 logger = logging.getLogger(__name__)
 
 
@@ -157,7 +159,7 @@ class NotificationManager:
                 data=payload,
                 headers={"Content-Type": "application/json"},
             )
-            urllib.request.urlopen(req, timeout=10)
+            urlopen_http(req, timeout=10)
         except Exception as exc:
             logger.warning("Slack notification failed: %s", exc)
 
@@ -176,7 +178,7 @@ class NotificationManager:
                 data=payload,
                 headers={"Content-Type": "application/json"},
             )
-            urllib.request.urlopen(req, timeout=10)
+            urlopen_http(req, timeout=10)
         except Exception as exc:
             logger.warning("Webhook notification failed: %s", exc)
 

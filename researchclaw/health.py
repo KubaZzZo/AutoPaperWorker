@@ -11,14 +11,16 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable as AbcCallable
 from collections.abc import Mapping
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import ContextManager, cast
+from typing import cast
 
 import yaml
 
 from researchclaw.config import RCConfig, validate_config
+from researchclaw.utils.http import urlopen_http
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +181,7 @@ def check_llm_connectivity(base_url: str, api_key: str = "") -> CheckResult:
     req = urllib.request.Request(url, headers=headers)
 
     try:
-        with urllib.request.urlopen(req, timeout=5):
+        with _urlopen(req, timeout=5):
             return CheckResult(
                 name="llm_connectivity",
                 status="pass",
@@ -194,7 +196,7 @@ def check_llm_connectivity(base_url: str, api_key: str = "") -> CheckResult:
             for probe in probe_urls:
                 try:
                     get_req = urllib.request.Request(probe, headers=headers)
-                    with urllib.request.urlopen(get_req, timeout=5):
+                    with _urlopen(get_req, timeout=5):
                         return CheckResult(
                             name="llm_connectivity",
                             status="pass",
@@ -274,8 +276,8 @@ def _read_response_bytes(response: object) -> bytes:
     return bytes(raw)
 
 
-def _urlopen(req: str | urllib.request.Request, timeout: int) -> ContextManager[object]:
-    return cast(ContextManager[object], urllib.request.urlopen(req, timeout=timeout))
+def _urlopen(req: str | urllib.request.Request, timeout: int) -> AbstractContextManager[object]:
+    return cast(AbstractContextManager[object], urlopen_http(req, timeout=timeout))
 
 
 def _load_yaml_object(content: str) -> object:

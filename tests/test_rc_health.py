@@ -141,6 +141,15 @@ def test_check_llm_connectivity_timeout() -> None:
     assert result.detail == "LLM endpoint unreachable"
 
 
+def test_check_llm_connectivity_rejects_non_http_scheme() -> None:
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        result = health.check_llm_connectivity("file:///tmp/researchclaw")
+
+    assert result.status == "fail"
+    assert "Unsupported URL scheme" in result.detail
+    mock_urlopen.assert_not_called()
+
+
 def test_check_llm_connectivity_http_error() -> None:
     with patch(
         "urllib.request.urlopen",

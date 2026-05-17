@@ -7,6 +7,7 @@ import urllib.request
 from typing import Any
 
 from researchclaw.llm.messages import normalize_provider_messages
+from researchclaw.utils.http import urlopen_http
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ class GeminiAdapter:
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
 
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_sec) as resp:
+            with urlopen_http(req, timeout=self.timeout_sec) as resp:
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as exc:
             # Attempt to extract detailed error from Gemini to aid debugging

@@ -26,14 +26,18 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from defusedxml import ElementTree
 from enum import Enum
-from typing import Sequence
 
-from researchclaw.literature.models import Author, Paper
+from researchclaw.literature.models import Paper
+from researchclaw.utils.http import urlopen_http
 
 logger = logging.getLogger(__name__)
+
+
+def _urlopen(req: str | urllib.request.Request, timeout: int):
+    return urlopen_http(req, timeout=timeout)
 
 # ---------------------------------------------------------------------------
 # Public enums & data classes
@@ -192,15 +196,15 @@ def verify_by_arxiv_id(arxiv_id: str, expected_title: str) -> CitationResult | N
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "ResearchClaw/0.1"})
-        with urllib.request.urlopen(req, timeout=_ARXIV_TIMEOUT) as resp:
+        with _urlopen(req, timeout=_ARXIV_TIMEOUT) as resp:
             data = resp.read().decode("utf-8")
     except Exception as exc:
         logger.debug("arXiv ID verification failed for %s: %s", arxiv_id, exc)
         return None
 
     try:
-        root = ET.fromstring(data)
-    except ET.ParseError:
+        root = ElementTree.fromstring(data)
+    except ElementTree.ParseError:
         return None
 
     entries = root.findall("atom:entry", _ARXIV_NS)
@@ -291,7 +295,7 @@ def _verify_doi_datacite(doi: str, expected_title: str) -> CitationResult | None
                 "Accept": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=_DATACITE_TIMEOUT) as resp:
+        with _urlopen(req, timeout=_DATACITE_TIMEOUT) as resp:
             body = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
@@ -371,7 +375,7 @@ def verify_by_doi(doi: str, expected_title: str) -> CitationResult | None:
                 "Accept": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=_CROSSREF_TIMEOUT) as resp:
+        with _urlopen(req, timeout=_CROSSREF_TIMEOUT) as resp:
             body = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
@@ -471,7 +475,7 @@ def verify_by_openalex(title: str) -> CitationResult | None:
                 "Accept": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=_OPENALEX_TIMEOUT) as resp:
+        with _urlopen(req, timeout=_OPENALEX_TIMEOUT) as resp:
             body = json.loads(resp.read().decode("utf-8"))
     except Exception as exc:
         logger.debug("OpenAlex search failed for %r: %s", title, exc)

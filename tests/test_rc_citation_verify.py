@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import textwrap
+import urllib.error
+import urllib.request
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +18,7 @@ from researchclaw.literature.verify import (
     filter_verified_bibtex,
     parse_bibtex_entries,
     title_similarity,
+    _urlopen,
     verify_by_arxiv_id,
     verify_by_doi,
     verify_by_title_search,
@@ -200,6 +203,16 @@ class TestVerifyByArxivId:
 
         assert result is not None
         assert result.status == VerifyStatus.SUSPICIOUS
+
+    def test_urlopen_rejects_non_http_scheme(self) -> None:
+        request = urllib.request.Request("file:///tmp/researchclaw.xml")
+        with (
+            patch("urllib.request.urlopen") as mock_urlopen,
+            pytest.raises(urllib.error.URLError, match="Unsupported URL scheme"),
+        ):
+            _urlopen(request, timeout=1)
+
+        mock_urlopen.assert_not_called()
 
 
 class TestVerifyByDoi:

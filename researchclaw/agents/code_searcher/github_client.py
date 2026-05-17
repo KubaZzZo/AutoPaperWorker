@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
+from researchclaw.utils.http import urlopen_http
+
 logger = logging.getLogger(__name__)
 
 _GITHUB_API = "https://api.github.com"
@@ -104,7 +106,7 @@ class GitHubClient:
         self._request_count += 1
 
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urlopen_http(req, timeout=15) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 403:

@@ -17,9 +17,10 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from researchclaw.data import _FRAMEWORK_REGISTRY as _STATIC_REGISTRY
+from researchclaw.utils.http import urlopen_http
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ def _http_get(url: str, timeout: int = 15) -> str | None:
     """Fetch URL content as text. Returns None on any error."""
     try:
         req = Request(url, headers={"User-Agent": _USER_AGENT})
-        resp = urlopen(req, timeout=timeout)
+        resp = urlopen_http(req, timeout=timeout)
         raw = resp.read()
         content_type = resp.headers.get("Content-Type", "")
         encoding = "utf-8"

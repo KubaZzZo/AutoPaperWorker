@@ -108,7 +108,8 @@ class WorkbenchController:
         platform: str = "custom",
         password: str = "",
         key_path: str = "",
-        remote_workdir: str = "/tmp/researchclaw_experiments",
+        # Default path on rented Linux GPU hosts.
+        remote_workdir: str = "/tmp/researchclaw_experiments",  # nosec B108
     ) -> RemoteProfile:
         return parse_ssh_command(
             command,

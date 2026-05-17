@@ -358,7 +358,8 @@ def _parse_experiment_config(data: dict[str, Any]) -> ExperimentConfig:
             key_path=ssh_data.get("key_path", ""),
             gpu_ids=tuple(int(g) for g in ssh_data.get("gpu_ids", ())),
             remote_workdir=ssh_data.get(
-                "remote_workdir", "/tmp/researchclaw_experiments"
+                # Default path on rented Linux GPU hosts.
+                "remote_workdir", "/tmp/researchclaw_experiments"  # nosec B108
             ),
             remote_python=ssh_data.get("remote_python", "python3"),
             setup_commands=tuple(ssh_data.get("setup_commands") or ()),
@@ -651,7 +652,8 @@ def _parse_server_config(data: dict[str, Any]) -> ServerConfig:
     auth_token = str(data.get("auth_token", "")).strip() or secrets.token_urlsafe(32)
     return ServerConfig(
         enabled=bool(data.get("enabled", False)),
-        host=data.get("host", "0.0.0.0"),
+        # Web server bind host is explicit configuration.
+        host=data.get("host", "0.0.0.0"),  # nosec B104
         port=int(data.get("port", 8080)),
         cors_origins=cors,
         auth_token=auth_token,

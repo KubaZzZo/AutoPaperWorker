@@ -25,6 +25,7 @@ from researchclaw.exceptions import (
     LLMRateLimitError,
     MalformedLLMResponseError,
 )
+from researchclaw.utils.http import urlopen_http
 
 logger = logging.getLogger(__name__)
 
@@ -536,9 +537,7 @@ class LLMClient:
             req = urllib.request.Request(url, data=payload, headers=headers)
 
             try:
-                with urllib.request.urlopen(
-                    req, timeout=self.config.timeout_sec
-                ) as resp:
+                with urlopen_http(req, timeout=self.config.timeout_sec) as resp:
                     data = json.loads(resp.read())
             except (urllib.error.URLError, OSError) as exc:
                 # MetaClaw bridge: fallback to direct LLM if proxy unreachable
@@ -558,7 +557,7 @@ class LLMClient:
                     fallback_req = urllib.request.Request(
                         fallback_url, data=payload, headers=fallback_headers
                     )
-                    with urllib.request.urlopen(
+                    with urlopen_http(
                         fallback_req, timeout=self.config.timeout_sec
                     ) as resp:
                         data = json.loads(resp.read())

@@ -146,7 +146,8 @@ class SshRemoteConfig:
     port: int = 22
     key_path: str = ""
     gpu_ids: tuple[int, ...] = ()
-    remote_workdir: str = "/tmp/researchclaw_experiments"
+    # Default path on rented Linux GPU hosts.
+    remote_workdir: str = "/tmp/researchclaw_experiments"  # nosec B108
     remote_python: str = "python3"
     setup_commands: tuple[str, ...] = ()
     use_docker: bool = True
@@ -481,7 +482,8 @@ class ServerConfig:
     """Web server configuration."""
 
     enabled: bool = False
-    host: str = "0.0.0.0"
+    # Web server bind host is explicit configuration.
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 8080
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     auth_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))

@@ -1330,6 +1330,7 @@ def _metaclaw_post_pipeline(
     # 3. Signal session end (fire-and-forget)
     try:
         from researchclaw.metaclaw_bridge.session import MetaClawSession
+        from researchclaw.utils.http import urlopen_http
         import json as _json
         import urllib.request as _urllib_req
 
@@ -1347,7 +1348,7 @@ def _metaclaw_post_pipeline(
         headers.update(end_headers)
         req = _urllib_req.Request(url, data=body, headers=headers)
         try:
-            _urllib_req.urlopen(req, timeout=5)
+            urlopen_http(req, timeout=5)
         except (OSError, RuntimeError, TypeError, ValueError, AttributeError, TimeoutError):
             logger.debug("MetaClaw session-end signal request failed", exc_info=True)
     except (ImportError, OSError, RuntimeError, TypeError, ValueError, AttributeError):

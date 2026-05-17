@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import subprocess
 import stat
 from dataclasses import asdict, dataclass
@@ -19,7 +20,8 @@ class RemoteProfile:
     host: str
     user: str = "root"
     port: int = 22
-    remote_workdir: str = "/tmp/researchclaw_experiments"
+    # Default path on rented Linux GPU hosts.
+    remote_workdir: str = "/tmp/researchclaw_experiments"  # nosec B108
     gpu: str = ""
     vram_gb: int = 0
     key_path: str = ""
@@ -36,7 +38,8 @@ def parse_ssh_command(
     platform: str = "custom",
     password: str = "",
     key_path: str = "",
-    remote_workdir: str = "/tmp/researchclaw_experiments",
+    # Default path on rented Linux GPU hosts.
+    remote_workdir: str = "/tmp/researchclaw_experiments",  # nosec B108
 ) -> RemoteProfile:
     """Parse common SSH command shapes from AutoDL/GPUHome rental pages."""
     parts = command.strip()
@@ -126,9 +129,9 @@ class RemoteExecutor:
         timeout: int = 3600,
     ) -> RemoteCommandResult:
         if self.profile.password and not self.profile.key_path:
-            remote_cmd = f"cd {remote_dir} && {command}" if remote_dir else command
+            remote_cmd = _remote_shell_command(command, remote_dir)
             return self._paramiko_exec(remote_cmd, timeout)
-        remote_cmd = f"cd {remote_dir} && {command}" if remote_dir else command
+        remote_cmd = _remote_shell_command(command, remote_dir)
         return self._run(self._ssh_base() + [remote_cmd], timeout)
 
     def download_results(
@@ -199,7 +202,8 @@ class RemoteExecutor:
     def _paramiko_exec(self, command: str, timeout: int) -> RemoteCommandResult:
         client = self._paramiko_client()
         try:
-            _stdin, stdout, stderr = client.exec_command(command, timeout=timeout)  # type: ignore[attr-defined]
+            # Command is explicit workbench input; remote_dir is shell-quoted.
+            _stdin, stdout, stderr = client.exec_command(command, timeout=timeout)  # type: ignore[attr-defined] # nosec B601
             out_text = _decode_stream(stdout)
             err_text = _decode_stream(stderr)
             return RemoteCommandResult(
@@ -269,6 +273,13 @@ def _decode_stream(stream: object) -> str:
     if isinstance(data, bytes):
         return data.decode(errors="replace")
     return str(data)
+
+
+def _remote_shell_command(command: str, remote_dir: str = "") -> str:
+    """Build a remote shell command while quoting the working directory."""
+    if not remote_dir:
+        return command
+    return f"cd {shlex.quote(remote_dir)} && {command}"
 
 
 def _mkdir_p(sftp: object, path: str) -> None:

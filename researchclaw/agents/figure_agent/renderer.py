@@ -327,7 +327,8 @@ class RendererAgent(BaseAgent):
             "--rm",
             "--network", "none",
             "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+            # Docker tmpfs mount, not a host temp path.
+            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",  # nosec B108
             f"--memory=512m",
             "-e", "MPLCONFIGDIR=/tmp/matplotlib",
             "-e", "XDG_CONFIG_HOME=/tmp",

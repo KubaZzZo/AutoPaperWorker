@@ -30,6 +30,8 @@ import re
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+from researchclaw.utils.http import urlopen_http
 from typing import Any
 
 from researchclaw.agents.base import BaseAgent, AgentStepResult
@@ -393,7 +395,7 @@ class NanoBananaAgent(BaseAgent):
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urlopen_http(req, timeout=120) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
 
             # Extract image from response

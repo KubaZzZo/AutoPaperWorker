@@ -16,6 +16,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from researchclaw.utils.http import urlopen_http
+
 logger = logging.getLogger(__name__)
 
 # Dimension for TF-IDF fallback
@@ -147,7 +149,7 @@ class EmbeddingProvider:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urlopen_http(req, timeout=30) as resp:
                 data = json.loads(resp.read())
                 return data["data"][0]["embedding"]
         except Exception as exc:

@@ -197,7 +197,8 @@ class WorkbenchApp:
         self.remote_port = ctk.CTkEntry(tab, placeholder_text="22")
         self.remote_key = ctk.CTkEntry(tab, placeholder_text="SSH key path")
         self.remote_password = ctk.CTkEntry(tab, placeholder_text="Password", show="*")
-        self.remote_workdir = ctk.CTkEntry(tab, placeholder_text="/tmp/researchclaw_experiments")
+        # Placeholder for remote Linux workdir.
+        self.remote_workdir = ctk.CTkEntry(tab, placeholder_text="/tmp/researchclaw_experiments")  # nosec B108
         self.remote_local = ctk.CTkEntry(tab, placeholder_text="本地项目目录")
         self.remote_command = ctk.CTkEntry(tab, placeholder_text="python train.py")
 
@@ -465,7 +466,8 @@ class WorkbenchApp:
             port = 22
         key_path = self.remote_key.get().strip()
         password = self.remote_password.get().strip()
-        remote_workdir = self.remote_workdir.get().strip() or "/tmp/researchclaw_experiments"
+        # Default remote Linux workdir.
+        remote_workdir = self.remote_workdir.get().strip() or "/tmp/researchclaw_experiments"  # nosec B108
         gpu = ""
         base = self.controller.parse_remote_profile(
             command or f"ssh {user or 'root'}@{host or 'localhost'}",

@@ -72,7 +72,8 @@ class TaskDispatcher:
 
         server = self.registry.get(info["server"])
         task = info["task"]
-        remote_dir = f"/tmp/researchclaw_{task_id}"
+        # Remote Linux worker directory.
+        remote_dir = f"/tmp/researchclaw_{task_id}"  # nosec B108
 
         try:
             if server.server_type == "slurm":
