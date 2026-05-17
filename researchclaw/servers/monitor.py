@@ -64,8 +64,10 @@ async def _ssh_command(host: str, command: str) -> str:
     )
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise RuntimeError(f"SSH command failed (rc={proc.returncode}): {stderr.decode().strip()}")
-    return stdout.decode()
+        raise RuntimeError(
+            f"SSH command failed (rc={proc.returncode}): {stderr.decode('utf-8').strip()}"
+        )
+    return stdout.decode("utf-8")
 
 
 def _parse_status_output(raw: str, server: ServerEntry) -> dict[str, Any]:

@@ -55,7 +55,7 @@ class StdioTransport:
         content_length = 0
         while True:
             line = await self._reader.readline()
-            decoded = line.decode().strip()
+            decoded = line.decode("utf-8").strip()
             if not decoded:
                 break
             if decoded.lower().startswith("content-length:"):
@@ -116,7 +116,7 @@ class SSETransport:
         if not self._running:
             raise RuntimeError("Transport not started")
         if isinstance(message, bytes):
-            message = message.decode()
+            message = message.decode("utf-8")
         if isinstance(message, str):
             message = json.loads(message)
         await self._incoming.put(message)

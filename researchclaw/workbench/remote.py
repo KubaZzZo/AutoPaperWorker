@@ -270,7 +270,7 @@ def _run_subprocess(cmd: list[str], timeout: int) -> tuple[int, str, str]:
 def _decode_stream(stream: object) -> str:
     data = stream.read()  # type: ignore[attr-defined]
     if isinstance(data, bytes):
-        return data.decode(errors="replace")
+        return data.decode("utf-8", errors="replace")
     return str(data)
 
 

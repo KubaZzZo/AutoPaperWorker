@@ -34,7 +34,7 @@ class SSHExecutor:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise RuntimeError(f"rsync upload failed: {stderr.decode().strip()}")
+            raise RuntimeError(f"rsync upload failed: {stderr.decode('utf-8').strip()}")
 
     async def run_experiment(
         self,
@@ -61,8 +61,8 @@ class SSHExecutor:
 
         return {
             "success": proc.returncode == 0,
-            "stdout": stdout.decode(),
-            "stderr": stderr.decode(),
+            "stdout": stdout.decode("utf-8"),
+            "stderr": stderr.decode("utf-8"),
             "returncode": proc.returncode,
         }
 
@@ -81,7 +81,7 @@ class SSHExecutor:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise RuntimeError(f"rsync download failed: {stderr.decode().strip()}")
+            raise RuntimeError(f"rsync download failed: {stderr.decode('utf-8').strip()}")
 
     async def cleanup(self, remote_dir: str) -> None:
         """Remove remote experiment directory."""

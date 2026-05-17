@@ -116,10 +116,10 @@ class SlurmExecutor:
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise RuntimeError(f"sbatch failed: {stderr.decode().strip()}")
+            raise RuntimeError(f"sbatch failed: {stderr.decode('utf-8').strip()}")
 
         # Parse "Submitted batch job 12345"
-        output = stdout.decode().strip()
+        output = stdout.decode("utf-8").strip()
         parts = output.split()
         if len(parts) >= 4 and parts[-1].isdigit():
             job_id = parts[-1]
@@ -139,7 +139,7 @@ class SlurmExecutor:
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _ = await proc.communicate()
-        state = stdout.decode().strip().split("\n")[0].strip() if stdout else "UNKNOWN"
+        state = stdout.decode("utf-8").strip().split("\n")[0].strip() if stdout else "UNKNOWN"
         return {"job_id": job_id, "state": state}
 
     async def cancel_job(self, job_id: str) -> None:
