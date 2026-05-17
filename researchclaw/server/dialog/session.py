@@ -97,7 +97,7 @@ class SessionManager:
         if not path.exists():
             return None
         try:
-            with path.open() as f:
+            with path.open(encoding="utf-8") as f:
                 data = json.load(f)
             session = ChatSession(
                 client_id=data["client_id"],

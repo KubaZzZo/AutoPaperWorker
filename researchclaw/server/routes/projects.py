@@ -27,7 +27,7 @@ async def list_projects() -> dict[str, Any]:
                 ckpt = d / "checkpoint.json"
                 if ckpt.exists():
                     try:
-                        with ckpt.open() as f:
+                        with ckpt.open(encoding="utf-8") as f:
                             ckpt_data = json.load(f)
                         proj["current_stage"] = ckpt_data.get("stage")
                         proj["status"] = ckpt_data.get("status", "unknown")

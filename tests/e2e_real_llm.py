@@ -29,7 +29,7 @@ def main() -> None:
         print("ERROR: config.arc.yaml not found")
         sys.exit(1)
 
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
     # Override for test

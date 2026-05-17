@@ -35,7 +35,7 @@ def _validated_run_dir(run_id: str) -> Path:
 def _load_json_file(path: Path, description: str) -> Any | None:
     """Load a JSON file for API responses, logging malformed optional data."""
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             return json.load(f)
     except Exception as exc:  # noqa: BLE001
         logger.warning(

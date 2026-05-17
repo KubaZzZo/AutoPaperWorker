@@ -126,7 +126,7 @@ class DashboardCollector:
         ckpt_path = run_dir / "checkpoint.json"
         if ckpt_path.exists():
             try:
-                with ckpt_path.open() as f:
+                with ckpt_path.open(encoding="utf-8") as f:
                     ckpt = json.load(f)
                 snap.current_stage = ckpt.get("stage", 0)
                 snap.current_stage_name = ckpt.get("stage_name", "")
@@ -145,7 +145,7 @@ class DashboardCollector:
         hb_path = run_dir / "heartbeat.json"
         if hb_path.exists():
             try:
-                with hb_path.open() as f:
+                with hb_path.open(encoding="utf-8") as f:
                     hb = json.load(f)
                 last_ts = hb.get("timestamp", 0)
                 snap.is_active = (time.time() - last_ts) < 60
@@ -168,7 +168,7 @@ class DashboardCollector:
         # --- experiment metrics (results.json) ---
         for results_path in run_dir.rglob("results.json"):
             try:
-                with results_path.open() as f:
+                with results_path.open(encoding="utf-8") as f:
                     snap.metrics = json.load(f)
                 break
             except Exception as exc:

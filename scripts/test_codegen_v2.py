@@ -617,7 +617,7 @@ def main():
     config_path = Path(args.config)
     if config_path.exists():
         import yaml
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         llm_cfg = cfg.get("llm", {})
         base_url = llm_cfg.get("base_url", "")
