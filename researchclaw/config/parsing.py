@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import math
 import secrets
 from pathlib import Path
 from typing import Any
@@ -82,8 +84,6 @@ def _safe_float(val: Any, default: float) -> float:
     if val is None:
         return default
     try:
-        import math
-
         result = float(val)
         if not math.isfinite(result):
             return default
@@ -96,9 +96,7 @@ def _validate_network_policy(val: object, default: str = "setup_only") -> str:
     """Validate network_policy, falling back to *default* on bad values."""
     s = str(val).strip().lower() if val else default
     if s not in VALID_NETWORK_POLICIES:
-        import logging as _cfg_log
-
-        _cfg_log.getLogger(__name__).warning(
+        logging.getLogger(__name__).warning(
             "Invalid network_policy %r, using %r",
             val,
             default,

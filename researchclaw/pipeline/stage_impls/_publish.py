@@ -651,9 +651,8 @@ def _execute_export_publish(
         )
 
     # IMP-3: Deduplicate "due to computational constraints" — keep at most 1
-    import re as _re_imp3
-    _CONSTRAINT_PAT = _re_imp3.compile(
-        r"[Dd]ue to computational constraints", _re_imp3.IGNORECASE
+    _CONSTRAINT_PAT = re.compile(
+        r"[Dd]ue to computational constraints", re.IGNORECASE
     )
     _matches = list(_CONSTRAINT_PAT.finditer(final_paper))
     if len(_matches) > 1:
@@ -676,7 +675,6 @@ def _execute_export_publish(
         )
 
     # IMP-19 Layer 2: Ensure at least figures are referenced in the paper
-    import re as _re_fig
     chart_files = []
     # BUG-215: Also search stage-14* versioned dirs (stage-14_v1, etc.)
     # in case stage-14/ was renamed and never recreated.
@@ -773,7 +771,7 @@ def _execute_export_publish(
         )
 
     # IMP-24: Detect excessive number repetition
-    _numbers_found = _re_fig.findall(r"\b\d+\.\d{2,}\b", final_paper)
+    _numbers_found = re.findall(r"\b\d+\.\d{2,}\b", final_paper)
     _num_counts = Counter(_numbers_found)
     _repeated = {n: c for n, c in _num_counts.items() if c > 3}
     if _repeated:
@@ -794,7 +792,6 @@ def _execute_export_publish(
         and _fab_flags.get("fabrication_suspected")
         and _san_report.get("numbers_replaced", 0) == 0  # Phase 1 didn't run/replace
     ):
-        import re as _re_fab
         _real_vals = set()
         for rv in _fab_flags.get("real_metric_values", []):
             if isinstance(rv, (int, float)) and math.isfinite(rv):
@@ -804,7 +801,7 @@ def _execute_export_publish(
                 if rv == int(rv):
                     _real_vals.add(str(int(rv)))
 
-        def _sanitize_number(m: _re_fab.Match) -> str:  # type: ignore[name-defined]
+        def _sanitize_number(m: re.Match) -> str:  # type: ignore[name-defined]
             """Replace fabricated numbers with '--' but keep real ones."""
             num_str = m.group(0)
             # Keep the number if it matches any known real metric value
@@ -827,25 +824,25 @@ def _execute_export_publish(
             return "--"
 
         # Only sanitize numbers in Results/Experiments/Evaluation/Ablation sections
-        _result_section_pat = _re_fab.compile(
+        _result_section_pat = re.compile(
             r"(##\s*(?:\d+\.?\s*)?(?:Results|Experiments|Evaluation|Ablation"
             r"|Experimental Results|Quantitative).*?)(?=\n##\s|\Z)",
-            _re_fab.DOTALL | _re_fab.IGNORECASE,
+            re.DOTALL | re.IGNORECASE,
         )
         _sanitized_count = 0
 
-        def _sanitize_section(sec_match: _re_fab.Match) -> str:  # type: ignore[name-defined]
+        def _sanitize_section(sec_match: re.Match) -> str:  # type: ignore[name-defined]
             nonlocal _sanitized_count
             section_text = sec_match.group(0)
             # Replace decimal numbers (e.g., 73.42, 0.891) but NOT integers
             # that are likely structural (year, section number, figure number)
-            def _replace_in_section(m: _re_fab.Match) -> str:  # type: ignore[name-defined]
+            def _replace_in_section(m: re.Match) -> str:  # type: ignore[name-defined]
                 nonlocal _sanitized_count
                 result = _sanitize_number(m)
                 if result == "--":
                     _sanitized_count += 1
                 return result
-            return _re_fab.sub(
+            return re.sub(
                 r"\b\d+\.\d{1,6}\b", _replace_in_section, section_text
             )
 
@@ -872,9 +869,7 @@ def _execute_export_publish(
     if bib_text:
         # Replace [cite_key] patterns in the final paper with \cite{cite_key}
         # Collect all valid cite_keys from the bib file
-        import re as _re
-
-        valid_keys = set(_re.findall(r"@\w+\{([^,]+),", bib_text))
+        valid_keys = set(re.findall(r"@\w+\{([^,]+),", bib_text))
 
         # BUG-102: Recover author-year citations → [cite_key] format.
         # When Stage 19 (paper_revision) converts [cite_key] to [Author et al., 2024],
@@ -890,8 +885,8 @@ def _execute_export_publish(
             # Parse each bib entry for author + year
             # BUG-DA8-17: Allow newline OR whitespace before closing brace
             # Use \n} or just } at start-of-line to avoid greedy cross-entry match
-            entry_pat = _re.compile(
-                r"@\w+\{([^,]+),\s*(.*?)(?:\n\}|^[ \t]*\})", _re.DOTALL | _re.MULTILINE
+            entry_pat = re.compile(
+                r"@\w+\{([^,]+),\s*(.*?)(?:\n\}|^[ \t]*\})", re.DOTALL | re.MULTILINE
             )
             for m in entry_pat.finditer(bib):
                 key = m.group(1).strip()
@@ -899,18 +894,18 @@ def _execute_export_publish(
                     continue
                 body = m.group(2)
                 # Extract author field
-                author_m = _re.search(
-                    r"author\s*=\s*[\{\"](.*?)[\}\"]", body, _re.IGNORECASE
+                author_m = re.search(
+                    r"author\s*=\s*[\{\"](.*?)[\}\"]", body, re.IGNORECASE
                 )
-                year_m = _re.search(
-                    r"year\s*=\s*[\{\"]?(\d{4})[\}\"]?", body, _re.IGNORECASE
+                year_m = re.search(
+                    r"year\s*=\s*[\{\"]?(\d{4})[\}\"]?", body, re.IGNORECASE
                 )
                 if not author_m or not year_m:
                     continue
                 author_raw = author_m.group(1).strip()
                 year = year_m.group(1)
                 # Parse author names (split on " and ")
-                authors = [a.strip() for a in _re.split(r"\s+and\s+", author_raw)]
+                authors = [a.strip() for a in re.split(r"\s+and\s+", author_raw)]
                 # Extract last names
                 last_names = []
                 for a in authors:
@@ -968,22 +963,22 @@ def _execute_export_publish(
                     )
                     # Handle within multi-citation brackets [A et al., 2020; B et al., 2021]
                     # Replace the author-year segment only inside [...] brackets
-                    final_paper = _re.sub(
-                        r'\[([^\]]*?)' + _re.escape(_ay_pat) + r'([^\]]*?)\]',
+                    final_paper = re.sub(
+                        r'\[([^\]]*?)' + re.escape(_ay_pat) + r'([^\]]*?)\]',
                         lambda _m: '[' + _m.group(1) + _ay_key + _m.group(2) + ']',
                         final_paper,
                     )
                 # Fix multi-key brackets: [key1; key2] → [key1, key2]
                 # (author-year uses semicolons, cite-keys use commas)
-                def _fix_semicolon_cites(m_sc: _re.Match[str]) -> str:
+                def _fix_semicolon_cites(m_sc: re.Match[str]) -> str:
                     inner = m_sc.group(1)
                     # Only convert if ALL segments look like cite keys
                     parts = [p.strip() for p in inner.split(";")]
                     _ck = r"[a-zA-Z][a-zA-Z0-9_-]*\d{4}[a-zA-Z0-9_]*"
-                    if all(_re.fullmatch(_ck, p) for p in parts):
+                    if all(re.fullmatch(_ck, p) for p in parts):
                         return "[" + ", ".join(parts) + "]"
                     return m_sc.group(0)
-                final_paper = _re.sub(
+                final_paper = re.sub(
                     r"\[([^\]]+;[^\]]+)\]", _fix_semicolon_cites, final_paper
                 )
                 (stage_dir / "paper_final.md").write_text(
@@ -996,14 +991,14 @@ def _execute_export_publish(
         _cite_key_pat = r"[a-zA-Z]+\d{4}[a-zA-Z0-9_-]*"
         cited_keys_in_paper: set[str] = set()
         # Single-key brackets
-        for m in _re.finditer(rf"\[({_cite_key_pat})\]", final_paper):
+        for m in re.finditer(rf"\[({_cite_key_pat})\]", final_paper):
             cited_keys_in_paper.add(m.group(1))
         # Multi-key brackets [key1, key2] or [key1; key2]
-        for m in _re.finditer(r"\[([^\]]{10,300})\]", final_paper):
+        for m in re.finditer(r"\[([^\]]{10,300})\]", final_paper):
             inner = m.group(1)
             # Only parse if it looks like citation keys (has year-like digits)
-            parts = _re.split(r"[,;]\s*", inner)
-            if all(_re.fullmatch(_cite_key_pat, p.strip()) for p in parts if p.strip()):
+            parts = re.split(r"[,;]\s*", inner)
+            if all(re.fullmatch(_cite_key_pat, p.strip()) for p in parts if p.strip()):
                 for p in parts:
                     if p.strip():
                         cited_keys_in_paper.add(p.strip())
@@ -1037,26 +1032,25 @@ def _execute_export_publish(
                 if still_invalid:
                     # IMP-29: Remove remaining unresolvable citations from
                     # BOTH single-key and multi-key brackets.
-                    import re as _re_imp29
                     for bad_key in still_invalid:
                         # Remove single-key brackets
                         final_paper = final_paper.replace(f"[{bad_key}]", "")
                         # Remove from multi-key brackets: [good, BAD, good] → [good, good]
-                        def _remove_from_multi(m: _re.Match) -> str:
+                        def _remove_from_multi(m: re.Match) -> str:
                             inner = m.group(1)
-                            parts = [p.strip() for p in _re.split(r"[,;]\s*", inner)]
+                            parts = [p.strip() for p in re.split(r"[,;]\s*", inner)]
                             filtered = [p for p in parts if p != bad_key]
                             if not filtered:
                                 return ""
                             return "[" + ", ".join(filtered) + "]"
-                        final_paper = _re_imp29.sub(
-                            r"\[([^\]]*\b" + _re.escape(bad_key) + r"\b[^\]]*)\]",
+                        final_paper = re.sub(
+                            r"\[([^\]]*\b" + re.escape(bad_key) + r"\b[^\]]*)\]",
                             _remove_from_multi,
                             final_paper,
                         )
                     # Clean up whitespace artifacts from removed citations
-                    final_paper = _re_imp29.sub(r"  +", " ", final_paper)
-                    final_paper = _re_imp29.sub(r" ([.,;:)])", r"\1", final_paper)
+                    final_paper = re.sub(r"  +", " ", final_paper)
+                    final_paper = re.sub(r" ([.,;:)])", r"\1", final_paper)
                 (stage_dir / "paper_final.md").write_text(final_paper, encoding="utf-8")
                 if still_invalid:
                     (stage_dir / "invalid_citations.json").write_text(
@@ -1074,36 +1068,36 @@ def _execute_export_publish(
             _CITE_KEY_PAT = r"[a-zA-Z][a-zA-Z0-9_-]*\d{4}[a-zA-Z0-9]*"
 
             # Step 1: Convert multi-key brackets [key1, key2] → \cite{key1, key2}
-            def _replace_multi_cite(m: _re.Match[str]) -> str:
+            def _replace_multi_cite(m: re.Match[str]) -> str:
                 keys = [k.strip() for k in m.group(1).split(",")]
                 matched = [k for k in keys if k in valid_keys]
                 if matched:
                     return "\\cite{" + ", ".join(matched) + "}"
                 return m.group(0)
 
-            final_paper_latex = _re.sub(
+            final_paper_latex = re.sub(
                 rf"\[({_CITE_KEY_PAT}(?:\s*,\s*{_CITE_KEY_PAT})+)\]",
                 _replace_multi_cite,
                 final_paper,
             )
 
             # Step 2: Convert single-key brackets [key] → \cite{key}
-            def _replace_cite(m: _re.Match[str]) -> str:
+            def _replace_cite(m: re.Match[str]) -> str:
                 key = m.group(1)
                 if key in valid_keys:
                     return f"\\cite{{{key}}}"
                 return m.group(0)
 
-            final_paper_latex = _re.sub(
+            final_paper_latex = re.sub(
                 rf"\[({_CITE_KEY_PAT})\]", _replace_cite, final_paper_latex
             )
 
             # Step 3: Merge adjacent \cite{a} \cite{b} → \cite{a, b}
-            def _merge_adjacent_cites(m: _re.Match[str]) -> str:
-                keys = _re.findall(r"\\cite\{([^}]+)\}", m.group(0))
+            def _merge_adjacent_cites(m: re.Match[str]) -> str:
+                keys = re.findall(r"\\cite\{([^}]+)\}", m.group(0))
                 return "\\cite{" + ", ".join(keys) + "}"
 
-            final_paper_latex = _re.sub(
+            final_paper_latex = re.sub(
                 r"\\cite\{[^}]+\}(?:\s*\\cite\{[^}]+\})+",
                 _merge_adjacent_cites,
                 final_paper_latex,
@@ -1119,14 +1113,14 @@ def _execute_export_publish(
             _all_cited: set[str] = set()
             # Bracket-format citations [key]
             _all_cited.update(
-                _re.findall(r"\[([a-zA-Z]+\d{4}[a-zA-Z0-9_-]*)\]", final_paper)
+                re.findall(r"\[([a-zA-Z]+\d{4}[a-zA-Z0-9_-]*)\]", final_paper)
             )
             # \cite{key, key2} format (original + latex-converted)
             for _src in (
                 final_paper,
                 final_paper_latex,
             ):
-                for _cm in _re.finditer(r"\\cite\{([^}]+)\}", _src):
+                for _cm in re.finditer(r"\\cite\{([^}]+)\}", _src):
                     _all_cited.update(
                         k.strip() for k in _cm.group(1).split(",")
                     )

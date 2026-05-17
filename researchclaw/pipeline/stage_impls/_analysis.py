@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import random
+import re
 import statistics
 import hashlib
 from pathlib import Path
@@ -796,8 +797,6 @@ def _parse_decision(text: str) -> str:
     Returns lowercase ``"proceed"`` / ``"pivot"`` / ``"refine"``.
     Defaults to ``"proceed"`` if nothing matches.
     """
-    import re as _re
-
     text_upper = text.upper()
     # Look in the first occurrence after "## Decision" heading
     decision_section = ""
@@ -820,8 +819,8 @@ def _parse_decision(text: str) -> str:
     for kw in ("PIVOT", "REFINE", "PROCEED"):
         # Only match if the keyword appears as the FIRST keyword-class token
         # on its own (not embedded in a sentence saying "not PIVOT").
-        pattern = _re.compile(
-            r"(?:^|##\s*Decision\s*\n\s*)" + kw, _re.IGNORECASE | _re.MULTILINE
+        pattern = re.compile(
+            r"(?:^|##\s*Decision\s*\n\s*)" + kw, re.IGNORECASE | re.MULTILINE
         )
         if pattern.search(search_text):
             return kw.lower()

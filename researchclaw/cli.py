@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -353,7 +354,6 @@ def cmd_run(args: argparse.Namespace) -> int:
                 hitl_session.set_input_callback(cli_adapter.collect_input)
             adapters.hitl = hitl_session
         except Exception as _hitl_exc:
-            import logging
             logging.getLogger(__name__).warning(
                 "HITL session setup failed: %s", _hitl_exc
             )
