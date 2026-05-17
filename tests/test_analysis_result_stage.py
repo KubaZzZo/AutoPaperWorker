@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import ast
+import inspect
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +23,26 @@ def _base_exp_data() -> dict[str, Any]:
         "structured_results": {},
         "paired_comparisons": [],
     }
+
+
+def test_result_analysis_is_decomposed_into_named_helpers() -> None:
+    required_helpers = {
+        "_merge_refinement_log",
+        "_compute_bootstrap_ci",
+        "_detect_ablation_failures",
+        "_select_best_sandbox",
+        "_build_analysis_summary",
+    }
+    for helper_name in required_helpers:
+        assert hasattr(_analysis, helper_name)
+
+    source = inspect.getsource(_analysis._execute_result_analysis)
+    tree = ast.parse(source)
+    nested_function_names = {
+        node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+    }
+    assert "_get_best_sandbox" not in nested_function_names
+    assert len(source.splitlines()) <= 450
 
 
 def test_result_analysis_merges_refinement_metrics_and_computes_seed_statistics(

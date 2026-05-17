@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
+import random
+import statistics
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +30,311 @@ from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger(__name__)
+
+
+def _select_best_sandbox(iteration: dict[str, Any]) -> dict[str, Any]:
+    """Return the sandbox payload that contains metrics for a refine iteration."""
+    sandbox = iteration.get("sandbox", {})
+    if isinstance(sandbox, dict) and sandbox.get("metrics"):
+        return sandbox
+    fixed_sandbox = iteration.get("sandbox_after_fix", {})
+    if isinstance(fixed_sandbox, dict) and fixed_sandbox.get("metrics"):
+        return fixed_sandbox
+    return sandbox if isinstance(sandbox, dict) else {}
+
+
+def _metric_as_float(metrics: dict[str, Any], metric_key: str) -> float | None:
+    """Find a metric by exact key first, then substring fallback."""
+    items = list(metrics.items())
+    for key, value in items:
+        if key == metric_key:
+            try:
+                return float(value["mean"] if isinstance(value, dict) else value)
+            except (TypeError, ValueError, KeyError):
+                logger.debug("Stage 14: Could not coerce metric %s", key, exc_info=True)
+            return None
+    for key, value in items:
+        if metric_key in key:
+            try:
+                return float(value["mean"] if isinstance(value, dict) else value)
+            except (TypeError, ValueError, KeyError):
+                logger.debug(
+                    "Stage 14: Could not coerce fallback metric %s", key, exc_info=True
+                )
+            return None
+    return None
+
+
+def _merge_refinement_log(
+    exp_data: dict[str, Any],
+    refine_log_text: str,
+    *,
+    metric_key: str,
+    metric_direction: str,
+    context: str,
+) -> str:
+    """Merge richer Stage 13 refinement metrics into collected experiment data."""
+    if not refine_log_text:
+        return context
+    try:
+        refine_data = json.loads(refine_log_text)
+        best_version = refine_data.get("best_version", "")
+        best_iter = None
+        for iteration in refine_data.get("iterations", []):
+            sandbox = _select_best_sandbox(iteration)
+            if iteration.get("version_dir", "") == best_version and sandbox.get("metrics", {}):
+                best_iter = iteration
+                break
+        if best_iter is None:
+            for iteration in refine_data.get("iterations", []):
+                if _select_best_sandbox(iteration).get("metrics"):
+                    best_iter = iteration
+                    break
+        if best_iter is None:
+            return context
+
+        sandbox = _select_best_sandbox(best_iter)
+        refine_metrics = sandbox.get("metrics", {})
+        refine_is_better = not exp_data["metrics_summary"]
+        if not refine_is_better and refine_metrics:
+            existing_pm = _metric_as_float(exp_data.get("metrics_summary") or {}, metric_key)
+            refine_pm = _metric_as_float(refine_metrics, metric_key)
+            if existing_pm is None:
+                refine_is_better = True
+            elif refine_pm is not None:
+                if metric_direction == "maximize":
+                    refine_is_better = refine_pm > existing_pm
+                else:
+                    refine_is_better = refine_pm < existing_pm
+            logger.info(
+                "Stage 14: Refine metric comparison: existing=%s, refine=%s, "
+                "direction=%s -> refine_is_better=%s",
+                existing_pm,
+                refine_pm,
+                metric_direction,
+                refine_is_better,
+            )
+        if not refine_metrics or not refine_is_better:
+            return context
+
+        new_summary: dict[str, dict[str, float | int]] = {}
+        for metric_name, metric_value in refine_metrics.items():
+            try:
+                value = float(metric_value)
+                new_summary[metric_name] = {
+                    "min": round(value, 6),
+                    "max": round(value, 6),
+                    "mean": round(value, 6),
+                    "count": 1,
+                }
+            except (ValueError, TypeError):
+                logger.debug(
+                    "Stage 14: Skipping non-numeric refinement summary metric %s",
+                    metric_name,
+                    exc_info=True,
+                )
+        if not new_summary:
+            return context
+
+        exp_data["metrics_summary"] = new_summary
+        exp_data["best_run"] = {
+            "run_id": "iterative-refine-best",
+            "task_id": "sandbox-main",
+            "status": "completed",
+            "metrics": {key: value for key, value in refine_metrics.items()},
+            "elapsed_sec": sandbox.get("elapsed_sec", 0),
+            "stdout": "",
+            "stderr": sandbox.get("stderr", ""),
+            "timed_out": sandbox.get("timed_out", False),
+        }
+        latex_rows = [
+            r"\begin{table}[h]",
+            r"\centering",
+            r"\caption{Experiment Results (Best Refinement Iteration)}",
+            r"\begin{tabular}{lrrrr}",
+            r"\hline",
+            r"Metric & Min & Max & Mean & N \\",
+            r"\hline",
+        ]
+        for metric_name in sorted(new_summary.keys()):
+            summary = new_summary[metric_name]
+            latex_rows.append(
+                f"{metric_name} & {summary['min']:.4f} & {summary['max']:.4f} "
+                f"& {summary['mean']:.4f} & {summary['count']} \\\\"
+            )
+        latex_rows.extend([r"\hline", r"\end{tabular}", r"\end{table}"])
+        exp_data["latex_table"] = "\n".join(latex_rows)
+        conditions = {
+            key for key in refine_metrics if "seed" not in key and not key.endswith("_std")
+        }
+        exp_data["runs"] = [exp_data["best_run"]]
+        exp_data["best_run"]["condition_count"] = len(conditions)
+        if not context:
+            context = json.dumps(
+                {"refinement_best_metrics": refine_metrics},
+                indent=2,
+                default=str,
+            )
+        best_metric = refine_data.get("best_metric")
+        logger.info(
+            "R13-1: Merged %d metrics from refinement_log (best_metric=%.4f)",
+            len(refine_metrics),
+            float(best_metric) if isinstance(best_metric, (int, float)) else 0.0,
+        )
+    except (json.JSONDecodeError, OSError, KeyError):
+        logger.warning("R13-1: Failed to parse refinement_log.json, using Stage 12 data")
+    return context
+
+
+def _compute_bootstrap_ci(
+    values: list[float],
+    condition_name: str,
+    *,
+    iterations: int = 1000,
+) -> tuple[float, float, float, float]:
+    """Compute mean, std, and bootstrap 95% CI for seed-level values."""
+    mean_value = statistics.mean(values)
+    std_value = statistics.stdev(values)
+    rng = random.Random(42)
+    boot_means = []
+    for _ in range(iterations):
+        sample = [rng.choice(values) for _ in range(len(values))]
+        boot_means.append(statistics.mean(sample))
+    boot_means.sort()
+    ci_low = round(boot_means[int(0.025 * len(boot_means))], 6)
+    ci_high = round(boot_means[int(0.975 * len(boot_means))], 6)
+    if ci_low > mean_value or ci_high < mean_value:
+        logger.warning(
+            "Bootstrap CI [%.4f, %.4f] does not contain mean %.4f "
+            "for condition %s -> replacing CI with mean +/- 1.96*SE",
+            ci_low,
+            ci_high,
+            mean_value,
+            condition_name,
+        )
+        standard_error = std_value / (len(values) ** 0.5)
+        ci_low = round(mean_value - 1.96 * standard_error, 6)
+        ci_high = round(mean_value + 1.96 * standard_error, 6)
+    return mean_value, std_value, ci_low, ci_high
+
+
+def _detect_ablation_failures(
+    condition_summaries: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Detect identical or near-identical condition metrics."""
+    ablation_warnings: list[str] = []
+    if not condition_summaries or len(condition_summaries) < 2:
+        return ablation_warnings
+
+    cond_names = sorted(condition_summaries.keys())
+    for left_index in range(len(cond_names)):
+        for right_index in range(left_index + 1, len(cond_names)):
+            cond_a, cond_b = cond_names[left_index], cond_names[right_index]
+            summary_a = condition_summaries[cond_a]
+            summary_b = condition_summaries[cond_b]
+            metrics_a = summary_a.get("metrics", {}) if isinstance(summary_a, dict) else {}
+            metrics_b = summary_b.get("metrics", {}) if isinstance(summary_b, dict) else {}
+            if not isinstance(metrics_a, dict):
+                metrics_a = {}
+            if not isinstance(metrics_b, dict):
+                metrics_b = {}
+            shared_keys = set(metrics_a.keys()) & set(metrics_b.keys())
+            if not shared_keys:
+                continue
+            if all(metrics_a[key] == metrics_b[key] for key in shared_keys):
+                warning = (
+                    f"ABLATION FAILURE: Conditions '{cond_a}' and '{cond_b}' produce "
+                    f"identical outputs across all {len(shared_keys)} metrics. "
+                    f"The ablation is invalid - the differentiating parameter "
+                    f"is likely not used in the code."
+                )
+                ablation_warnings.append(warning)
+                logger.warning("P8: %s", warning)
+                continue
+
+            near_identical = True
+            for key in shared_keys:
+                try:
+                    value_a, value_b = float(metrics_a[key]), float(metrics_b[key])
+                    denom = max(abs(value_a), abs(value_b), 1e-12)
+                    if abs(value_a - value_b) / denom > 0.01:
+                        near_identical = False
+                        break
+                except (TypeError, ValueError):
+                    near_identical = False
+                    break
+            if near_identical:
+                warning = (
+                    f"ABLATION WARNING: Conditions '{cond_a}' and '{cond_b}' produce "
+                    f"near-identical outputs (<1% relative difference) across "
+                    f"all {len(shared_keys)} metrics. The ablation may be trivial."
+                )
+                ablation_warnings.append(warning)
+                logger.warning("P8: %s", warning)
+    return ablation_warnings
+
+
+def _build_analysis_summary(
+    exp_data: dict[str, Any],
+    condition_summaries: dict[str, dict[str, Any]],
+    seed_insufficiency_warnings: list[str],
+    ablation_warnings: list[str],
+    paired_comparisons: list[dict[str, object]],
+    total_conditions: int | None,
+    total_metrics: int | None,
+) -> dict[str, Any]:
+    """Build the structured Stage 14 experiment summary payload."""
+    summary_payload = {
+        "metrics_summary": exp_data["metrics_summary"],
+        "total_runs": len(exp_data["runs"]),
+        "best_run": exp_data["best_run"],
+        "latex_table": exp_data["latex_table"],
+        "generated": _utcnow_iso(),
+    }
+    if seed_insufficiency_warnings:
+        summary_payload["seed_insufficiency_warnings"] = seed_insufficiency_warnings
+
+    if condition_summaries and len(condition_summaries) >= 2:
+        primary_values = []
+        for condition_summary in condition_summaries.values():
+            if not isinstance(condition_summary, dict):
+                continue
+            metrics = condition_summary.get("metrics", {})
+            if isinstance(metrics, dict) and metrics:
+                primary_candidate = next(iter(metrics.values()), None)
+                if isinstance(primary_candidate, dict):
+                    primary_candidate = primary_candidate.get("mean")
+                if isinstance(primary_candidate, (int, float)):
+                    primary_values.append(primary_candidate)
+                    continue
+            primary_metric = condition_summary.get("primary_metric", {})
+            primary_value = (
+                primary_metric.get("mean")
+                if isinstance(primary_metric, dict)
+                else primary_metric
+            )
+            if isinstance(primary_value, (int, float)):
+                primary_values.append(primary_value)
+        if len(primary_values) >= 2 and len(set(primary_values)) == 1:
+            zero_variance_warning = (
+                f"ZERO VARIANCE: All {len(primary_values)} conditions have "
+                f"identical primary_metric ({primary_values[0]}). "
+                f"Experiment condition wiring is likely broken."
+            )
+            ablation_warnings.append(zero_variance_warning)
+            logger.warning("R13-1: %s", zero_variance_warning)
+
+    if ablation_warnings:
+        summary_payload["ablation_warnings"] = ablation_warnings
+    if paired_comparisons:
+        summary_payload["paired_comparisons"] = paired_comparisons
+    if condition_summaries:
+        summary_payload["condition_summaries"] = condition_summaries
+        summary_payload["condition_metrics"] = condition_summaries
+        summary_payload["total_conditions"] = total_conditions
+    if total_metrics:
+        summary_payload["total_metric_keys"] = total_metrics
+    return summary_payload
 
 
 def _execute_result_analysis(
@@ -53,160 +361,14 @@ def _execute_result_analysis(
     # Stage 13 stores richer per-condition metrics in refinement_log.json
     # that _collect_experiment_results() misses (it only scans runs/ dirs).
     _refine_log_text = _read_prior_artifact(run_dir, "refinement_log.json")
-    if _refine_log_text:
-        try:
-            _refine_data = json.loads(_refine_log_text)
-            _best_iter = None
-            _best_ver = _refine_data.get("best_version", "")
+    context = _merge_refinement_log(
+        exp_data,
+        _refine_log_text,
+        metric_key=config.experiment.metric_key or "primary_metric",
+        metric_direction=config.experiment.metric_direction or "maximize",
+        context=context,
+    )
 
-            def _get_best_sandbox(it: dict) -> dict:
-                """BUG-181: Metrics may be in sandbox or sandbox_after_fix."""
-                sbx = it.get("sandbox", {})
-                if sbx.get("metrics"):
-                    return sbx
-                sbx_fix = it.get("sandbox_after_fix", {})
-                if sbx_fix.get("metrics"):
-                    return sbx_fix
-                return sbx
-
-            for _it in _refine_data.get("iterations", []):
-                _sbx = _get_best_sandbox(_it)
-                _it_metrics = _sbx.get("metrics", {})
-                if _it.get("version_dir", "") == _best_ver and _it_metrics:
-                    _best_iter = _it
-                    break
-            # If no version match, take the first iteration with metrics
-            if _best_iter is None:
-                for _it in _refine_data.get("iterations", []):
-                    _sbx = _get_best_sandbox(_it)
-                    if _sbx.get("metrics"):
-                        _best_iter = _it
-                        break
-            if _best_iter is not None:
-                _sbx = _get_best_sandbox(_best_iter)
-                _refine_metrics = _sbx.get("metrics", {})
-                # BUG-165 fix: Prefer Stage 13 refinement data when it is
-                # actually better.  The old `or True` unconditionally
-                # replaced existing data, causing catastrophic regressions
-                # (BUG-205: v1=78.93% destroyed by v3=8.65%).
-                _refine_is_better = not exp_data["metrics_summary"]
-                if not _refine_is_better and _refine_metrics:
-                    # Compare primary_metric values to decide
-                    _mkey = config.experiment.metric_key or "primary_metric"
-                    _mdir = config.experiment.metric_direction or "maximize"
-                    _existing_pm: float | None = None
-                    _refine_pm: float | None = None
-                    # BUG-214: Use exact match first, then substring fallback
-                    # to avoid "accuracy" matching "balanced_accuracy".
-                    _ms_items = list((exp_data.get("metrics_summary") or {}).items())
-                    for _k, _v in _ms_items:
-                        if _k == _mkey:
-                            try:
-                                _existing_pm = float(_v["mean"] if isinstance(_v, dict) else _v)
-                            except (TypeError, ValueError, KeyError):
-                                logger.debug("Stage 14: Could not coerce existing metric %s", _k, exc_info=True)
-                            break
-                    else:
-                        for _k, _v in _ms_items:
-                            if _mkey in _k:
-                                try:
-                                    _existing_pm = float(_v["mean"] if isinstance(_v, dict) else _v)
-                                except (TypeError, ValueError, KeyError):
-                                    logger.debug("Stage 14: Could not coerce fallback existing metric %s", _k, exc_info=True)
-                                break
-                    _refine_items = list(_refine_metrics.items())
-                    for _k, _v in _refine_items:
-                        if _k == _mkey:
-                            try:
-                                _refine_pm = float(_v)
-                            except (TypeError, ValueError):
-                                logger.debug("Stage 14: Could not coerce refinement metric %s", _k, exc_info=True)
-                            break
-                    else:
-                        for _k, _v in _refine_items:
-                            if _mkey in _k:
-                                try:
-                                    _refine_pm = float(_v)
-                                except (TypeError, ValueError):
-                                    logger.debug("Stage 14: Could not coerce fallback refinement metric %s", _k, exc_info=True)
-                                break
-                    if _existing_pm is None:
-                        _refine_is_better = True  # no existing data
-                    elif _refine_pm is not None:
-                        if _mdir == "maximize":
-                            _refine_is_better = _refine_pm > _existing_pm
-                        else:
-                            _refine_is_better = _refine_pm < _existing_pm
-                    logger.info(
-                        "Stage 14: Refine metric comparison: existing=%s, refine=%s, "
-                        "direction=%s → refine_is_better=%s",
-                        _existing_pm, _refine_pm, _mdir, _refine_is_better,
-                    )
-                if _refine_metrics and _refine_is_better:
-                    # Refinement has richer data — rebuild metrics_summary from it
-                    _new_summary: dict[str, dict[str, float | None]] = {}
-                    for _mk, _mv in _refine_metrics.items():
-                        try:
-                            _fv = float(_mv)
-                            _new_summary[_mk] = {
-                                "min": round(_fv, 6),
-                                "max": round(_fv, 6),
-                                "mean": round(_fv, 6),
-                                "count": 1,
-                            }
-                        except (ValueError, TypeError):
-                            logger.debug("Stage 14: Skipping non-numeric refinement summary metric %s", _mk, exc_info=True)
-                    if _new_summary:
-                        exp_data["metrics_summary"] = _new_summary
-                        # Also update best_run with refinement data
-                        exp_data["best_run"] = {
-                            "run_id": "iterative-refine-best",
-                            "task_id": "sandbox-main",
-                            "status": "completed",
-                            "metrics": {
-                                k: v for k, v in _refine_metrics.items()
-                            },
-                            "elapsed_sec": _sbx.get("elapsed_sec", 0),
-                            "stdout": "",  # omit for brevity
-                            "stderr": _sbx.get("stderr", ""),
-                            "timed_out": _sbx.get("timed_out", False),
-                        }
-                        # Rebuild latex table
-                        _ltx = [
-                            r"\begin{table}[h]", r"\centering",
-                            r"\caption{Experiment Results (Best Refinement Iteration)}",
-                            r"\begin{tabular}{lrrrr}", r"\hline",
-                            r"Metric & Min & Max & Mean & N \\", r"\hline",
-                        ]
-                        for _col in sorted(_new_summary.keys()):
-                            _s = _new_summary[_col]
-                            _ltx.append(
-                                f"{_col} & {_s['min']:.4f} & {_s['max']:.4f} "
-                                f"& {_s['mean']:.4f} & {_s['count']} \\\\"
-                            )
-                        _ltx.extend([r"\hline", r"\end{tabular}", r"\end{table}"])
-                        exp_data["latex_table"] = "\n".join(_ltx)
-                        # Count unique conditions (keys without 'seed' and not ending in _mean/_std)
-                        _conditions = {
-                            k for k in _refine_metrics
-                            if "seed" not in k and not k.endswith("_std")
-                        }
-                        exp_data["runs"] = [exp_data["best_run"]]
-                        # Store condition count for accurate reporting
-                        exp_data["best_run"]["condition_count"] = len(_conditions)
-                        if not context:
-                            context = json.dumps(
-                                {"refinement_best_metrics": _refine_metrics},
-                                indent=2, default=str,
-                            )
-                        _bm_val = _refine_data.get("best_metric")
-                        logger.info(
-                            "R13-1: Merged %d metrics from refinement_log (best_metric=%.4f)",
-                            len(_refine_metrics),
-                            float(_bm_val) if isinstance(_bm_val, (int, float)) else 0.0,
-                        )
-        except (json.JSONDecodeError, OSError, KeyError):
-            logger.warning("R13-1: Failed to parse refinement_log.json, using Stage 12 data")
 
     # --- R19-2: Extract PAIRED comparisons from refinement stdout ---
     from researchclaw.experiment.sandbox import extract_paired_comparisons as _extract_paired
@@ -317,32 +479,10 @@ def _execute_result_analysis(
         # R33: Compute mean ± std and bootstrap 95% CI from per-seed data
         if _ck in _seed_data and len(_seed_data[_ck]) >= 3:
             _vals = list(_seed_data[_ck].values())
-            import statistics as _stats_mod
-            _mean = _stats_mod.mean(_vals)
-            _std = _stats_mod.stdev(_vals)
+            _mean, _std, _ci_low, _ci_high = _compute_bootstrap_ci(_vals, _ck)
             _cv["metrics"][f"{config.experiment.metric_key}_mean"] = round(_mean, 6)
             _cv["metrics"][f"{config.experiment.metric_key}_std"] = round(_std, 6)
             _cv["n_seeds"] = len(_vals)
-            # Bootstrap 95% CI (use local RNG to avoid corrupting global state)
-            import random as _rng_mod
-            _rng_local = _rng_mod.Random(42)
-            _boot_means = []
-            for _ in range(1000):
-                _sample = [_rng_local.choice(_vals) for _ in range(len(_vals))]
-                _boot_means.append(_stats_mod.mean(_sample))
-            _boot_means.sort()
-            _ci_low = round(_boot_means[int(0.025 * len(_boot_means))], 6)
-            _ci_high = round(_boot_means[int(0.975 * len(_boot_means))], 6)
-            # IMP-16: Sanity check — CI must contain the mean
-            if _ci_low > _mean or _ci_high < _mean:
-                logger.warning(
-                    "Bootstrap CI [%.4f, %.4f] does not contain mean %.4f "
-                    "for condition %s — replacing CI with mean ± 1.96*SE",
-                    _ci_low, _ci_high, _mean, _ck,
-                )
-                _se = _std / (len(_vals) ** 0.5)
-                _ci_low = round(_mean - 1.96 * _se, 6)
-                _ci_high = round(_mean + 1.96 * _se, 6)
             _cv["ci95_low"] = _ci_low
             _cv["ci95_high"] = _ci_high
 
@@ -371,14 +511,12 @@ def _execute_result_analysis(
                         _seed_data[_other_cond][_sid] - _seed_data[_baseline_cond][_sid]
                     )
                 if _diffs:
-                    import statistics
                     _n = len(_diffs)
                     _mean_d = statistics.mean(_diffs)
                     _std_d = statistics.stdev(_diffs) if _n > 1 else 0.0
                     _t = (_mean_d / (_std_d / (_n ** 0.5))) if _std_d > 0 else 0.0
                     _df = _n - 1
                     # Two-tailed p-value using t-distribution
-                    import math
                     try:
                         from scipy.stats import t as _t_dist
                         _p = float(2 * _t_dist.sf(abs(_t), _df))
@@ -408,63 +546,7 @@ def _execute_result_analysis(
                 _all_paired = _pipeline_paired
 
     # --- P8: Detect identical conditions (broken ablations) ---
-    _ablation_warnings: list[str] = []
-    if _condition_summaries and len(_condition_summaries) >= 2:
-        _cond_names = sorted(_condition_summaries.keys())
-        for _i in range(len(_cond_names)):
-            for _j in range(_i + 1, len(_cond_names)):
-                _c1, _c2 = _cond_names[_i], _cond_names[_j]
-                _s1_raw = _condition_summaries[_c1]
-                _s2_raw = _condition_summaries[_c2]
-                # BUG-133 fix: compare inner metrics dicts, not top-level keys
-                _s1_m = _s1_raw.get("metrics", {}) if isinstance(_s1_raw, dict) else {}
-                _s2_m = _s2_raw.get("metrics", {}) if isinstance(_s2_raw, dict) else {}
-                if not isinstance(_s1_m, dict):
-                    _s1_m = {}
-                if not isinstance(_s2_m, dict):
-                    _s2_m = {}
-                _shared_keys = set(_s1_m.keys()) & set(_s2_m.keys())
-                if not _shared_keys:
-                    continue
-                _all_equal = True
-                for _sk in _shared_keys:
-                    _v1 = _s1_m[_sk]
-                    _v2 = _s2_m[_sk]
-                    if _v1 != _v2:
-                        _all_equal = False
-                        break
-                if _all_equal and _shared_keys:
-                    _warn = (
-                        f"ABLATION FAILURE: Conditions '{_c1}' and '{_c2}' produce "
-                        f"identical outputs across all {len(_shared_keys)} metrics. "
-                        f"The ablation is invalid — the differentiating parameter "
-                        f"is likely not used in the code."
-                    )
-                    _ablation_warnings.append(_warn)
-                    logger.warning("P8: %s", _warn)
-                elif _shared_keys:
-                    # R5-BUG-03: Also flag near-identical conditions (< 1% relative diff)
-                    _near_identical = True
-                    for _sk in _shared_keys:
-                        _v1 = _s1_m[_sk]
-                        _v2 = _s2_m[_sk]
-                        try:
-                            _v1f, _v2f = float(_v1), float(_v2)
-                            _denom = max(abs(_v1f), abs(_v2f), 1e-12)
-                            if abs(_v1f - _v2f) / _denom > 0.01:
-                                _near_identical = False
-                                break
-                        except (TypeError, ValueError):
-                            _near_identical = False
-                            break
-                    if _near_identical:
-                        _warn = (
-                            f"ABLATION WARNING: Conditions '{_c1}' and '{_c2}' produce "
-                            f"near-identical outputs (<1% relative difference) across "
-                            f"all {len(_shared_keys)} metrics. The ablation may be trivial."
-                        )
-                        _ablation_warnings.append(_warn)
-                        logger.warning("P8: %s", _warn)
+    _ablation_warnings = _detect_ablation_failures(_condition_summaries)
 
     # --- Improvement B: Validate seed counts ---
     _seed_insufficiency_warnings: list[str] = []
@@ -479,52 +561,15 @@ def _execute_result_analysis(
             logger.warning("B: %s", _warn)
 
     # --- Write structured experiment summary ---
-    summary_payload = {
-        "metrics_summary": exp_data["metrics_summary"],
-        "total_runs": len(exp_data["runs"]),
-        "best_run": exp_data["best_run"],
-        "latex_table": exp_data["latex_table"],
-        "generated": _utcnow_iso(),
-    }
-    if _seed_insufficiency_warnings:
-        summary_payload["seed_insufficiency_warnings"] = _seed_insufficiency_warnings
-    # R13-1: Detect zero-variance across conditions (all conditions identical primary metric)
-    if _condition_summaries and len(_condition_summaries) >= 2:
-        _primary_vals = []
-        for _cs in _condition_summaries.values():
-            if isinstance(_cs, dict):
-                # Try 'metrics' dict first (actual structure), then 'primary_metric' fallback
-                _metrics = _cs.get("metrics", {})
-                if isinstance(_metrics, dict) and _metrics:
-                    _pv_candidate = next(iter(_metrics.values()), None)
-                    if isinstance(_pv_candidate, dict):
-                        _pv_candidate = _pv_candidate.get("mean")
-                    if isinstance(_pv_candidate, (int, float)):
-                        _primary_vals.append(_pv_candidate)
-                        continue
-                _pm = _cs.get("primary_metric", {})
-                _pv = _pm.get("mean") if isinstance(_pm, dict) else _pm
-                if isinstance(_pv, (int, float)):
-                    _primary_vals.append(_pv)
-        if len(_primary_vals) >= 2 and len(set(_primary_vals)) == 1:
-            _zv_warn = (
-                f"ZERO VARIANCE: All {len(_primary_vals)} conditions have "
-                f"identical primary_metric ({_primary_vals[0]}). "
-                f"Experiment condition wiring is likely broken."
-            )
-            _ablation_warnings.append(_zv_warn)
-            logger.warning("R13-1: %s", _zv_warn)
-
-    if _ablation_warnings:
-        summary_payload["ablation_warnings"] = _ablation_warnings
-    if _all_paired:
-        summary_payload["paired_comparisons"] = _all_paired
-    if _condition_summaries:
-        summary_payload["condition_summaries"] = _condition_summaries
-        summary_payload["condition_metrics"] = _condition_summaries  # alias for quality gate
-        summary_payload["total_conditions"] = _total_conditions
-    if _total_metrics:
-        summary_payload["total_metric_keys"] = _total_metrics
+    summary_payload = _build_analysis_summary(
+        exp_data,
+        _condition_summaries,
+        _seed_insufficiency_warnings,
+        _ablation_warnings,
+        _all_paired,
+        _total_conditions,
+        _total_metrics,
+    )
     (stage_dir / "experiment_summary.json").write_text(
         json.dumps(summary_payload, indent=2, default=str), encoding="utf-8"
     )

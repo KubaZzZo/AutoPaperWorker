@@ -11,7 +11,7 @@ from researchclaw.mcp.client import MCPClient
 from researchclaw.mcp.registry import MCPServerRegistry
 from researchclaw.mcp.server import ResearchClawMCPServer
 from researchclaw.mcp.tools import TOOL_DEFINITIONS, get_tool_schema, list_tool_names
-from researchclaw.mcp.transport import SSETransport
+from researchclaw.mcp.transport import SSETransport, StdioTransport
 
 # ══════════════════════════════════════════════════════════════════
 # MCP Tools tests
@@ -476,6 +476,40 @@ class TestSSETransport:
         assert len(frames) == 3
         assert '"id": 2' in frames[0]
         assert '"id": 4' in frames[-1]
+
+
+class TestStdioTransport:
+    def test_start_uses_running_loop(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class FakeWriteTransport:
+            def is_closing(self) -> bool:
+                return False
+
+            def close(self) -> None:
+                return None
+
+        async def _run() -> None:
+            running_loop = asyncio.get_running_loop()
+
+            def fail_get_event_loop() -> asyncio.AbstractEventLoop:
+                raise AssertionError("StdioTransport.start must use get_running_loop")
+
+            async def fake_read_pipe(_factory: object, _pipe: object) -> None:
+                return None
+
+            async def fake_write_pipe(_factory: object, _pipe: object) -> tuple[object, object]:
+                return FakeWriteTransport(), object()
+
+            monkeypatch.setattr(asyncio, "get_event_loop", fail_get_event_loop)
+            monkeypatch.setattr(running_loop, "connect_read_pipe", fake_read_pipe)
+            monkeypatch.setattr(running_loop, "connect_write_pipe", fake_write_pipe)
+
+            transport = StdioTransport()
+            await transport.start()
+
+            assert transport._reader is not None
+            assert transport._writer is not None
+
+        asyncio.run(_run())
 
 
 class TestContext7MCPClient:

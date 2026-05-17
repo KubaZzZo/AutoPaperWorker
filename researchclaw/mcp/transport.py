@@ -29,7 +29,7 @@ class StdioTransport:
 
     async def start(self) -> None:
         """Initialize stdin/stdout streams for async I/O."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self._reader = asyncio.StreamReader()
         protocol = asyncio.StreamReaderProtocol(self._reader)
         await loop.connect_read_pipe(lambda: protocol, sys.stdin)
