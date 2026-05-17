@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Voice command parsing."""
 
 from __future__ import annotations

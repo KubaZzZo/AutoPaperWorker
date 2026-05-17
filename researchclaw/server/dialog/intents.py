@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Intent classification for conversational research."""
 
 from __future__ import annotations

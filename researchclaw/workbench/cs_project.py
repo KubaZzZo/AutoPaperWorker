@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Computer-science graduation project helpers."""
 
 from __future__ import annotations

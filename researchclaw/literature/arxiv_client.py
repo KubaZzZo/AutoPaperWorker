@@ -30,6 +30,8 @@ from researchclaw.literature.models import Author, Paper
 
 logger = logging.getLogger(__name__)
 
+_SAFE_ARXIV_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
 # ---------------------------------------------------------------------------
 # Circuit breaker (kept for extra safety on top of arxiv library retries)
 # ---------------------------------------------------------------------------
@@ -238,6 +240,9 @@ def download_pdf(
     Path | None
         Path to downloaded PDF, or None on failure.
     """
+    if not filename and not _SAFE_ARXIV_ID_RE.fullmatch(arxiv_id):
+        logger.warning("Unsafe arXiv ID for PDF filename: %s", arxiv_id)
+        return None
     if arxiv is None:
         logger.warning("arxiv library not installed — cannot download PDF")
         return None

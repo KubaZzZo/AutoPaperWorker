@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """CustomTkinter workbench GUI."""
 
 from __future__ import annotations

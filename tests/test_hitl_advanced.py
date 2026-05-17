@@ -165,6 +165,21 @@ class TestFileWait:
 
 
 class TestCLIAdapterEncoding:
+    def test_show_context_counts_remaining_lines_without_trailing_newline(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        waiting = WaitingState(
+            stage=8,
+            stage_name="HYPOTHESIS_GEN",
+            reason=PauseReason.POST_STAGE,
+            context_summary="\n".join(f"line {i}" for i in range(21)),
+        )
+
+        CLIAdapter()._show_context(waiting)
+
+        assert "... (1 more lines)" in capsys.readouterr().out
+
     def test_handle_edit_reads_non_utf8_editor_output(
         self,
         tmp_path: Path,

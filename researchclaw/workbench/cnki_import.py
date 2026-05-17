@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Semi-automatic CNKI import helpers."""
 
 from __future__ import annotations

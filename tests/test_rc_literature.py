@@ -16,6 +16,7 @@ import pytest
 
 from researchclaw.literature.arxiv_client import (
     _convert_result,
+    download_pdf,
     search_arxiv,
 )
 from researchclaw.literature.models import Author, Paper
@@ -394,6 +395,27 @@ class TestArxiv:
 
         papers = search_arxiv("test", limit=10)
         assert papers == []
+
+    def test_download_pdf_rejects_unsafe_default_arxiv_id_filename(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        result = MagicMock()
+        mock_client = MagicMock()
+        mock_client.results.return_value = iter([result])
+        fake_arxiv = MagicMock()
+
+        monkeypatch.setattr("researchclaw.literature.arxiv_client.arxiv", fake_arxiv)
+        monkeypatch.setattr(
+            "researchclaw.literature.arxiv_client._get_client",
+            lambda: mock_client,
+        )
+
+        path = download_pdf("../evil", dirpath=tmp_path)
+
+        assert path is None
+        result.download_pdf.assert_not_called()
 
 
 # ──────────────────────────────────────────────────────────────────────

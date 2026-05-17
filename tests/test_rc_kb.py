@@ -143,10 +143,15 @@ def test_kb_category_map_values_are_valid_categories():
         "literature",
         "experiments",
         "findings",
+        "synthesis",
         "decisions",
         "reviews",
     }
     assert set(KB_CATEGORY_MAP.values()).issubset(valid)
+
+
+def test_stage_7_maps_to_synthesis_category():
+    assert KB_CATEGORY_MAP[7] == "synthesis"
 
 
 def test_write_stage_to_kb_places_entry_in_mapped_category(tmp_path: Path):

@@ -124,7 +124,7 @@ KB_CATEGORY_MAP: dict[int, str] = {
     4: "literature",
     5: "literature",
     6: "literature",
-    7: "findings",
+    7: "synthesis",
     8: "questions",
     9: "decisions",
     10: "experiments",

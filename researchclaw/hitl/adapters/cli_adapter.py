@@ -187,12 +187,11 @@ class CLIAdapter:
         if waiting.context_summary:
             print()
             print(_c(_DIM, "  Stage output summary:"))
-            for line in waiting.context_summary.split("\n")[:20]:
+            lines = waiting.context_summary.splitlines()
+            for line in lines[:20]:
                 print(f"  {line}")
-            if waiting.context_summary.count("\n") > 20:
-                print(
-                    _c(_DIM, f"  ... ({waiting.context_summary.count(chr(10)) - 20} more lines)")
-                )
+            if len(lines) > 20:
+                print(_c(_DIM, f"  ... ({len(lines) - 20} more lines)"))
 
         if waiting.output_files:
             print()
