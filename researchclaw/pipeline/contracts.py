@@ -10,7 +10,8 @@ Each StageContract declares:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from researchclaw.pipeline.stages import Stage
 
@@ -24,6 +25,105 @@ class StageContract:
     error_code: str
     max_retries: int = 1
     alternative_input_groups: tuple[tuple[str, ...], ...] = ()
+
+
+@dataclass(frozen=True)
+class ExperimentSummaryContract:
+    """Structured payload written by Stage 14 as experiment_summary.json."""
+
+    metrics_summary: dict[str, Any]
+    total_runs: int
+    best_run: dict[str, Any] | None
+    latex_table: str
+    generated: str
+    seed_insufficiency_warnings: tuple[str, ...] = ()
+    ablation_warnings: tuple[str, ...] = ()
+    paired_comparisons: tuple[dict[str, Any], ...] = ()
+    condition_summaries: dict[str, dict[str, Any]] = field(default_factory=dict)
+    total_conditions: int | None = None
+    total_metric_keys: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.total_runs < 0:
+            raise ValueError("total_runs must be non-negative")
+        if self.total_conditions is not None and self.total_conditions < 0:
+            raise ValueError("total_conditions must be non-negative")
+        if self.total_metric_keys is not None and self.total_metric_keys < 0:
+            raise ValueError("total_metric_keys must be non-negative")
+
+    def to_payload(self) -> dict[str, Any]:
+        """Return the JSON-compatible Stage 14 summary payload."""
+        payload: dict[str, Any] = {
+            "metrics_summary": self.metrics_summary,
+            "total_runs": self.total_runs,
+            "best_run": self.best_run,
+            "latex_table": self.latex_table,
+            "generated": self.generated,
+        }
+        if self.seed_insufficiency_warnings:
+            payload["seed_insufficiency_warnings"] = list(
+                self.seed_insufficiency_warnings
+            )
+        if self.ablation_warnings:
+            payload["ablation_warnings"] = list(self.ablation_warnings)
+        if self.paired_comparisons:
+            payload["paired_comparisons"] = list(self.paired_comparisons)
+        if self.condition_summaries:
+            payload["condition_summaries"] = self.condition_summaries
+            payload["condition_metrics"] = self.condition_summaries
+            payload["total_conditions"] = self.total_conditions
+        if self.total_metric_keys:
+            payload["total_metric_keys"] = self.total_metric_keys
+        return payload
+
+
+@dataclass(frozen=True)
+class ExperimentRunContract:
+    """Structured payload written by Stage 12 as runs/run-*.json."""
+
+    run_id: str
+    task_id: str
+    status: str
+    metrics: dict[str, Any]
+    elapsed_sec: float | None
+    stdout: str
+    stderr: str
+    stdout_log: str
+    stderr_log: str
+    timed_out: bool
+    completed_at: str
+    environment: dict[str, Any] = field(default_factory=dict)
+    structured_results: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        if not self.run_id:
+            raise ValueError("run_id must be non-empty")
+        if not self.task_id:
+            raise ValueError("task_id must be non-empty")
+        if not self.status:
+            raise ValueError("status must be non-empty")
+        if self.elapsed_sec is not None and self.elapsed_sec < 0:
+            raise ValueError("elapsed_sec must be non-negative")
+
+    def to_payload(self) -> dict[str, Any]:
+        """Return the JSON-compatible Stage 12 run payload."""
+        payload: dict[str, Any] = {
+            "run_id": self.run_id,
+            "task_id": self.task_id,
+            "status": self.status,
+            "metrics": self.metrics,
+            "elapsed_sec": self.elapsed_sec,
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "stdout_log": self.stdout_log,
+            "stderr_log": self.stderr_log,
+            "timed_out": self.timed_out,
+            "completed_at": self.completed_at,
+            "environment": self.environment,
+        }
+        if self.structured_results is not None:
+            payload["structured_results"] = self.structured_results
+        return payload
 
 
 CONTRACTS: dict[Stage, StageContract] = {

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from researchclaw.pipeline.contracts import ExperimentRunContract
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,22 +72,21 @@ def persist_sandbox_run_result(
             result.elapsed_sec,
         )
 
-    run_payload: dict[str, Any] = {
-        "run_id": "run-1",
-        "task_id": "sandbox-main",
-        "status": run_status,
-        "metrics": effective_metrics,
-        "elapsed_sec": result.elapsed_sec,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "stdout_log": str(stdout_log_path),
-        "stderr_log": str(stderr_log_path),
-        "timed_out": result.timed_out,
-        "completed_at": timestamp_factory(),
-        "environment": environment or {},
-    }
-    if structured_results is not None:
-        run_payload["structured_results"] = structured_results
+    run_payload = ExperimentRunContract(
+        run_id="run-1",
+        task_id="sandbox-main",
+        status=run_status,
+        metrics=effective_metrics,
+        elapsed_sec=result.elapsed_sec,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        stdout_log=str(stdout_log_path),
+        stderr_log=str(stderr_log_path),
+        timed_out=result.timed_out,
+        completed_at=timestamp_factory(),
+        environment=environment or {},
+        structured_results=structured_results,
+    ).to_payload()
     if structured_results is None and effective_metrics:
         auto_results = {"source": "stdout_parsed", "metrics": effective_metrics}
         (runs_dir / "results.json").write_text(

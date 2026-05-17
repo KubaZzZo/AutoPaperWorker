@@ -2,7 +2,12 @@ import re
 
 import pytest
 
-from researchclaw.pipeline.contracts import CONTRACTS, StageContract
+from researchclaw.pipeline.contracts import (
+    CONTRACTS,
+    ExperimentRunContract,
+    ExperimentSummaryContract,
+    StageContract,
+)
 from researchclaw.pipeline.stages import GATE_STAGES, STAGE_SEQUENCE, Stage
 
 
@@ -97,3 +102,141 @@ def test_contracts_follow_stage_sequence_order():
 @pytest.mark.parametrize("stage", STAGE_SEQUENCE)
 def test_contract_stage_int_matches_stage_enum_value(stage: Stage):
     assert int(CONTRACTS[stage].stage) == int(stage)
+
+
+def test_experiment_summary_contract_serializes_stage_14_payload():
+    summary = ExperimentSummaryContract(
+        metrics_summary={"accuracy": {"mean": 0.91}},
+        total_runs=3,
+        best_run={"run_id": "best", "metrics": {"accuracy": 0.91}},
+        latex_table="\\begin{tabular}{}",
+        generated="2026-05-17T12:00:00+00:00",
+        seed_insufficiency_warnings=("baseline has only 2 seeds",),
+        ablation_warnings=("ABLATION FAILURE: conditions are identical",),
+        paired_comparisons=({"method": "proposed", "baseline": "control"},),
+        condition_summaries={
+            "control": {"metrics": {"accuracy": 0.82}},
+            "proposed": {"metrics": {"accuracy": 0.91}},
+        },
+        total_conditions=2,
+        total_metric_keys=5,
+    )
+
+    payload = summary.to_payload()
+
+    assert payload["metrics_summary"] == {"accuracy": {"mean": 0.91}}
+    assert payload["total_runs"] == 3
+    assert payload["best_run"]["run_id"] == "best"
+    assert payload["seed_insufficiency_warnings"] == ["baseline has only 2 seeds"]
+    assert payload["ablation_warnings"] == ["ABLATION FAILURE: conditions are identical"]
+    assert payload["paired_comparisons"] == [
+        {"method": "proposed", "baseline": "control"}
+    ]
+    assert payload["condition_summaries"] == summary.condition_summaries
+    assert payload["condition_metrics"] == summary.condition_summaries
+    assert payload["total_conditions"] == 2
+    assert payload["total_metric_keys"] == 5
+
+
+def test_experiment_summary_contract_omits_empty_optional_sections():
+    summary = ExperimentSummaryContract(
+        metrics_summary={},
+        total_runs=0,
+        best_run=None,
+        latex_table="",
+        generated="2026-05-17T12:00:00+00:00",
+    )
+
+    payload = summary.to_payload()
+
+    assert "seed_insufficiency_warnings" not in payload
+    assert "ablation_warnings" not in payload
+    assert "paired_comparisons" not in payload
+    assert "condition_summaries" not in payload
+    assert "condition_metrics" not in payload
+    assert "total_conditions" not in payload
+    assert "total_metric_keys" not in payload
+
+
+def test_experiment_summary_contract_rejects_negative_counts():
+    with pytest.raises(ValueError, match="total_runs"):
+        ExperimentSummaryContract(
+            metrics_summary={},
+            total_runs=-1,
+            best_run=None,
+            latex_table="",
+            generated="2026-05-17T12:00:00+00:00",
+        )
+
+
+def test_experiment_run_contract_serializes_stage_12_sandbox_payload():
+    run = ExperimentRunContract(
+        run_id="run-1",
+        task_id="sandbox-main",
+        status="completed",
+        metrics={"accuracy": 0.91},
+        elapsed_sec=12.5,
+        stdout="ok",
+        stderr="",
+        stdout_log="runs/run-1.stdout.log",
+        stderr_log="runs/run-1.stderr.log",
+        timed_out=False,
+        completed_at="2026-05-17T12:00:00+00:00",
+        environment={"python": "3.12"},
+        structured_results={"conditions": {"baseline": {"n_seeds": 3}}},
+    )
+
+    payload = run.to_payload()
+
+    assert payload == {
+        "run_id": "run-1",
+        "task_id": "sandbox-main",
+        "status": "completed",
+        "metrics": {"accuracy": 0.91},
+        "elapsed_sec": 12.5,
+        "stdout": "ok",
+        "stderr": "",
+        "stdout_log": "runs/run-1.stdout.log",
+        "stderr_log": "runs/run-1.stderr.log",
+        "timed_out": False,
+        "completed_at": "2026-05-17T12:00:00+00:00",
+        "environment": {"python": "3.12"},
+        "structured_results": {"conditions": {"baseline": {"n_seeds": 3}}},
+    }
+
+
+def test_experiment_run_contract_omits_missing_structured_results():
+    run = ExperimentRunContract(
+        run_id="run-1",
+        task_id="sandbox-main",
+        status="failed",
+        metrics={},
+        elapsed_sec=1.0,
+        stdout="FAIL",
+        stderr="",
+        stdout_log="runs/run-1.stdout.log",
+        stderr_log="runs/run-1.stderr.log",
+        timed_out=False,
+        completed_at="2026-05-17T12:00:00+00:00",
+        environment={},
+    )
+
+    assert "structured_results" not in run.to_payload()
+
+
+def test_experiment_run_contract_rejects_negative_elapsed_seconds():
+    with pytest.raises(ValueError, match="elapsed_sec"):
+        ExperimentRunContract(
+            run_id="run-1",
+            task_id="sandbox-main",
+            status="failed",
+            metrics={},
+            elapsed_sec=-0.1,
+            stdout="",
+            stderr="",
+            stdout_log="runs/run-1.stdout.log",
+            stderr_log="runs/run-1.stderr.log",
+            timed_out=False,
+            completed_at="2026-05-17T12:00:00+00:00",
+            environment={},
+        )

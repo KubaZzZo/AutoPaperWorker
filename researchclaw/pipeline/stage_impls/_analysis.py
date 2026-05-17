@@ -29,6 +29,7 @@ from researchclaw.pipeline._helpers import (
     _synthesize_perspectives,
     _utcnow_iso,
 )
+from researchclaw.pipeline.contracts import ExperimentSummaryContract
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.pipeline.stage_impls._analysis_decision import (
     _execute_research_decision,
@@ -294,16 +295,6 @@ def _build_analysis_summary(
     total_metrics: int | None,
 ) -> dict[str, Any]:
     """Build the structured Stage 14 experiment summary payload."""
-    summary_payload = {
-        "metrics_summary": exp_data["metrics_summary"],
-        "total_runs": len(exp_data["runs"]),
-        "best_run": exp_data["best_run"],
-        "latex_table": exp_data["latex_table"],
-        "generated": _utcnow_iso(),
-    }
-    if seed_insufficiency_warnings:
-        summary_payload["seed_insufficiency_warnings"] = seed_insufficiency_warnings
-
     if condition_summaries and len(condition_summaries) >= 2:
         primary_values = []
         for condition_summary in condition_summaries.values():
@@ -334,17 +325,20 @@ def _build_analysis_summary(
             ablation_warnings.append(zero_variance_warning)
             logger.warning("R13-1: %s", zero_variance_warning)
 
-    if ablation_warnings:
-        summary_payload["ablation_warnings"] = ablation_warnings
-    if paired_comparisons:
-        summary_payload["paired_comparisons"] = paired_comparisons
-    if condition_summaries:
-        summary_payload["condition_summaries"] = condition_summaries
-        summary_payload["condition_metrics"] = condition_summaries
-        summary_payload["total_conditions"] = total_conditions
-    if total_metrics:
-        summary_payload["total_metric_keys"] = total_metrics
-    return summary_payload
+    summary_contract = ExperimentSummaryContract(
+        metrics_summary=exp_data["metrics_summary"],
+        total_runs=len(exp_data["runs"]),
+        best_run=exp_data["best_run"],
+        latex_table=exp_data["latex_table"],
+        generated=_utcnow_iso(),
+        seed_insufficiency_warnings=tuple(seed_insufficiency_warnings),
+        ablation_warnings=tuple(ablation_warnings),
+        paired_comparisons=tuple(dict(item) for item in paired_comparisons),
+        condition_summaries=condition_summaries,
+        total_conditions=total_conditions,
+        total_metric_keys=total_metrics,
+    )
+    return summary_contract.to_payload()
 
 
 def _execute_result_analysis(
