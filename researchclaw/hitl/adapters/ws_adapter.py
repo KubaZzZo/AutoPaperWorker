@@ -74,7 +74,6 @@ class WebSocketHITLAdapter:
         self._running = False
         self._last_waiting_mtime: float = 0.0
         self._last_session_mtime: float = 0.0
-        self._connected_clients: list[WebSocketLike] = []
 
     # ── Public API ─────────────────────────────────────────────────
 

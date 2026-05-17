@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -169,18 +169,7 @@ class MemoryStore:
             for i, entry in enumerate(entries):
                 if entry.id == entry_id:
                     new_conf = max(0.0, min(1.0, entry.confidence + delta))
-                    # Replace with updated entry (frozen-like pattern)
-                    entries[i] = MemoryEntry(
-                        id=entry.id,
-                        category=entry.category,
-                        content=entry.content,
-                        metadata=entry.metadata,
-                        embedding=entry.embedding,
-                        confidence=new_conf,
-                        created_at=entry.created_at,
-                        last_accessed=entry.last_accessed,
-                        access_count=entry.access_count,
-                    )
+                    entries[i] = replace(entry, confidence=new_conf)
                     self._dirty = True
                     return True
         return False
@@ -191,14 +180,8 @@ class MemoryStore:
         for entries in self._entries.values():
             for i, entry in enumerate(entries):
                 if entry.id == entry_id:
-                    entries[i] = MemoryEntry(
-                        id=entry.id,
-                        category=entry.category,
-                        content=entry.content,
-                        metadata=entry.metadata,
-                        embedding=entry.embedding,
-                        confidence=entry.confidence,
-                        created_at=entry.created_at,
+                    entries[i] = replace(
+                        entry,
                         last_accessed=now,
                         access_count=entry.access_count + 1,
                     )

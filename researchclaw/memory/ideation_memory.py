@@ -63,7 +63,7 @@ class IdeationMemory:
         # Higher quality → higher confidence
         confidence = min(1.0, 0.3 + quality_score / 15.0)
         if outcome == "failure":
-            confidence = max(0.5, confidence)  # failures are valuable too
+            confidence = min(1.0, max(0.5, confidence) + 0.1)
 
         embedding = self._embed_fn(content) if self._embed_fn else []
         return self._store.add(

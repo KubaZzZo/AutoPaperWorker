@@ -77,6 +77,11 @@ def adapter(ws: MockWebSocket, tmp_run: Path) -> WebSocketHITLAdapter:
 # ── Tests: get_status ─────────────────────────────────────────────
 
 
+def test_adapter_source_has_no_dead_connected_clients_list() -> None:
+    source = Path("researchclaw/hitl/adapters/ws_adapter.py").read_text(encoding="utf-8")
+    assert "_connected_clients" not in source
+
+
 @pytest.mark.asyncio
 async def test_get_status_empty(
     adapter: WebSocketHITLAdapter, ws: MockWebSocket, tmp_run: Path

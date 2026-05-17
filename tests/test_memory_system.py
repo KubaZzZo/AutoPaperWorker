@@ -123,6 +123,31 @@ class TestMemoryStoreCRUD:
     def test_update_confidence_nonexistent(self, store: MemoryStore) -> None:
         assert not store.update_confidence("nope", 0.1)
 
+    def test_update_confidence_preserves_extra_entry_fields(self, store: MemoryStore) -> None:
+        class ExtendedMemoryEntry(MemoryEntry):
+            audit_tag: str = "kept"
+
+        entry_id = store.add("ideation", "future field", confidence=0.5)
+        entries = store._entries["ideation"]
+        base = entries[0]
+        entries[0] = ExtendedMemoryEntry(
+            id=base.id,
+            category=base.category,
+            content=base.content,
+            metadata=base.metadata,
+            embedding=base.embedding,
+            confidence=base.confidence,
+            created_at=base.created_at,
+            last_accessed=base.last_accessed,
+            access_count=base.access_count,
+        )
+
+        assert store.update_confidence(entry_id, 0.1)
+
+        updated = store.get(entry_id)
+        assert isinstance(updated, ExtendedMemoryEntry)
+        assert updated.audit_tag == "kept"
+
     def test_mark_accessed(self, store: MemoryStore) -> None:
         entry_id = store.add("ideation", "access test")
         entry = store.get(entry_id)
@@ -132,6 +157,31 @@ class TestMemoryStoreCRUD:
         entry = store.get(entry_id)
         assert entry is not None
         assert entry.access_count == 1
+
+    def test_mark_accessed_preserves_extra_entry_fields(self, store: MemoryStore) -> None:
+        class ExtendedMemoryEntry(MemoryEntry):
+            audit_tag: str = "kept"
+
+        entry_id = store.add("ideation", "future field")
+        entries = store._entries["ideation"]
+        base = entries[0]
+        entries[0] = ExtendedMemoryEntry(
+            id=base.id,
+            category=base.category,
+            content=base.content,
+            metadata=base.metadata,
+            embedding=base.embedding,
+            confidence=base.confidence,
+            created_at=base.created_at,
+            last_accessed=base.last_accessed,
+            access_count=base.access_count,
+        )
+
+        assert store.mark_accessed(entry_id)
+
+        updated = store.get(entry_id)
+        assert isinstance(updated, ExtendedMemoryEntry)
+        assert updated.audit_tag == "kept"
 
     def test_capacity_enforcement(self, tmp_store_dir: Path) -> None:
         store = MemoryStore(tmp_store_dir, max_entries_per_category=3)
@@ -459,6 +509,15 @@ class TestIdeationMemory:
         im.record_topic_outcome("Bad topic", "failure", 2.0, run_id="r1")
         entries = store.get_all("ideation")
         assert entries[0].metadata["outcome"] == "failure"
+
+    def test_record_topic_failure_boosts_high_quality_confidence(
+        self, store: MemoryStore
+    ) -> None:
+        retriever = MemoryRetriever(store)
+        im = IdeationMemory(store, retriever)
+        im.record_topic_outcome("Useful negative result", "failure", 6.0, run_id="r1")
+        entries = store.get_all("ideation")
+        assert entries[0].confidence == pytest.approx(0.8)
 
     def test_record_hypothesis(self, store: MemoryStore) -> None:
         retriever = MemoryRetriever(store)

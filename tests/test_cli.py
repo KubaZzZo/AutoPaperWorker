@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import runpy
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from researchclaw import cli
 
@@ -38,3 +42,37 @@ def test_is_opencode_installed_uses_which_resolved_path():
 
     run_mock.assert_called_once()
     assert run_mock.call_args.args[0][0].endswith("opencode.cmd")
+
+
+def test_module_entrypoint_defaults_pythonioencoding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PYTHONIOENCODING", raising=False)
+
+    def fake_main() -> int:
+        assert os.environ["PYTHONIOENCODING"] == "utf-8"
+        return 0
+
+    monkeypatch.setattr(cli, "main", fake_main)
+
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_module("researchclaw.__main__", run_name="__main__")
+
+    assert exc.value.code == 0
+
+
+def test_module_entrypoint_preserves_existing_pythonioencoding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PYTHONIOENCODING", "gb18030")
+
+    def fake_main() -> int:
+        assert os.environ["PYTHONIOENCODING"] == "gb18030"
+        return 0
+
+    monkeypatch.setattr(cli, "main", fake_main)
+
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_module("researchclaw.__main__", run_name="__main__")
+
+    assert exc.value.code == 0
