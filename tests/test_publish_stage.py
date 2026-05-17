@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import inspect
 import json
 import re
 from pathlib import Path
@@ -39,6 +41,26 @@ def _verified_report(keys: list[str]) -> VerificationReport:
             for key in keys
         ],
     )
+
+
+def test_publish_helpers_do_not_use_sys_modules_dispatch() -> None:
+    source = Path("researchclaw/pipeline/stage_impls/_publish.py").read_text(
+        encoding="utf-8"
+    )
+    assert "sys.modules" not in source
+
+
+def test_sanitize_fabricated_data_is_decomposed() -> None:
+    source = inspect.getsource(_publish._sanitize_fabricated_data)
+    tree = ast.parse(source)
+    nested_functions = [
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        and node.name != "_sanitize_fabricated_data"
+    ]
+    assert nested_functions == []
+    assert len(source.splitlines()) <= 120
 
 
 def test_citation_verify_empty_bib_writes_placeholder_and_verified_paper(
