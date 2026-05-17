@@ -36,7 +36,7 @@ from researchclaw.pipeline.stage_impls.review_publish_citations import (
 from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
-logger = logging.getLogger("researchclaw.pipeline.stage_impls._review_publish")
+logger = logging.getLogger(__name__)
 
 
 _SANITIZER_ALWAYS_ALLOWED: set[float] = {

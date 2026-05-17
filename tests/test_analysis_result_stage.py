@@ -45,6 +45,12 @@ def test_result_analysis_is_decomposed_into_named_helpers() -> None:
     assert len(source.splitlines()) <= 450
 
 
+def test_detect_ablation_failures_uses_combinations() -> None:
+    source = inspect.getsource(_analysis._detect_ablation_failures)
+    assert "combinations(cond_names, 2)" in source
+    assert "range(len(cond_names))" not in source
+
+
 def test_bootstrap_ci_uses_data_derived_seed() -> None:
     source = inspect.getsource(_analysis._compute_bootstrap_ci)
     assert "random.Random(42)" not in source

@@ -44,6 +44,21 @@ def test_is_opencode_installed_uses_which_resolved_path():
     assert run_mock.call_args.args[0][0].endswith("opencode.cmd")
 
 
+def test_is_opencode_installed_logs_probe_failures(caplog):
+    with patch(
+        "researchclaw.cli.shutil.which",
+        return_value=r"C:\Users\tester\AppData\Roaming\npm\opencode.cmd",
+    ), patch(
+        "researchclaw.cli.subprocess.run",
+        side_effect=PermissionError("permission denied"),
+    ):
+        with caplog.at_level("WARNING", logger="researchclaw.cli"):
+            assert cli._is_opencode_installed() is False
+
+    assert "OpenCode version probe failed" in caplog.text
+    assert "permission denied" in caplog.text
+
+
 def test_module_entrypoint_defaults_pythonioencoding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

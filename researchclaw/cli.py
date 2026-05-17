@@ -30,6 +30,8 @@ from researchclaw.llm import (
     provider_model_defaults,
 )
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # OpenCode installation helpers
 # ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ def _is_opencode_installed() -> bool:
         )
         return r.returncode == 0
     except Exception:  # noqa: BLE001
+        logger.warning("OpenCode version probe failed", exc_info=True)
         return False
 
 

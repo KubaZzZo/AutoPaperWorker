@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import os
+from itertools import combinations
 import random
 import re
 import statistics
@@ -236,50 +237,46 @@ def _detect_ablation_failures(
         return ablation_warnings
 
     cond_names = sorted(condition_summaries.keys())
-    for left_index in range(len(cond_names)):
-        for right_index in range(left_index + 1, len(cond_names)):
-            cond_a, cond_b = cond_names[left_index], cond_names[right_index]
-            summary_a = condition_summaries[cond_a]
-            summary_b = condition_summaries[cond_b]
-            metrics_a = summary_a.get("metrics", {}) if isinstance(summary_a, dict) else {}
-            metrics_b = summary_b.get("metrics", {}) if isinstance(summary_b, dict) else {}
-            if not isinstance(metrics_a, dict):
-                metrics_a = {}
-            if not isinstance(metrics_b, dict):
-                metrics_b = {}
-            shared_keys = set(metrics_a.keys()) & set(metrics_b.keys())
-            if not shared_keys:
-                continue
-            if all(metrics_a[key] == metrics_b[key] for key in shared_keys):
-                warning = (
-                    f"ABLATION FAILURE: Conditions '{cond_a}' and '{cond_b}' produce "
-                    f"identical outputs across all {len(shared_keys)} metrics. "
-                    f"The ablation is invalid - the differentiating parameter "
-                    f"is likely not used in the code."
-                )
-                ablation_warnings.append(warning)
-                logger.warning("P8: %s", warning)
-                continue
+    for cond_a, cond_b in combinations(cond_names, 2):
+        summary_a = condition_summaries[cond_a]
+        summary_b = condition_summaries[cond_b]
+        metrics_a = summary_a.get("metrics") or {}
+        metrics_b = summary_b.get("metrics") or {}
+        if not isinstance(metrics_a, dict) or not isinstance(metrics_b, dict):
+            continue
+        shared_keys = set(metrics_a.keys()) & set(metrics_b.keys())
+        if not shared_keys:
+            continue
+        if all(metrics_a[key] == metrics_b[key] for key in shared_keys):
+            warning = (
+                f"ABLATION FAILURE: Conditions '{cond_a}' and '{cond_b}' produce "
+                f"identical outputs across all {len(shared_keys)} metrics. "
+                f"The ablation is invalid - the differentiating parameter "
+                f"is likely not used in the code."
+            )
+            ablation_warnings.append(warning)
+            logger.warning("P8: %s", warning)
+            continue
 
-            near_identical = True
-            for key in shared_keys:
-                try:
-                    value_a, value_b = float(metrics_a[key]), float(metrics_b[key])
-                    denom = max(abs(value_a), abs(value_b), 1e-12)
-                    if abs(value_a - value_b) / denom > 0.01:
-                        near_identical = False
-                        break
-                except (TypeError, ValueError):
+        near_identical = True
+        for key in shared_keys:
+            try:
+                value_a, value_b = float(metrics_a[key]), float(metrics_b[key])
+                denom = max(abs(value_a), abs(value_b), 1e-12)
+                if abs(value_a - value_b) / denom > 0.01:
                     near_identical = False
                     break
-            if near_identical:
-                warning = (
-                    f"ABLATION WARNING: Conditions '{cond_a}' and '{cond_b}' produce "
-                    f"near-identical outputs (<1% relative difference) across "
-                    f"all {len(shared_keys)} metrics. The ablation may be trivial."
-                )
-                ablation_warnings.append(warning)
-                logger.warning("P8: %s", warning)
+            except (TypeError, ValueError):
+                near_identical = False
+                break
+        if near_identical:
+            warning = (
+                f"ABLATION WARNING: Conditions '{cond_a}' and '{cond_b}' produce "
+                f"near-identical outputs (<1% relative difference) across "
+                f"all {len(shared_keys)} metrics. The ablation may be trivial."
+            )
+            ablation_warnings.append(warning)
+            logger.warning("P8: %s", warning)
     return ablation_warnings
 
 

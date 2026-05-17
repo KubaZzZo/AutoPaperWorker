@@ -25,3 +25,9 @@ def test_review_publish_facade_keeps_legacy_stage_imports() -> None:
     assert _review_publish._execute_knowledge_archive.__module__.endswith("._publish")
     assert _review_publish._execute_export_publish.__module__.endswith("._publish")
     assert _review_publish._execute_citation_verify.__module__.endswith("._publish")
+
+
+def test_publish_module_logger_uses_its_module_name() -> None:
+    from researchclaw.pipeline.stage_impls import _publish
+
+    assert _publish.logger.name == "researchclaw.pipeline.stage_impls._publish"

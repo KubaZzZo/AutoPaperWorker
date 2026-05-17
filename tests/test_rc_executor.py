@@ -1556,7 +1556,7 @@ class TestReviewPublishFallbackLogging:
         stage_13.mkdir(parents=True)
         (stage_13 / "refinement_log.json").write_text("{bad json", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             evidence = _review_publish._collect_experiment_evidence(run_dir)
 
         assert evidence == ""
@@ -1579,7 +1579,7 @@ class TestReviewPublishFallbackLogging:
         (stage_17 / "paper_draft.md").write_text("# Draft\n", encoding="utf-8")
         (stage_17 / "draft_quality.json").write_text("{bad json", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_peer_review(
                 stage_18, run_dir, rc_config, adapters, llm=None
             )
@@ -1628,7 +1628,7 @@ class TestReviewPublishFallbackLogging:
             lambda: (lambda _run_dir: ("", False)),
         )
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_paper_revision(
                 stage_19,
                 run_dir,
@@ -1663,7 +1663,7 @@ class TestReviewPublishFallbackLogging:
         (run_dir / "experiment_summary_best.json").write_bytes(b"\xff\xfe\x00")
         (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_quality_gate(
                 stage_20, run_dir, rc_config, adapters, llm=None
             )
@@ -1709,7 +1709,7 @@ class TestReviewPublishFallbackLogging:
             BrokenRegistry.from_run_dir,
         )
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_quality_gate(
                 stage_20, run_dir, rc_config, adapters, llm=None
             )
@@ -1739,7 +1739,7 @@ class TestReviewPublishFallbackLogging:
         (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
         (exp_dir / "main.py").write_text("import numpy\ndef broken(:\n", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_export_publish(
                 stage_22, run_dir, rc_config, adapters, llm=None
             )
@@ -1767,7 +1767,7 @@ class TestReviewPublishFallbackLogging:
         (stage_19 / "paper_revised.md").write_text("# Paper\ntext", encoding="utf-8")
         (stage_13 / "experiment_final.py").write_text("import numpy\ndef broken(:\n", encoding="utf-8")
 
-        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._review_publish"):
+        with caplog.at_level("DEBUG", logger="researchclaw.pipeline.stage_impls._publish"):
             result = _review_publish._execute_export_publish(
                 stage_22, run_dir, rc_config, adapters, llm=None
             )
