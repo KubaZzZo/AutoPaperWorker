@@ -120,7 +120,7 @@ async def start_pipeline(req: PipelineStartRequest) -> PipelineStartResponse:
             if kb_root:
                 kb_root.mkdir(parents=True, exist_ok=True)
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
                 None,
                 lambda: execute_pipeline(

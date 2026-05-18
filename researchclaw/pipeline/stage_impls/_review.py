@@ -21,6 +21,7 @@ from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._review_publish")
+_stage22_logger = logging.getLogger("researchclaw.pipeline.stage_impls._stage22_code_package")
 
 def _get_collect_raw_experiment_metrics():
     from researchclaw.pipeline.stage_impls._paper_writing_shared import (
@@ -88,9 +89,7 @@ def _collect_experiment_evidence(run_dir: Path) -> str:
                 "Failed to parse refinement log for experiment evidence",
                 exc_info=True,
             )
-            logging.getLogger(
-                "researchclaw.pipeline.stage_impls._stage22_code_package"
-            ).debug(
+            _stage22_logger.debug(
                 "Failed to parse refinement log for experiment evidence",
                 exc_info=True,
             )
@@ -149,6 +148,11 @@ def _execute_peer_review(
                 )
         except (json.JSONDecodeError, OSError, TypeError):
             logger.debug(
+                "Failed to read draft quality warnings for peer review: %s",
+                _quality_json_path,
+                exc_info=True,
+            )
+            _stage22_logger.debug(
                 "Failed to read draft quality warnings for peer review: %s",
                 _quality_json_path,
                 exc_info=True,

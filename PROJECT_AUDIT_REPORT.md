@@ -3,6 +3,13 @@
 > 审计日期: 2026-05-17 | 分支: `workbench-implementation` | 版本: 0.3.1  
 > 项目总行数: ~79,583 行 Python 代码
 
+## 修复进度（2026-05-18）
+
+- <span style="color: green">✅ FIXED: Stage 17 论文草稿构建中的 `_re_q` 未定义错误已修复，并恢复 `_paper_writing._detect_domain` 兼容入口，避免无指标实验绕过经验领域硬阻断。</span>
+- <span style="color: green">✅ FIXED: Review / revision / quality gate 的 fallback 诊断日志已同步写入历史兼容 logger，日志断言和线上排障路径一致。</span>
+- <span style="color: green">✅ FIXED: Web pipeline 后台执行器已从 `asyncio.get_event_loop()` 迁移到 `asyncio.get_running_loop()`，补充 Python 3.12 兼容回归测试。</span>
+- <span style="color: green">✅ VERIFIED: 全量测试已通过 `3316 passed, 7 skipped`；新增 Web 路由回归用例单独通过。</span>
+
 ---
 
 ## 目录

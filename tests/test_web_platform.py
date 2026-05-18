@@ -44,6 +44,13 @@ def test_pipeline_route_uses_shared_default_artifacts_dir_constant() -> None:
     assert 'Path("artifacts")' not in source
 
 
+def test_pipeline_route_uses_running_loop_for_background_executor() -> None:
+    source = Path("researchclaw/server/routes/pipeline.py").read_text(encoding="utf-8")
+
+    assert "asyncio.get_event_loop()" not in source
+    assert "asyncio.get_running_loop()" in source
+
+
 class TestServerConfig:
     """Test ServerConfig and DashboardConfig in config.py."""
 

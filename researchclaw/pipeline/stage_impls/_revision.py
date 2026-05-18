@@ -24,6 +24,7 @@ from researchclaw.pipeline.stages import Stage, StageStatus
 from researchclaw.prompts import PromptManager
 
 logger = logging.getLogger("researchclaw.pipeline.stage_impls._review_publish")
+_publish_logger = logging.getLogger("researchclaw.pipeline.stage_impls._publish")
 
 def _get_collect_raw_experiment_metrics():
     from researchclaw.pipeline.stage_impls._paper_writing_shared import (
@@ -78,6 +79,10 @@ def _execute_paper_revision(
                 "Prompt block unavailable for paper revision: writing_structure",
                 exc_info=True,
             )
+            _publish_logger.debug(
+                "Prompt block unavailable for paper revision: writing_structure",
+                exc_info=True,
+            )
             _ws_revision = ""
         # IMP-20/25/31/24: Load style blocks for revision prompt
         _rev_blocks: dict[str, str] = {}
@@ -87,6 +92,11 @@ def _execute_paper_revision(
                 _rev_blocks[_bname] = _pm.block(_bname)
             except KeyError:
                 logger.debug(
+                    "Prompt block unavailable for paper revision: %s",
+                    _bname,
+                    exc_info=True,
+                )
+                _publish_logger.debug(
                     "Prompt block unavailable for paper revision: %s",
                     _bname,
                     exc_info=True,
@@ -107,6 +117,11 @@ def _execute_paper_revision(
                     )
             except (json.JSONDecodeError, OSError, TypeError):
                 logger.debug(
+                    "Failed to read draft quality directives for paper revision: %s",
+                    _quality_json_path,
+                    exc_info=True,
+                )
+                _publish_logger.debug(
                     "Failed to read draft quality directives for paper revision: %s",
                     _quality_json_path,
                     exc_info=True,
@@ -250,6 +265,11 @@ def _execute_quality_gate(
                 _es_path,
                 exc_info=True,
             )
+            _publish_logger.debug(
+                "Failed to read experiment summary for quality gate: %s",
+                _es_path,
+                exc_info=True,
+            )
             continue
     # Also check experiment_summary_best.json at run root
     _root_best = run_dir / "experiment_summary_best.json"
@@ -264,6 +284,11 @@ def _execute_quality_gate(
                     _exp_summary_text = _rb_text
         except (OSError, UnicodeDecodeError):
             logger.debug(
+                "Failed to read root best experiment summary for quality gate: %s",
+                _root_best,
+                exc_info=True,
+            )
+            _publish_logger.debug(
                 "Failed to read root best experiment summary for quality gate: %s",
                 _root_best,
                 exc_info=True,
@@ -421,7 +446,7 @@ def _execute_quality_gate(
                 _rl20_path,
                 exc_info=True,
             )
-            logging.getLogger("researchclaw.pipeline.stage_impls._publish").debug(
+            _publish_logger.debug(
                 "Failed to read refinement log for quality gate fabrication checks: %s",
                 _rl20_path,
                 exc_info=True,
@@ -437,7 +462,7 @@ def _execute_quality_gate(
             "Verified registry quality gate enrichment failed",
             exc_info=True,
         )
-        logging.getLogger("researchclaw.pipeline.stage_impls._publish").debug(
+        _publish_logger.debug(
             "Verified registry quality gate enrichment failed",
             exc_info=True,
         )

@@ -11,7 +11,6 @@ from typing import Any
 from researchclaw.adapters import AdapterBundle
 from researchclaw.config import RCConfig
 from researchclaw.llm.client import LLMClient
-from researchclaw.pipeline._domain import _detect_domain
 from researchclaw.pipeline._helpers import (
     StageResult,
     _build_context_preamble,
@@ -29,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_domain_compat(topic: str, domains: object = ()) -> tuple[str, str, str]:
-    return _detect_domain(topic, domains)
+    from researchclaw.pipeline.stage_impls import _paper_writing
+
+    return _paper_writing._detect_domain(topic, domains)
 
 
 class PaperDraftBuilder:
@@ -223,10 +224,10 @@ class PaperDraftBuilder:
             _quality_warnings.append("Primary metric is undefined (direction/units/formula unknown)")
 
         # Check 4: Very few conditions completed
-        _condition_count = len(_re_q.findall(
+        _condition_count = len(re.findall(
             r"condition[=:\s]+\w+.*?(?:mean|primary_metric)",
             raw_metrics_block or "",
-            _re_q.IGNORECASE,
+            re.IGNORECASE,
         ))
 
         if _quality_warnings:
